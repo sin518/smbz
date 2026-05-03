@@ -3,11 +3,8 @@ import {
   Bell,
   BriefcaseBusiness,
   CalendarDays,
-  ChevronRight,
   CircleEllipsis,
   Compass,
-  Crown,
-  Diamond,
   Headphones,
   LockKeyhole,
   Moon,
@@ -17,6 +14,7 @@ import {
   UserRoundCheck
 } from "lucide-react";
 import { AppBottomNav } from "@/components/app-bottom-nav";
+import { SettingsAccountEntry } from "@/components/settings/settings-account-entry";
 
 type SettingsItem = {
   label: string;
@@ -53,46 +51,10 @@ export default function SettingsPage() {
   return (
     <main className="mx-auto min-h-screen max-w-[430px] bg-[#f1f1ef] pb-32 text-ink shadow-soft">
       <section className="rounded-b-[28px] bg-[#23262e] px-5 pb-[74px] pt-14 text-white">
-        <Link href="/settings/login" className="flex items-center gap-4" aria-label="登录或查看账号">
-          <div className="flex h-[76px] w-[76px] shrink-0 items-center justify-center rounded-full border-2 border-[#d8b96d] bg-black text-[42px] font-semibold text-[#d8b96d] shadow-[inset_0_0_18px_rgba(216,185,109,0.35)]">
-            真
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[30px] font-light leading-none tracking-wide">134***46</p>
-              <span className="inline-flex h-9 items-center gap-1 rounded-[8px] bg-white/35 px-3 text-[15px] font-medium text-white">
-                <Diamond size={18} strokeWidth={1.8} />
-                未开通会员
-              </span>
-            </div>
-            <p className="mt-4 text-[17px] leading-none">
-              <span className="text-[#d8b96d]">初学弟子</span>
-              <span className="ml-3 text-white">您已研究0个八字</span>
-            </p>
-          </div>
-          <ChevronRight className="shrink-0 text-white" size={31} strokeWidth={2.4} />
-        </Link>
+        <SettingsAccountEntry />
       </section>
 
       <div className="-mt-12 space-y-5 px-4">
-        <Link
-          href="/settings/login"
-          className="flex min-h-[72px] items-center justify-between rounded-[18px] bg-[#f3c985] px-5 py-4 shadow-soft"
-          aria-label="查看会员特权"
-        >
-          <div className="flex min-w-0 items-center gap-4">
-            <Crown className="shrink-0 text-[#684000]" size={31} strokeWidth={2.4} />
-            <div className="min-w-0">
-              <h1 className="text-[27px] font-semibold leading-tight text-[#4f3200]">问真VIP会员</h1>
-              <p className="mt-1 text-[17px] leading-tight text-[#5f3a05]">成为问真VIP享受15项特权</p>
-            </div>
-          </div>
-          <span className="ml-3 inline-flex h-12 shrink-0 items-center rounded-full bg-[#6b4100] px-5 text-[18px] font-semibold text-white">
-            会员特权
-            <ChevronRight size={22} />
-          </span>
-        </Link>
-
         <SettingsGrid items={quickItems} columns="grid-cols-4" />
 
         <section className="rounded-[22px] bg-white px-5 pb-6 pt-7 shadow-soft">
@@ -114,7 +76,7 @@ export default function SettingsPage() {
             <div>
               <h2 className="text-[20px] font-semibold">登录后可保存排盘</h2>
               <p className="mt-2 text-[15px] leading-7 text-mutedInk">
-                参考登录页的存储说明，后续接入短信、账号密码或 Apple 登录后，会把记录同步到用户账号。
+                参考登录页的存储说明，后续接入短信、账号密码、Google 或 GitHub 登录后，会把记录同步到用户账号。
               </p>
             </div>
           </div>

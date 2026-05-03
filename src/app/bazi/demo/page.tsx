@@ -3,6 +3,7 @@ import { ChevronLeft, MoreHorizontal, Sparkles } from "lucide-react";
 import { LunarUtil } from "lunar-typescript";
 import { BaziProfileHero } from "@/components/bazi/bazi-profile-hero";
 import { ProfessionalDetail } from "@/components/bazi/professional-detail";
+import { ProtectedAiCommandLink } from "@/components/bazi/protected-ai-command-link";
 import { getSelfSeatStage } from "@/lib/bazi/changsheng";
 import { calculateBaziChart } from "@/lib/bazi/calculate";
 import { demoBaziChart, type ChartColumn, type LuckColumn } from "@/lib/bazi/demo";
@@ -196,9 +197,7 @@ function ChartInsightActions({ columns, href, aiCommandHref }: { columns: ChartC
         <Link href={href} className="flex h-14 items-center justify-center rounded-full bg-white text-[24px] font-semibold shadow-[0_6px_22px_rgba(0,0,0,0.08)]">
           智能干支图示 ›
         </Link>
-        <Link href={aiCommandHref} className="flex h-14 items-center justify-center rounded-full bg-white text-[24px] font-semibold shadow-[0_6px_22px_rgba(0,0,0,0.08)]">
-          AI指令 ›
-        </Link>
+        <ProtectedAiCommandLink href={aiCommandHref} />
       </div>
 
       <div className="mt-7 space-y-4 text-[20px] leading-8">
