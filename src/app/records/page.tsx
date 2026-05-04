@@ -1,9 +1,57 @@
+"use client";
+
 import Link from "next/link";
-import { ChevronRight, FileText, Search } from "lucide-react";
+import { Loader2, Search, UserRoundCheck } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AppBottomNav } from "@/components/app-bottom-nav";
-import { demoRecords } from "@/lib/records/demo-records";
+
+type SessionResponse = {
+  session?: unknown;
+  user?: {
+    id?: string;
+    phone?: string;
+    email?: string | null;
+    name?: string | null;
+  } | null;
+};
+
+type SessionStatus = "checking" | "signed-in" | "signed-out";
 
 export default function RecordsPage() {
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>("checking");
+  const [sessionUser, setSessionUser] = useState<SessionResponse["user"]>(null);
+  const isSignedIn = sessionStatus === "signed-in";
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/auth/get-session", {
+          method: "GET",
+          credentials: "include"
+        });
+        const data = response.ok ? ((await response.json()) as SessionResponse | null) : null;
+
+        if (mounted) {
+          setSessionUser(data?.user ?? null);
+          setSessionStatus(data?.session && data.user ? "signed-in" : "signed-out");
+        }
+      } catch {
+        if (mounted) {
+          setSessionUser(null);
+          setSessionStatus("signed-out");
+        }
+      }
+    }
+
+    void checkSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <main className="mx-auto min-h-screen max-w-[430px] bg-paper pb-28 text-ink shadow-soft">
       <header className="sticky top-0 z-20 bg-white px-5 pb-5 pt-14">
@@ -19,63 +67,67 @@ export default function RecordsPage() {
         </div>
       </header>
 
-      <section className="px-4 pt-5">
-        <div className="grid grid-cols-3 gap-3">
-          <StatCard label="总记录" value={String(demoRecords.length)} />
-          <StatCard label="AI 报告" value={String(demoRecords.filter((record) => record.hasAiReport).length)} />
-          <StatCard label="分组" value="全部" />
-        </div>
-      </section>
-
-      <section className="space-y-4 px-4 pt-5">
-        {demoRecords.map((record) => (
-          <Link key={record.id} href={record.id === "demo" ? "/bazi/demo" : "/bazi/demo"} className="block rounded-[22px] bg-white p-5 shadow-soft">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-[23px] font-semibold">{record.name}</h2>
-                  <span className="rounded-full bg-[#f6f0e2] px-2.5 py-1 text-sm font-medium text-[#967737]">{record.gender}</span>
-                  {record.hasAiReport ? (
-                    <span className="rounded-full bg-black px-2.5 py-1 text-sm font-medium text-[#e8d4a7]">已分析</span>
-                  ) : null}
-                </div>
-                <p className="mt-3 text-[18px] font-medium">{record.pillars}</p>
-                <div className="mt-3 space-y-1 text-[15px] leading-6 text-mutedInk">
-                  <p>
-                    {record.calendar}：{record.birthTime}
-                  </p>
-                  <p>{record.location}</p>
-                  <p>保存于：{record.createdAt}</p>
-                </div>
-              </div>
-              <ChevronRight className="mt-1 shrink-0 text-[#bbb]" size={24} />
-            </div>
-          </Link>
-        ))}
-      </section>
-
-      <section className="px-4 pt-5">
-        <div className="rounded-[22px] bg-white p-5 shadow-soft">
-          <div className="mb-2 flex items-center gap-2 text-[#a58024]">
-            <FileText size={22} />
-            <h2 className="text-xl font-semibold">后续接入</h2>
-          </div>
-          <p className="text-[15px] leading-7 text-[#5f5a52]">
-            当前为本地演示记录。正式版本会把用户输入、排盘 JSON、AI 报告分别保存到数据库，方便历史查询、付费报告和导出。
-          </p>
-        </div>
-      </section>
+      {sessionStatus === "checking" ? <RecordsLoading /> : null}
+      {sessionStatus === "signed-out" ? <LoginRequiredCard /> : null}
+      {isSignedIn ? <RecordsContent user={sessionUser} /> : null}
 
       <AppBottomNav active="records" />
     </main>
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function RecordsContent({ user }: { user: SessionResponse["user"] }) {
+  const accountName = user?.name || user?.phone || user?.email || "已登录用户";
+
   return (
-    <div className="rounded-[18px] bg-white px-4 py-4 text-center shadow-soft">
-      <p className="text-[22px] font-semibold">{value}</p>
-      <p className="mt-1 text-sm text-mutedInk">{label}</p>
-    </div>
+    <>
+      <section className="px-4 pt-5">
+        <div className="rounded-[22px] bg-white p-5 shadow-soft">
+          <p className="text-sm text-mutedInk">当前账号</p>
+          <h2 className="mt-2 break-all text-[22px] font-semibold">{accountName}</h2>
+          <p className="mt-2 text-[14px] leading-6 text-mutedInk">只会显示该账号保存到数据库的排盘记录。</p>
+        </div>
+      </section>
+
+      <section className="px-4 pt-5">
+        <div className="rounded-[22px] bg-white p-6 text-center shadow-soft">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#f6f0e2] text-[#a58024]">
+            <Search size={27} />
+          </div>
+          <h2 className="mt-4 text-[22px] font-semibold">暂无排盘记录</h2>
+          <p className="mt-3 text-[15px] leading-7 text-mutedInk">演示记录已清空。新建排盘并保存后，会在这里显示当前账号自己的记录。</p>
+          <Link href="/" className="mt-5 flex h-12 items-center justify-center rounded-full bg-black text-[18px] font-semibold text-[#e8d4a7]">
+            新建排盘
+          </Link>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function RecordsLoading() {
+  return (
+    <section className="px-4 pt-10">
+      <div className="flex min-h-[180px] items-center justify-center rounded-[22px] bg-white text-mutedInk shadow-soft">
+        <Loader2 className="animate-spin text-[#a58024]" size={28} />
+      </div>
+    </section>
+  );
+}
+
+function LoginRequiredCard() {
+  return (
+    <section className="px-4 pt-10">
+      <div className="rounded-[22px] bg-white p-6 text-center shadow-soft">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#f6f0e2] text-[#a58024]">
+          <UserRoundCheck size={28} />
+        </div>
+        <h2 className="mt-4 text-[22px] font-semibold">登录后查看排盘记录</h2>
+        <p className="mt-3 text-[15px] leading-7 text-mutedInk">当前未登录，记录列表已隐藏。登录后会显示已保存的排盘和 AI 报告。</p>
+        <Link href="/settings/login?next=%2Frecords" className="mt-5 flex h-12 items-center justify-center rounded-full bg-black text-[18px] font-semibold text-[#e8d4a7]">
+          去登录
+        </Link>
+      </div>
+    </section>
   );
 }

@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "问真排盘",
+  title: "赛博八字",
   description: "八字排盘与 AI 分析初版"
 };
 

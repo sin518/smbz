@@ -1,7 +1,6 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { loginWithPassword, PasswordAuthError } from "@/lib/auth/password-account";
+import { createUserSession, loginWithPassword, PasswordAuthError } from "@/lib/auth/password-account";
 
 const loginSchema = z.object({
   identifier: z.string().trim().min(1, "请输入手机号或邮箱"),
@@ -12,9 +11,10 @@ export async function POST(request: Request) {
   try {
     const body = loginSchema.parse(await request.json());
     const user = await loginWithPassword(body.identifier, body.password);
+    const sessionToken = await createUserSession(user.id);
     const response = NextResponse.json({ user });
 
-    response.cookies.set("sm1_session", randomUUID(), {
+    response.cookies.set("sm1_session", sessionToken, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",

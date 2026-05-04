@@ -14,8 +14,7 @@ import { cn } from "@/lib/utils";
 const tabs = [
   { key: "info", label: "基本信息" },
   { key: "chart", label: "基本排盘" },
-  { key: "detail", label: "专业细盘" },
-  { key: "notes", label: "断事笔记" }
+  { key: "detail", label: "专业细盘" }
 ] as const;
 
 type BaziTab = (typeof tabs)[number]["key"];
@@ -55,12 +54,12 @@ export default async function DemoBaziPage({ searchParams }: DemoBaziPageProps) 
           <Link href={buildBackHref(params)} className="flex h-10 w-10 items-center justify-center" aria-label="返回">
             <ChevronLeft size={34} strokeWidth={1.8} />
           </Link>
-          <h1 className="text-[28px] font-semibold">问真八字</h1>
+          <h1 className="text-[28px] font-semibold">赛博八字</h1>
           <button className="flex h-10 w-10 items-center justify-center" aria-label="更多">
             <MoreHorizontal size={30} strokeWidth={2} />
           </button>
         </div>
-        <nav className="grid grid-cols-4 bg-black text-center text-[19px] text-white">
+        <nav className="grid grid-cols-3 bg-black text-center text-[19px] text-white">
           {tabs.map((tab) => (
             <Link key={tab.key} href={buildTabHref(params, tab.key)} className={cn("py-4", activeTab === tab.key && "text-[#c9ad70]")}>
               {tab.label}
@@ -168,13 +167,6 @@ export default async function DemoBaziPage({ searchParams }: DemoBaziPageProps) 
         <ProfessionalDetail columns={columns} luckCycles={luckCycles} commander={profile.commander} />
       ) : null}
 
-      {activeTab === "notes" ? (
-        <section className="bg-[#f4f4f2] px-4 py-6">
-          <div className="rounded-[22px] bg-white p-5 text-[17px] leading-8 shadow-soft">
-            断事笔记正在开发中。
-          </div>
-        </section>
-      ) : null}
     </main>
   );
 }
@@ -644,7 +636,7 @@ function formatQueryBirthTime(value: string) {
 }
 
 function toTab(value: string): BaziTab {
-  if (value === "info" || value === "detail" || value === "notes") {
+  if (value === "info" || value === "detail") {
     return value;
   }
 

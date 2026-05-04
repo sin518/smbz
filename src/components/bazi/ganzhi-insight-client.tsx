@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Settings } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { ChartColumn } from "@/lib/bazi/demo";
 import { buildBaziFlow, getValueElement, type BaziFlow, type FiveElement, type FlowLine } from "@/lib/bazi/flow";
@@ -162,12 +162,6 @@ function GanzhiPanel({ columns, relations }: { columns: ChartColumn[]; relations
       <p className="mt-8 text-center text-[20px] text-[#9b8749]">{relations.pillarSummary}</p>
       <RelationLines title="地支关系" relations={relations.branchLines} lower />
 
-      <div className="mt-16 flex justify-end">
-        <button type="button" className="flex items-center gap-2 text-[22px] text-[#333]">
-          <Settings size={25} />
-          干支设置
-        </button>
-      </div>
     </div>
   );
 }

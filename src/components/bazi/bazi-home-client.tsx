@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronRight, MessageCircle, Settings2 } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ReadonlyURLSearchParams } from "next/navigation";
@@ -46,7 +46,6 @@ export function BaziHomeClient() {
   const searchParams = useSearchParams();
   const chart = useMemo(() => getCurrentDemoChart(new Date("2026-04-30T10:41:00+08:00")), []);
   const initialValues = useMemo(() => getInitialFormValues(searchParams), [searchParams]);
-  const [submittedName, setSubmittedName] = useState("未命名");
   const [birthPickerOpen, setBirthPickerOpen] = useState(false);
   const {
     control,
@@ -84,7 +83,6 @@ export function BaziHomeClient() {
   }, [district, districts, setValue]);
 
   function onSubmit(values: BaziFormValues) {
-    setSubmittedName(values.name?.trim() || "未命名");
     const selectedLocation = formatLocation(values);
     if (values.save) {
       window.localStorage.setItem(
@@ -100,30 +98,25 @@ export function BaziHomeClient() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-[430px] bg-paper pb-28 text-ink shadow-soft">
-      <header className="sticky top-0 z-20 bg-white px-7 pb-8 pt-14">
-        <div className="flex items-center justify-between">
-          <button className="flex h-10 w-10 items-center justify-center text-ink" aria-label="消息">
-            <MessageCircle size={28} strokeWidth={1.9} />
-          </button>
-          <h1 className="text-[30px] font-semibold tracking-normal">问真排盘</h1>
-          <button className="flex h-10 w-10 items-center justify-center text-ink" aria-label="工具">
-            <Settings2 size={28} strokeWidth={1.9} />
-          </button>
+    <main className="mx-auto flex h-dvh max-w-[430px] flex-col overflow-hidden bg-paper text-ink shadow-soft">
+      <header className="shrink-0 bg-white px-5 pb-3 pt-7">
+        <div className="flex items-center justify-center">
+          <h1 className="text-[24px] font-semibold tracking-normal">赛博八字</h1>
         </div>
       </header>
 
-      <section className="px-4 pt-6">
-        <form onSubmit={handleSubmit(onSubmit)} className="rounded-[28px] bg-white px-5 pb-7 pt-6 shadow-soft">
+      <div className="min-h-0 flex-1 space-y-2.5 overflow-hidden px-3 pb-[74px] pt-3">
+      <section>
+        <form onSubmit={handleSubmit(onSubmit)} className="rounded-2xl bg-white px-4 pb-4 pt-3 shadow-soft">
           <FieldRow label="姓名" error={errors.name?.message}>
             <input
               {...register("name")}
-              className="w-full bg-transparent text-right text-[19px] text-ink outline-none placeholder:text-[#c5c5c5]"
+              className="w-full bg-transparent text-right text-[16px] text-ink outline-none placeholder:text-[#c5c5c5]"
               placeholder="请输入姓名"
             />
           </FieldRow>
 
-          <div className="grid grid-cols-[1fr_1.85fr] gap-4 border-b border-[#deddd9] py-4">
+          <div className="grid grid-cols-[1fr_1.85fr] gap-2.5 border-b border-[#deddd9] py-2.5">
             <Controller
               name="gender"
               control={control}
@@ -161,31 +154,31 @@ export function BaziHomeClient() {
             <button
               type="button"
               onClick={() => setBirthPickerOpen(true)}
-              className="flex w-full min-w-0 items-center justify-end gap-2 text-right text-[18px] text-ink"
+              className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[15px] text-ink"
               aria-label="选择出生时间"
             >
               {formatPickerLabel(birthTime)}
-              <ChevronRight size={24} strokeWidth={2} className="shrink-0 text-[#bfbfbf]" />
+              <ChevronRight size={19} strokeWidth={2} className="shrink-0 text-[#bfbfbf]" />
             </button>
           </FieldRow>
 
           <FieldRow label="出生地点" error={errors.province?.message || errors.city?.message || errors.district?.message}>
             <div className="grid min-w-0 grid-cols-3 gap-2">
-              <select {...register("province")} className="min-w-0 bg-transparent text-right text-[16px] text-ink outline-none" aria-label="省份">
+              <select {...register("province")} className="min-w-0 bg-transparent text-right text-[14px] text-ink outline-none" aria-label="省份">
                 {chinaLocationOptions.map((item) => (
                   <option key={item.province} value={item.province}>
                     {item.province}
                   </option>
                 ))}
               </select>
-              <select {...register("city")} className="min-w-0 bg-transparent text-right text-[16px] text-ink outline-none" aria-label="城市">
+              <select {...register("city")} className="min-w-0 bg-transparent text-right text-[14px] text-ink outline-none" aria-label="城市">
                 {cities.map((item) => (
                   <option key={item.city} value={item.city}>
                     {item.city}
                   </option>
                 ))}
               </select>
-              <select {...register("district")} className="min-w-0 bg-transparent text-right text-[16px] text-ink outline-none" aria-label="区县">
+              <select {...register("district")} className="min-w-0 bg-transparent text-right text-[14px] text-ink outline-none" aria-label="区县">
                 {districts.map((item) => (
                   <option key={item} value={item}>
                     {item}
@@ -196,14 +189,14 @@ export function BaziHomeClient() {
           </FieldRow>
 
           <FieldRow label="分组" error={errors.group?.message}>
-            <button type="button" className="flex w-full items-center justify-end gap-2 text-[19px] text-ink">
+            <button type="button" className="flex w-full items-center justify-end gap-1 text-[16px] text-ink">
               全部
-              <ChevronRight size={24} strokeWidth={2} className="text-[#bfbfbf]" />
+              <ChevronRight size={19} strokeWidth={2} className="text-[#bfbfbf]" />
             </button>
           </FieldRow>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-5">
-            <div className="min-w-0 space-y-1 text-[15px] leading-7 text-[#c2c2c2]">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 py-2.5">
+            <div className="min-w-0 space-y-0.5 text-[12px] leading-5 text-[#999894]">
               <p>真太阳时： {solarTimeText}</p>
               <p>
                 地址经纬： 北纬{locationMeta.latitude.toFixed(2)} 东经{locationMeta.longitude.toFixed(2)}
@@ -213,13 +206,13 @@ export function BaziHomeClient() {
               name="save"
               control={control}
               render={({ field }) => (
-                <div className="flex shrink-0 items-center gap-2 whitespace-nowrap text-[20px]">
+                <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[15px]">
                   <span>保存</span>
                   <button
                     type="button"
                     onClick={() => field.onChange(!field.value)}
                     className={cn(
-                      "relative h-10 w-16 overflow-hidden rounded-full transition-colors",
+                      "relative h-7 w-12 overflow-hidden rounded-full transition-colors",
                       field.value ? "bg-gold" : "bg-[#d7d7d7]"
                     )}
                     aria-pressed={field.value}
@@ -227,8 +220,8 @@ export function BaziHomeClient() {
                   >
                     <span
                       className={cn(
-                        "absolute left-1 top-1 h-8 w-8 rounded-full bg-white shadow-sm transition-transform",
-                        field.value ? "translate-x-6" : "translate-x-0"
+                        "absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
+                        field.value ? "translate-x-5" : "translate-x-0"
                       )}
                     />
                   </button>
@@ -240,17 +233,17 @@ export function BaziHomeClient() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="mt-3 h-16 w-full rounded-full bg-black text-[25px] font-semibold text-[#e8d4a7] shadow-[0_10px_18px_rgba(0,0,0,0.12)]"
+            className="mt-1 h-12 w-full rounded-full bg-black text-[20px] font-semibold text-[#e8d4a7] shadow-[0_10px_18px_rgba(0,0,0,0.12)]"
           >
             开始排盘
           </button>
         </form>
       </section>
 
-      <section className="px-4 pt-7">
-        <div className="grid grid-cols-[1fr_1.1fr] gap-4 rounded-[24px] bg-white p-5 shadow-soft">
+      <section>
+        <div className="grid grid-cols-[1fr_auto] gap-3 rounded-2xl bg-white p-3 shadow-soft">
           <div>
-            <div className="grid max-w-[150px] grid-cols-4 gap-4 text-center text-[28px] leading-tight">
+            <div className="grid max-w-[132px] grid-cols-4 gap-3 text-center text-[23px] leading-tight">
               {chart.pillars.map((pillar, index) => (
                 <div key={`${pillar.stem}${pillar.branch}-${index}`}>
                   <div>{pillar.stem}</div>
@@ -258,36 +251,21 @@ export function BaziHomeClient() {
                 </div>
               ))}
             </div>
-            <div className="mt-4 space-y-1 text-[15px] leading-6 text-[#818086]">
+            <div className="mt-2 space-y-0.5 text-[12px] leading-5 text-[#818086]">
               <p>农历： {chart.lunarText}</p>
               <p>公历： {chart.solarText}</p>
             </div>
           </div>
-          <div className="flex flex-col items-end justify-center gap-5">
-            <p className="text-[28px]">{chart.currentHour}</p>
-            <Link href="/bazi/demo" className="flex h-12 w-36 items-center justify-center rounded-full border border-[#d6d2cb] text-[20px] font-semibold text-[#55514b]">
+          <div className="flex flex-col items-end justify-center gap-3">
+            <p className="text-[22px]">{chart.currentHour}</p>
+            <Link href="/bazi/demo" className="flex h-9 w-28 items-center justify-center rounded-full border border-[#d6d2cb] text-[16px] font-semibold text-[#55514b]">
               即时排盘
             </Link>
           </div>
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-4 px-4 pt-7">
-        <FeatureCard title="开始合盘" symbol="☯" />
-        <FeatureCard title="专业细盘" symbol="▤" />
-      </section>
-
-      <section className="px-4 pt-5">
-        <div className="rounded-[24px] bg-white p-5 shadow-soft">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-mutedInk">当前档案</p>
-              <p className="mt-1 text-2xl font-semibold">{submittedName}</p>
-            </div>
-            <div className="rounded-full bg-[#f6f0e2] px-4 py-2 text-sm font-medium text-[#967737]">初版演示</div>
-          </div>
-        </div>
-      </section>
+      </div>
 
       <AppBottomNav active="chart" />
       <BirthTimePickerSheet
@@ -317,11 +295,11 @@ function FieldRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-[#deddd9] py-4">
-      <div className="grid grid-cols-[105px_1fr] items-center gap-3">
-        <label className="text-[22px] font-medium text-ink">
+    <div className="border-b border-[#deddd9] py-2.5">
+      <div className="grid grid-cols-[88px_1fr] items-center gap-2">
+        <label className="text-[17px] font-medium text-ink">
           {label}
-          {required ? <span className="ml-1 text-sm font-normal text-[#c2c2c2]">(必填)</span> : null}
+          {required ? <span className="ml-1 text-[11px] font-normal text-[#999894]">(必填)</span> : null}
         </label>
         {children}
       </div>
@@ -342,14 +320,14 @@ function SegmentedControl<TValue extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div className="flex h-11 items-center rounded-full border border-[#deddd9] p-1" aria-label={ariaLabel}>
+    <div className="flex h-9 items-center rounded-full border border-[#deddd9] p-1" aria-label={ariaLabel}>
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
           className={cn(
-            "h-full flex-1 rounded-full text-[18px] font-medium transition-colors",
+            "h-full flex-1 rounded-full text-[15px] font-medium transition-colors",
             option.value === value ? "bg-gold text-white" : "text-[#9b9b9b]"
           )}
         >
@@ -357,15 +335,6 @@ function SegmentedControl<TValue extends string>({
         </button>
       ))}
     </div>
-  );
-}
-
-function FeatureCard({ title, symbol }: { title: string; symbol: string }) {
-  return (
-    <button className="flex min-h-36 flex-col items-center justify-center gap-4 rounded-[24px] bg-white p-5 shadow-soft">
-      <span className="text-4xl text-[#b79a5b]">{symbol}</span>
-      <span className="text-[23px] font-semibold">{title}</span>
-    </button>
   );
 }
 

@@ -82,6 +82,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   const [cooldown, setCooldown] = useState(0);
   const [loadingCode, setLoadingCode] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
+  const [agreementShake, setAgreementShake] = useState(false);
   const [message, setMessage] = useState("当前为开发环境，验证码会显示在页面提示中");
   const [devCode, setDevCode] = useState<string | null>(null);
 
@@ -91,14 +92,19 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   const isValidPassword = /^(?=.*[A-Za-z])(?=.*\d).{8,32}$/.test(password);
   const canRequestCode = /^1[3-9]\d{9}$/.test(normalizedPhone) && cooldown === 0 && !loadingCode;
   const canSmsLogin = /^1[3-9]\d{9}$/.test(normalizedPhone) && /^\d{6}$/.test(code) && agreed && !loggingIn;
-  const canPasswordLogin = isValidPasswordIdentifier && password.length > 0 && agreed && !loggingIn;
-  const canPasswordRegister =
-    isValidPasswordIdentifier &&
-    isValidPassword &&
-    password === confirmPassword &&
-    confirmPassword.length > 0 &&
-    agreed &&
-    !loggingIn;
+  const passwordFormError = getPasswordFormError({
+    identifier: normalizedAccountIdentifier,
+    password,
+    confirmPassword,
+    mode: passwordMode
+  });
+
+  function promptAgreement() {
+    setMessage("请点击下方同意用户协议和隐私政策选框");
+    setAgreementShake(false);
+    window.setTimeout(() => setAgreementShake(true), 0);
+    window.setTimeout(() => setAgreementShake(false), 420);
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -170,7 +176,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
 
   async function requestCode() {
     if (!agreed) {
-      setMessage("请先阅读并同意用户协议和隐私政策");
+      promptAgreement();
       return;
     }
 
@@ -205,8 +211,13 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   }
 
   async function login() {
+    if (!agreed) {
+      promptAgreement();
+      return;
+    }
+
     if (!canSmsLogin) {
-      setMessage(!agreed ? "请先阅读并同意用户协议和隐私政策" : "请填写手机号和 6 位验证码");
+      setMessage("请填写手机号和 6 位验证码");
       return;
     }
 
@@ -236,7 +247,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
 
   async function submitPasswordAuth() {
     if (!agreed) {
-      setMessage("请先阅读并同意用户协议和隐私政策");
+      promptAgreement();
       return;
     }
 
@@ -291,7 +302,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
 
   async function signInWithSocial(provider: "google" | "github") {
     if (!agreed) {
-      setMessage("请先阅读并同意用户协议和隐私政策");
+      promptAgreement();
       return;
     }
 
@@ -339,57 +350,57 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-[430px] flex-col overflow-hidden bg-[#0d0b0a] text-white shadow-soft">
-      <section className="relative flex min-h-screen flex-col px-7 pb-10 pt-14">
+    <main className="mx-auto flex h-dvh max-w-[430px] flex-col overflow-hidden bg-[#0d0b0a] text-white shadow-soft">
+      <section className="relative flex h-dvh flex-col overflow-hidden px-6 pb-5 pt-8">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(128,102,63,0.42),transparent_32%),linear-gradient(180deg,rgba(27,23,20,0.88),rgba(8,7,6,0.96))]" />
         <div className="absolute inset-x-8 top-28 h-[360px] rounded-full bg-[#6d5635]/20 blur-3xl" />
 
         <div className="relative z-10">
-          <Link href="/settings" className="-ml-2 flex h-11 w-11 items-center justify-center" aria-label="返回设置">
-            <ChevronLeft size={38} strokeWidth={2.4} />
+          <Link href="/settings" className="-ml-2 flex h-9 w-9 items-center justify-center" aria-label="返回设置">
+            <ChevronLeft size={32} strokeWidth={2.4} />
           </Link>
         </div>
 
-        <section className="relative z-10 mt-28 text-center">
-          <h1 className="text-[40px] font-semibold leading-tight">登录提供存储功能</h1>
-          <p className="mt-6 text-[22px] font-light leading-normal text-white/58">享受跨设备无缝同步的便利性和可靠性</p>
+        <section className="relative z-10 mt-8 text-center">
+          <h1 className="text-[32px] font-semibold leading-[1.08]">登录提供存储功能</h1>
+          <p className="mt-3 text-[18px] font-light leading-snug text-white/58">享受跨设备无缝同步的便利性和可靠性</p>
         </section>
 
-        <section className="relative z-10 mt-12">
-          <div className="mb-5 grid grid-cols-2 rounded-full bg-white/14 p-1">
+        <section className="relative z-10 mt-8">
+          <div className="mb-3 grid grid-cols-2 rounded-full bg-white/14 p-1">
             <button
               type="button"
               onClick={() => switchLoginMode("sms")}
-              className={`h-11 rounded-full text-[17px] ${loginMode === "sms" ? "bg-white text-[#211b15]" : "text-white/66"}`}
+              className={`h-9 rounded-full text-[15px] ${loginMode === "sms" ? "bg-white text-[#211b15]" : "text-white/66"}`}
             >
               验证码登录
             </button>
             <button
               type="button"
               onClick={() => switchLoginMode("password")}
-              className={`h-11 rounded-full text-[17px] ${loginMode === "password" ? "bg-white text-[#211b15]" : "text-white/66"}`}
+              className={`h-9 rounded-full text-[15px] ${loginMode === "password" ? "bg-white text-[#211b15]" : "text-white/66"}`}
             >
               账号密码
             </button>
           </div>
 
-          <p className="mb-5 text-center text-[20px] text-white/72">
+          <p className="mb-3 text-center text-[17px] text-white/72">
             {loginMode === "sms" ? "未注册手机验证后即完成注册" : passwordMode === "login" ? "使用手机号/邮箱和密码登录" : "创建手机号/邮箱密码账号"}
           </p>
 
           {loginMode === "password" ? (
-            <div className="mb-5 grid grid-cols-2 rounded-full bg-white/10 p-1">
+            <div className="mb-3 grid grid-cols-2 rounded-full bg-white/10 p-1">
               <button
                 type="button"
                 onClick={() => setPasswordMode("login")}
-                className={`h-10 rounded-full text-[16px] ${passwordMode === "login" ? "bg-[#d8b96d] text-[#1c1408]" : "text-white/62"}`}
+                className={`h-9 rounded-full text-[15px] ${passwordMode === "login" ? "bg-[#d8b96d] text-[#1c1408]" : "text-white/62"}`}
               >
                 登录
               </button>
               <button
                 type="button"
                 onClick={() => setPasswordMode("register")}
-                className={`h-10 rounded-full text-[16px] ${passwordMode === "register" ? "bg-[#d8b96d] text-[#1c1408]" : "text-white/62"}`}
+                className={`h-9 rounded-full text-[15px] ${passwordMode === "register" ? "bg-[#d8b96d] text-[#1c1408]" : "text-white/62"}`}
               >
                 注册
               </button>
@@ -401,17 +412,17 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
               <input
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
-                className="h-[66px] w-full rounded-full bg-white/70 px-8 text-[21px] text-[#2f2d2a] outline-none placeholder:text-white/80"
+                className="h-[54px] w-full rounded-full bg-white/70 px-6 text-[18px] text-[#2f2d2a] outline-none placeholder:text-white/80"
                 inputMode="tel"
                 maxLength={13}
                 placeholder="请输入手机号"
                 aria-label="手机号"
               />
-              <div className="mt-5 grid grid-cols-[minmax(0,1fr)_132px] gap-3">
+              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_112px] gap-3">
               <input
                 value={code}
                 onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                className="h-[64px] min-w-0 rounded-full bg-white/70 px-8 text-[21px] text-[#2f2d2a] outline-none placeholder:text-white/80"
+                className="h-[52px] min-w-0 rounded-full bg-white/70 px-6 text-[18px] text-[#2f2d2a] outline-none placeholder:text-white/80"
                 inputMode="numeric"
                 maxLength={6}
                 placeholder="验证码"
@@ -421,19 +432,19 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
                 type="button"
                 onClick={requestCode}
                 disabled={!canRequestCode}
-                className="flex h-[64px] items-center justify-center rounded-full bg-white/78 px-3 text-[17px] font-medium text-[#737373] disabled:opacity-55"
+                className="flex h-[52px] items-center justify-center rounded-full bg-white/78 px-3 text-[15px] font-medium text-[#737373] disabled:opacity-55"
                 aria-label="获取验证码"
               >
-                {loadingCode ? <Loader2 className="animate-spin" size={22} /> : cooldown > 0 ? `${cooldown}s` : "获取验证码"}
+                {loadingCode ? <Loader2 className="animate-spin" size={20} /> : cooldown > 0 ? `${cooldown}s` : "获取验证码"}
               </button>
               </div>
             </>
           ) : (
-            <div className="mt-5 space-y-4">
+            <div className="mt-3 space-y-3">
               <input
                 value={accountIdentifier}
                 onChange={(event) => setAccountIdentifier(event.target.value)}
-                className="h-[64px] w-full rounded-full bg-white/70 px-8 text-[20px] text-[#2f2d2a] outline-none placeholder:text-white/80"
+                className={`h-[54px] w-full rounded-full bg-white/70 px-6 text-[18px] text-[#2f2d2a] outline-none placeholder:text-white/80 ${accountIdentifier && !isValidPasswordIdentifier ? "ring-2 ring-[#ff5a5f]" : ""}`}
                 inputMode="email"
                 maxLength={80}
                 placeholder="请输入手机号或邮箱"
@@ -457,51 +468,52 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
                   ariaLabel="确认密码"
                 />
               ) : null}
+              {passwordFormError ? <p className="px-4 text-[13px] leading-5 text-[#ff5a5f]">{passwordFormError}</p> : null}
             </div>
           )}
 
-          <p className="mt-4 min-h-7 text-center text-[15px] leading-7 text-[#d8c29b]">{message}</p>
+          <p className="mt-2 min-h-5 text-center text-[13px] leading-5 text-[#d8c29b]">{message}</p>
           {loginMode === "sms" ? (
             <button
               type="button"
               onClick={login}
-              disabled={!canSmsLogin}
-              className="mt-2 flex h-[64px] w-full items-center justify-center rounded-full bg-[#d8b96d] text-[22px] font-semibold text-[#1c1408] disabled:bg-white/28 disabled:text-white/55"
+              disabled={loggingIn}
+              className={`mt-1 flex h-[54px] w-full items-center justify-center rounded-full bg-[#d8b96d] text-[19px] font-semibold text-[#1c1408] disabled:bg-white/28 disabled:text-white/55 ${agreementShake ? "animate-agreement-shake" : ""}`}
             >
-              {loggingIn ? <Loader2 className="animate-spin" size={24} /> : "登录并保存"}
+              {loggingIn ? <Loader2 className="animate-spin" size={22} /> : "登录并保存"}
             </button>
           ) : (
             <button
               type="button"
               onClick={submitPasswordAuth}
-              disabled={passwordMode === "register" ? !canPasswordRegister : !canPasswordLogin}
-              className="mt-2 flex h-[64px] w-full items-center justify-center rounded-full bg-[#d8b96d] text-[22px] font-semibold text-[#1c1408] disabled:bg-white/28 disabled:text-white/55"
+              disabled={loggingIn}
+              className={`mt-1 flex h-[54px] w-full items-center justify-center rounded-full bg-[#d8b96d] text-[19px] font-semibold text-[#1c1408] disabled:bg-white/28 disabled:text-white/55 ${agreementShake ? "animate-agreement-shake" : ""}`}
             >
-              {loggingIn ? <Loader2 className="animate-spin" size={24} /> : passwordMode === "register" ? "注册并登录" : "账号密码登录"}
+              {loggingIn ? <Loader2 className="animate-spin" size={22} /> : passwordMode === "register" ? "注册并登录" : "账号密码登录"}
             </button>
           )}
           {devCode ? (
-            <button type="button" onClick={() => setCode(devCode)} className="mt-3 w-full text-center text-[15px] text-white/55">
+            <button type="button" onClick={() => setCode(devCode)} className="mt-2 w-full text-center text-[13px] text-white/55">
               填入开发验证码
             </button>
           ) : null}
         </section>
 
         <section className="relative z-10 mt-auto text-center">
-          <p className="mb-6 text-[19px] text-white/54">其他登录方式</p>
-          <div className="flex items-start justify-center gap-8">
+          <p className="mb-4 text-[16px] text-white/54">其他登录方式</p>
+          <div className="flex items-start justify-center gap-6">
             <LoginMethod label={loginMode === "password" ? "验证码登录" : "账号密码登录"} icon={IdCard} onClick={() => switchLoginMode(loginMode === "password" ? "sms" : "password")} />
             <LoginMethod label="Google登录" icon={Search} onClick={() => signInWithSocial("google")} />
             <LoginMethod label="GitHub登录" icon={Github} onClick={() => signInWithSocial("github")} />
           </div>
         </section>
 
-        <label className="relative z-10 mt-12 flex items-center gap-3 text-[18px] leading-7 text-white/64">
+        <label className={`relative z-10 mt-6 flex items-center gap-2.5 text-[15px] leading-6 text-white/64 ${agreementShake ? "text-[#d8b96d]" : ""}`}>
           <input
             checked={agreed}
             onChange={(event) => setAgreed(event.target.checked)}
             type="checkbox"
-            className="h-7 w-7 shrink-0 appearance-none rounded-full border-2 border-white/55 bg-transparent checked:border-[#d8b96d] checked:bg-[#d8b96d]"
+            className="h-6 w-6 shrink-0 appearance-none rounded-full border-2 border-white/55 bg-transparent checked:border-[#d8b96d] checked:bg-[#d8b96d]"
             aria-label="同意用户协议和隐私政策"
           />
           <span>
@@ -516,9 +528,9 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
           </span>
         </label>
 
-        <div className="relative z-10 mt-8 flex justify-center text-white/45">
-          <ShieldCheck size={18} />
-          <span className="ml-2 text-sm">验证码 5 分钟内有效，请勿泄露给他人</span>
+        <div className="relative z-10 mt-4 flex justify-center text-white/45">
+          <ShieldCheck size={16} />
+          <span className="ml-1.5 text-xs">验证码 5 分钟内有效，请勿泄露给他人</span>
         </div>
       </section>
     </main>
@@ -887,6 +899,40 @@ function isPhoneOrEmail(value: string) {
   return /^1[3-9]\d{9}$/.test(value.replace(/\s|-/g, "")) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function getPasswordFormError({
+  identifier,
+  password,
+  confirmPassword,
+  mode
+}: {
+  identifier: string;
+  password: string;
+  confirmPassword: string;
+  mode: PasswordMode;
+}) {
+  if (identifier && !isPhoneOrEmail(identifier)) {
+    return "请输入正确的手机号或邮箱";
+  }
+
+  if (mode === "register" && password && password.length < 8) {
+    return "密码至少需要 8 位";
+  }
+
+  if (mode === "register" && password && !/[A-Za-z]/.test(password)) {
+    return "密码需包含字母";
+  }
+
+  if (mode === "register" && password && !/\d/.test(password)) {
+    return "密码需包含数字";
+  }
+
+  if (mode === "register" && confirmPassword && password !== confirmPassword) {
+    return "两次输入的密码不一致";
+  }
+
+  return "";
+}
+
 function getStoredUser(): (LoginResponse["user"] & { email?: string; name?: string }) | null {
   if (typeof window === "undefined") {
     return null;
@@ -916,18 +962,18 @@ function PasswordField({
   ariaLabel: string;
 }) {
   return (
-    <div className="grid h-[64px] grid-cols-[minmax(0,1fr)_54px] items-center rounded-full bg-white/70">
+    <div className="grid h-[54px] grid-cols-[minmax(0,1fr)_48px] items-center rounded-full bg-white/70">
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-w-0 bg-transparent px-8 pr-3 text-[20px] text-[#2f2d2a] outline-none placeholder:text-white/80"
+        className="min-w-0 bg-transparent px-6 pr-3 text-[18px] text-[#2f2d2a] outline-none placeholder:text-white/80"
         type={visible ? "text" : "password"}
         maxLength={32}
         placeholder={placeholder}
         aria-label={ariaLabel}
       />
       <button type="button" onClick={onToggleVisible} className="flex h-full items-center justify-center text-[#59544d]" aria-label={visible ? "隐藏密码" : "显示密码"}>
-        {visible ? <EyeOff size={24} /> : <Eye size={24} />}
+        {visible ? <EyeOff size={21} /> : <Eye size={21} />}
       </button>
     </div>
   );
@@ -937,11 +983,11 @@ function LoginMethod({ label, icon, onClick }: { label: string; icon: LucideIcon
   const Icon = icon;
 
   return (
-    <button type="button" onClick={onClick} className="flex w-[92px] flex-col items-center" aria-label={label}>
-      <span className="flex h-[66px] w-[66px] items-center justify-center rounded-full bg-white text-black">
-        <Icon size={34} strokeWidth={2.1} />
+    <button type="button" onClick={onClick} className="flex w-[78px] flex-col items-center" aria-label={label}>
+      <span className="flex h-[54px] w-[54px] items-center justify-center rounded-full bg-white text-black">
+        <Icon size={28} strokeWidth={2.1} />
       </span>
-      <span className="mt-4 text-[18px] leading-tight text-white">{label}</span>
+      <span className="mt-2 text-[15px] leading-tight text-white">{label}</span>
     </button>
   );
 }

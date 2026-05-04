@@ -3,14 +3,10 @@ import {
   Bell,
   BriefcaseBusiness,
   CalendarDays,
-  CircleEllipsis,
   Compass,
   Headphones,
-  LockKeyhole,
-  Moon,
   Settings2,
   Sparkles,
-  Sun,
   UserRoundCheck
 } from "lucide-react";
 import { AppBottomNav } from "@/components/app-bottom-nav";
@@ -30,17 +26,6 @@ const quickItems: SettingsItem[] = [
   { label: "问真招聘", icon: BriefcaseBusiness }
 ];
 
-const ruleItems: SettingsItem[] = [
-  { label: "早晚子时", icon: Moon },
-  { label: "真太阳时", icon: Sun },
-  { label: "干支关系", icon: LockKeyhole, locked: true },
-  { label: "地支藏干", icon: LockKeyhole, locked: true },
-  { label: "人元司令", icon: LockKeyhole, locked: true },
-  { label: "神煞设置", icon: LockKeyhole, locked: true },
-  { label: "命宫身宫", icon: LockKeyhole, locked: true },
-  { label: "更多", icon: CircleEllipsis }
-];
-
 const toolItems: SettingsItem[] = [
   { label: "紫微斗数", icon: Sparkles },
   { label: "问真罗盘", icon: Compass },
@@ -54,16 +39,8 @@ export default function SettingsPage() {
         <SettingsAccountEntry />
       </section>
 
-      <div className="-mt-12 space-y-5 px-4">
+      <div className="mt-5 space-y-5 px-4">
         <SettingsGrid items={quickItems} columns="grid-cols-4" />
-
-        <section className="rounded-[22px] bg-white px-5 pb-6 pt-7 shadow-soft">
-          <div className="mb-7 flex items-center gap-3">
-            <h2 className="text-[29px] font-semibold leading-none text-black">规则设置</h2>
-            <span className="rounded-[7px] bg-[#f3cc8e] px-3 py-1 text-[17px] leading-none text-[#5f3a05]">VIP</span>
-          </div>
-          <SettingsGrid items={ruleItems} columns="grid-cols-4" nested />
-        </section>
 
         <section className="rounded-[22px] bg-white px-5 pb-7 pt-7 shadow-soft">
           <h2 className="mb-7 text-[29px] font-semibold leading-none text-black">其他工具</h2>

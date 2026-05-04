@@ -7,6 +7,8 @@ export type AuthUser = {
   id: string;
   phone?: string;
   email?: string;
+  name?: string | null;
+  image?: string | null;
   level: string;
 };
 
@@ -33,12 +35,18 @@ export async function registerWithPassword(rawIdentifier: string, password: stri
   const sql = getSqlClient();
   await ensurePasswordAuthTables();
 
-  const existing = asRows<Pick<AccountRow, "id">>(await sql`
-    SELECT id FROM "User"
-    WHERE (${identifier.kind === "phone" ? identifier.value : null} IS NOT NULL AND phone = ${identifier.kind === "phone" ? identifier.value : null})
-       OR (${identifier.kind === "email" ? identifier.value : null} IS NOT NULL AND email = ${identifier.kind === "email" ? identifier.value : null})
-    LIMIT 1
-  `);
+  const existing =
+    identifier.kind === "phone"
+      ? asRows<Pick<AccountRow, "id">>(await sql`
+          SELECT id FROM "User"
+          WHERE phone = ${identifier.value}
+          LIMIT 1
+        `)
+      : asRows<Pick<AccountRow, "id">>(await sql`
+          SELECT id FROM "User"
+          WHERE email = ${identifier.value}
+          LIMIT 1
+        `);
 
   if (existing.length > 0) {
     throw new PasswordAuthError("该账号已注册，请直接登录", 409);
@@ -72,20 +80,34 @@ export async function loginWithPassword(rawIdentifier: string, password: string)
   const sql = getSqlClient();
   await ensurePasswordAuthTables();
 
-  const rows = asRows<AccountRow>(await sql`
-    SELECT
-      u.id,
-      u.phone,
-      u.email,
-      u."createdAt",
-      c."passwordHash",
-      c."passwordSalt"
-    FROM "User" u
-    INNER JOIN "PasswordCredential" c ON c."userId" = u.id
-    WHERE (${identifier.kind === "phone" ? identifier.value : null} IS NOT NULL AND u.phone = ${identifier.kind === "phone" ? identifier.value : null})
-       OR (${identifier.kind === "email" ? identifier.value : null} IS NOT NULL AND u.email = ${identifier.kind === "email" ? identifier.value : null})
-    LIMIT 1
-  `);
+  const rows =
+    identifier.kind === "phone"
+      ? asRows<AccountRow>(await sql`
+          SELECT
+            u.id,
+            u.phone,
+            u.email,
+            u."createdAt",
+            c."passwordHash",
+            c."passwordSalt"
+          FROM "User" u
+          INNER JOIN "PasswordCredential" c ON c."userId" = u.id
+          WHERE u.phone = ${identifier.value}
+          LIMIT 1
+        `)
+      : asRows<AccountRow>(await sql`
+          SELECT
+            u.id,
+            u.phone,
+            u.email,
+            u."createdAt",
+            c."passwordHash",
+            c."passwordSalt"
+          FROM "User" u
+          INNER JOIN "PasswordCredential" c ON c."userId" = u.id
+          WHERE u.email = ${identifier.value}
+          LIMIT 1
+        `);
   const account = rows[0]
     ? {
         id: rows[0].id,
@@ -108,6 +130,110 @@ export async function loginWithPassword(rawIdentifier: string, password: string)
   return toAuthUser(account);
 }
 
+export async function upsertPhoneUser(rawPhone: string): Promise<AuthUser> {
+  const phone = normalizeChinaPhone(rawPhone);
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    throw new PasswordAuthError("请输入正确的手机号", 400);
+  }
+
+  const sql = getSqlClient();
+  await ensurePasswordAuthTables();
+
+  const existing = asRows<Pick<AccountRow, "id" | "phone" | "email">>(await sql`
+    SELECT id, phone, email
+    FROM "User"
+    WHERE phone = ${phone}
+    LIMIT 1
+  `)[0];
+
+  if (existing) {
+    return toAuthUser({
+      id: existing.id,
+      phone: existing.phone,
+      email: existing.email,
+      passwordHash: "",
+      passwordSalt: "",
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  const createdAt = new Date().toISOString();
+  const account: AccountRecord = {
+    id: randomUUID(),
+    phone,
+    email: null,
+    passwordHash: "",
+    passwordSalt: "",
+    createdAt
+  };
+
+  await sql`
+    INSERT INTO "User" (id, phone, email, "createdAt", "updatedAt")
+    VALUES (${account.id}, ${account.phone}, ${account.email}, ${createdAt}, ${createdAt})
+  `;
+
+  return toAuthUser(account);
+}
+
+export async function createUserSession(userId: string) {
+  const sql = getSqlClient();
+  await ensurePasswordAuthTables();
+
+  const token = randomUUID();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 30);
+
+  await sql`
+    INSERT INTO "Session" (id, token, "userId", "expiresAt", "createdAt", "updatedAt")
+    VALUES (${randomUUID()}, ${token}, ${userId}, ${expiresAt.toISOString()}, ${now.toISOString()}, ${now.toISOString()})
+  `;
+
+  return token;
+}
+
+export async function getUserBySessionToken(token: string) {
+  const sql = getSqlClient();
+  await ensurePasswordAuthTables();
+
+  const rows = asRows<SessionUserRow>(await sql`
+    SELECT
+      s.id as "sessionId",
+      s.token,
+      s."expiresAt",
+      u.id,
+      u.phone,
+      u.email,
+      u.name,
+      u.image
+    FROM "Session" s
+    INNER JOIN "User" u ON u.id = s."userId"
+    WHERE s.token = ${token}
+      AND s."expiresAt" > NOW()
+    LIMIT 1
+  `);
+
+  const row = rows[0];
+  if (!row) {
+    return null;
+  }
+
+  return {
+    session: {
+      id: row.sessionId,
+      token: row.token,
+      expiresAt: row.expiresAt
+    },
+    user: {
+      id: row.id,
+      phone: row.phone ? maskPhone(row.phone) : undefined,
+      email: row.email,
+      name: row.name,
+      image: row.image,
+      level: "初学弟子"
+    }
+  };
+}
+
 export async function ensurePasswordAuthTables() {
   const sql = getSqlClient();
 
@@ -121,12 +247,34 @@ export async function ensurePasswordAuthTables() {
     )
   `;
 
+  await sql`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS email TEXT`;
+  await sql`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS phone TEXT`;
+  await sql`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS name TEXT`;
+  await sql`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS image TEXT`;
+  await sql`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
+  await sql`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"(email) WHERE email IS NOT NULL`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS "User_phone_key" ON "User"(phone) WHERE phone IS NOT NULL`;
+
   await sql`
     CREATE TABLE IF NOT EXISTS "PasswordCredential" (
       id TEXT PRIMARY KEY,
       "userId" TEXT NOT NULL UNIQUE REFERENCES "User"(id) ON DELETE CASCADE,
       "passwordHash" TEXT NOT NULL,
       "passwordSalt" TEXT NOT NULL,
+      "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS "Session" (
+      id TEXT PRIMARY KEY,
+      "expiresAt" TIMESTAMPTZ NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      "ipAddress" TEXT,
+      "userAgent" TEXT,
+      "userId" TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
       "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -160,6 +308,17 @@ type AccountRow = {
   createdAt: Date | string;
   passwordHash: string;
   passwordSalt: string;
+};
+
+type SessionUserRow = {
+  sessionId: string;
+  token: string;
+  expiresAt: Date | string;
+  id: string;
+  phone: string | null;
+  email: string | null;
+  name: string | null;
+  image: string | null;
 };
 
 function asRows<T>(result: unknown): T[] {

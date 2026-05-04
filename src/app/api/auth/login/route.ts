@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import { z } from "zod";
 import { normalizeChinaPhone, verifyCode, VerificationCodeError } from "@/lib/auth/verification-code";
+import { createUserSession, upsertPhoneUser } from "@/lib/auth/password-account";
 
 const loginSchema = z.object({
   phone: z
@@ -14,16 +14,12 @@ const loginSchema = z.object({
 export async function POST(request: Request) {
   try {
     const body = loginSchema.parse(await request.json());
-    const user = verifyCode(body.phone, body.code);
-    const response = NextResponse.json({
-      user: {
-        id: randomUUID(),
-        phone: user.maskedPhone,
-        level: "初学弟子"
-      }
-    });
+    verifyCode(body.phone, body.code);
+    const user = await upsertPhoneUser(body.phone);
+    const sessionToken = await createUserSession(user.id);
+    const response = NextResponse.json({ user });
 
-    response.cookies.set("sm1_session", randomUUID(), {
+    response.cookies.set("sm1_session", sessionToken, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
