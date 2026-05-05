@@ -28,7 +28,7 @@ const quickItems: SettingsItem[] = [
 
 const toolItems: SettingsItem[] = [
   { label: "紫微斗数", icon: Sparkles },
-  { label: "问真罗盘", icon: Compass },
+  { label: "奇门遁甲", icon: Compass, href: "/qimen" },
   { label: "吉真万年历", icon: CalendarDays }
 ];
 

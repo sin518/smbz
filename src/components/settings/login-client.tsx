@@ -640,44 +640,46 @@ function UserSettingsPage({
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-[430px] bg-[#f6f6f5] text-ink shadow-soft">
-      <header className="bg-white px-5 pb-8 pt-14">
+    <main className="mx-auto flex h-dvh max-w-[430px] flex-col overflow-hidden bg-[#f6f6f5] text-ink shadow-soft">
+      <header className="shrink-0 bg-white px-5 pb-3 pt-7">
         <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center">
-          <Link href="/settings" className="flex h-11 w-11 items-center justify-center -ml-2 text-[#30343a]" aria-label="返回设置">
-            <ChevronLeft size={38} strokeWidth={2.4} />
+          <Link href="/settings" className="-ml-2 flex h-9 w-9 items-center justify-center text-[#30343a]" aria-label="返回设置">
+            <ChevronLeft size={28} strokeWidth={2.4} />
           </Link>
-          <h1 className="text-center text-[30px] font-semibold tracking-[0.18em]">个人设置</h1>
+          <h1 className="text-center text-[23px] font-semibold tracking-[0.14em]">个人设置</h1>
           <span />
         </div>
       </header>
 
-      <section className="mt-5 bg-white px-5">
+      <div className="min-h-0 flex-1 overflow-hidden">
+      <section className="mt-2 bg-white px-5">
         <SettingsRow icon={IdCard} label="ID" value={displayId} />
         <SettingsRow icon={Smartphone} label={accountLabel} value={accountValue} actionable />
       </section>
 
-      <section className="mt-5 bg-white px-5 py-5">
-        <p className="mb-4 text-[17px] leading-7 text-[#c85f66]">*输入出生信息，将会在用户列表排盘置顶，便于用户使用</p>
+      <section className="mt-2 bg-white px-5 py-2">
+        <p className="mb-1.5 text-[12px] leading-5 text-[#c85f66]">*输入出生信息，将会在用户列表排盘置顶，便于用户使用</p>
         <SettingsRow icon={UserRound} label="昵称" value={profile.name || "未填写"} actionable onClick={() => startEdit("name")} />
         <SettingsRow icon={UsersRound} label="性别" value={profile.gender || "未填写"} actionable onClick={() => startEdit("gender")} />
         <SettingsRow icon={Clock3} label="出生时间" value={formatProfileBirthTime(profile.birthTime)} actionable onClick={() => startEdit("birthTime")} />
         <SettingsRow icon={MapPin} label="出生地区" value={profile.birthPlace || "未填写"} actionable last onClick={() => startEdit("birthPlace")} />
       </section>
 
-      <section className="mt-5 bg-white px-5">
+      <section className="mt-2 bg-white px-5">
         <SettingsRow icon={Power} label="账号注销" value="" actionable muted last onClick={() => setDeleteWarningOpen(true)} />
       </section>
 
-      <section className="px-5 pt-14">
+      <section className="px-5 pt-2">
         <button
           type="button"
           onClick={signOut}
           disabled={signingOut}
-          className="flex h-[70px] w-full items-center justify-center rounded-full bg-[#eeeeed] text-[25px] font-medium text-[#777] disabled:opacity-60"
+          className="flex h-[48px] w-full items-center justify-center rounded-full bg-[#eeeeed] text-[18px] font-medium text-[#777] disabled:opacity-60"
         >
-          {signingOut ? <Loader2 className="animate-spin" size={26} /> : "退出登录"}
+          {signingOut ? <Loader2 className="animate-spin" size={21} /> : "退出登录"}
         </button>
       </section>
+      </div>
 
       {editingField ? (
         <ProfileEditDialog
@@ -720,11 +722,11 @@ function SettingsRow({
   const Icon = icon;
   const content = (
     <>
-      <Icon className={muted ? "text-[#b3b3b3]" : "text-[#6f7275]"} size={29} strokeWidth={1.9} />
-      <span className={`text-[25px] font-medium ${muted ? "text-[#8a8a8a]" : "text-black"}`}>{label}</span>
-      <span className="flex min-w-0 items-center justify-end text-right text-[23px] text-[#858585]">
-        <span className="max-w-[180px] truncate">{value}</span>
-        {actionable ? <ChevronRight className="ml-1 shrink-0" size={26} strokeWidth={2.1} /> : null}
+      <Icon className={muted ? "text-[#b3b3b3]" : "text-[#6f7275]"} size={21} strokeWidth={1.9} />
+      <span className={`text-[18px] font-medium ${muted ? "text-[#8a8a8a]" : "text-black"}`}>{label}</span>
+      <span className="flex min-w-0 items-center justify-end text-right text-[16px] text-[#858585]">
+        <span className="max-w-[160px] truncate">{value}</span>
+        {actionable ? <ChevronRight className="ml-1 shrink-0" size={19} strokeWidth={2.1} /> : null}
       </span>
     </>
   );
@@ -734,7 +736,7 @@ function SettingsRow({
       <button
         type="button"
         onClick={onClick}
-        className={`grid min-h-[76px] w-full grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 text-left ${last ? "" : "border-b border-[#ecebea]"}`}
+        className={`grid min-h-[48px] w-full grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-2 text-left ${last ? "" : "border-b border-[#ecebea]"}`}
       >
         {content}
       </button>
@@ -742,7 +744,7 @@ function SettingsRow({
   }
 
   return (
-    <div className={`grid min-h-[76px] grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 ${last ? "" : "border-b border-[#ecebea]"}`}>
+    <div className={`grid min-h-[48px] grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-2 ${last ? "" : "border-b border-[#ecebea]"}`}>
       {content}
     </div>
   );
