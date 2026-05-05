@@ -8,3 +8,5 @@ node_modules
 !.env.example
 
 /src/generated/prisma
+.DS_Store
+image/
