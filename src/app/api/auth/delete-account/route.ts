@@ -13,6 +13,7 @@ const cleanupTables = [
   { table: '"AiReport"', where: '"chartId" IN (SELECT id FROM "BaziChart" WHERE "profileId" IN (SELECT id FROM "BaziProfile" WHERE "userId" = $1))' },
   { table: '"BaziChart"', where: '"profileId" IN (SELECT id FROM "BaziProfile" WHERE "userId" = $1)' },
   { table: '"BaziProfile"', where: '"userId" = $1' },
+  { table: '"DivinationProfile"', where: '"userId" = $1' },
   { table: '"PasswordCredential"', where: '"userId" = $1' },
   { table: '"Session"', where: '"userId" = $1' },
   { table: '"Account"', where: '"userId" = $1' },

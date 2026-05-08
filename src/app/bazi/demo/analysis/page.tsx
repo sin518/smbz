@@ -7,8 +7,8 @@ export default function DemoAnalysisPage() {
   const { profile } = demoBaziChart;
 
   return (
-    <main className="mx-auto min-h-screen max-w-[430px] bg-[#f4f4f2] pb-10 text-ink shadow-soft">
-      <header className="sticky top-0 z-30 bg-white pt-12">
+    <main className="mx-auto min-h-screen max-w-[430px] bg-[#F8F7EE] pb-10 text-ink shadow-soft">
+      <header className="sticky top-0 z-30 bg-[#F8F7EE] pt-12">
         <div className="flex h-16 items-center justify-between px-5">
           <Link href="/bazi/demo" className="flex h-10 w-10 items-center justify-center" aria-label="返回排盘">
             <ChevronLeft size={34} strokeWidth={1.8} />

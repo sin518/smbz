@@ -48,20 +48,20 @@ export default async function DemoBaziPage({ searchParams }: DemoBaziPageProps) 
   };
 
   return (
-    <main className="mx-auto min-h-screen max-w-[430px] bg-white text-ink shadow-soft">
-      <header className="sticky top-0 z-30 bg-white pt-12">
-        <div className="flex h-16 items-center justify-between px-5">
+    <main className="mx-auto min-h-screen max-w-[430px] bg-paper pb-5 text-ink shadow-soft [font-family:'PingFang_SC','Microsoft_YaHei',sans-serif]">
+      <header className="sticky top-0 z-30 bg-[#F8F7EE] pt-4">
+        <div className="flex h-12 items-center justify-between px-4">
           <Link href={buildBackHref(params)} className="flex h-10 w-10 items-center justify-center" aria-label="返回">
-            <ChevronLeft size={34} strokeWidth={1.8} />
+            <ChevronLeft size={30} strokeWidth={1.8} />
           </Link>
-          <h1 className="text-[28px] font-semibold">赛博八字</h1>
-          <button className="flex h-10 w-10 items-center justify-center" aria-label="更多">
-            <MoreHorizontal size={30} strokeWidth={2} />
+          <h1 className="text-[18px] font-semibold">赛博八字</h1>
+          <button className="flex h-10 w-10 items-center justify-center text-ink" aria-label="更多">
+            <MoreHorizontal size={24} strokeWidth={2} />
           </button>
         </div>
-        <nav className="grid grid-cols-3 bg-black text-center text-[19px] text-white">
+        <nav className="grid grid-cols-3 px-2 pb-2 text-center text-[14px] font-medium text-mutedInk">
           {tabs.map((tab) => (
-            <Link key={tab.key} href={buildTabHref(params, tab.key)} className={cn("py-4", activeTab === tab.key && "text-[#c9ad70]")}>
+            <Link key={tab.key} href={buildTabHref(params, tab.key)} className={cn("relative py-2", activeTab === tab.key && "font-semibold text-ink after:absolute after:bottom-0 after:left-1/2 after:h-[2px] after:w-6 after:-translate-x-1/2 after:rounded-full after:bg-[#a58024]")}>
               {tab.label}
             </Link>
           ))}
@@ -77,8 +77,8 @@ export default async function DemoBaziPage({ searchParams }: DemoBaziPageProps) 
       />
 
       {activeTab === "info" ? (
-        <section className="bg-[#f4f4f2] px-3 pb-4 pt-3">
-          <div className="overflow-hidden rounded-[22px] bg-white shadow-soft">
+        <section className="px-4 pb-4 pt-4">
+          <div className="overflow-hidden rounded-[22px] bg-white px-4 py-3 text-[14px] leading-[1.8] text-mutedInk shadow-soft">
             <InfoRow left={`姓名： ${profileView.name} (阴 乾造)`} right={`性别： ${profileView.gender}`} />
             <InfoRow left={`农历： ${profileView.lunar}`} right={`生肖： ${profileView.zodiac}`} muted />
             <InfoRow left={`阳历： ${profileView.solar}`} />
@@ -86,9 +86,9 @@ export default async function DemoBaziPage({ searchParams }: DemoBaziPageProps) 
             <InfoRow left={`出生地区： ${profileView.location}`} />
             <InfoRow left={`人元司令分野： ${profileView.commander}`} muted />
             <InfoRow left={`出生节气： ${profileView.birthSolarTerm}`} />
-            <div className="grid grid-cols-2 bg-[#ececec] text-[14px]">
+            <div className="grid grid-cols-2 border-b border-[#f3ead6] text-[14px]">
               {profile.solarTerms.map((term) => (
-                <div key={term.label} className="truncate px-4 py-3">
+                <div key={term.label} className="truncate py-2">
                   <span className="text-mutedInk">{term.label}：</span>
                   {term.value}
                 </div>
@@ -102,9 +102,10 @@ export default async function DemoBaziPage({ searchParams }: DemoBaziPageProps) 
       ) : null}
 
       {activeTab === "chart" ? (
-        <section className="bg-white">
-          <div className="border-b bg-[#f7f7f7] px-5 py-3 text-[16px] text-[#999]">
-            点击文字十神、十二长生、纳音、神煞可查看知识解析
+        <section className="mx-4 mt-4 overflow-hidden rounded-[22px] bg-white shadow-soft">
+          <div className="flex items-center justify-between border-b border-[#f3ead6] bg-[#f6f0e2] px-4 py-2 text-[12px] text-mutedInk">
+            <span className="truncate">📢 点击文字{"{十神，十二长生，纳音，神煞}"}可查看知识解析</span>
+            <span className="ml-3 shrink-0">×</span>
           </div>
           <div className="grid grid-cols-[72px_repeat(4,minmax(0,1fr))] text-center">
             <TableLabel rowIndex={0}>日期</TableLabel>
@@ -158,7 +159,7 @@ export default async function DemoBaziPage({ searchParams }: DemoBaziPageProps) 
       ) : null}
 
       {activeTab === "chart" ? (
-        <section className="bg-[#f4f4f2] pb-8 pt-4">
+        <section className="pb-4 pt-4">
           <ChartInsightActions columns={columns} href={buildGanzhiHref(params)} aiCommandHref={buildAiCommandHref(params)} />
         </section>
       ) : null}
@@ -173,10 +174,26 @@ export default async function DemoBaziPage({ searchParams }: DemoBaziPageProps) 
 
 function InfoRow({ left, right, muted }: { left: string; right?: string; muted?: boolean }) {
   return (
-    <div className={cn("flex min-h-[44px] items-center gap-3 px-4 py-2 text-[15px]", muted ? "bg-[#ececec]" : "bg-white")}>
-      <p className="min-w-0 flex-1 truncate whitespace-nowrap">{left}</p>
-      {right ? <p className="max-w-[42%] shrink-0 truncate whitespace-nowrap text-right">{right}</p> : null}
+    <div className={cn("flex min-h-[36px] items-center gap-3 border-b border-[#f3ead6] py-1.5 text-[14px] last:border-b-0", muted && "bg-[#fbfaf4]")}>
+      <p className="min-w-0 flex-1 truncate whitespace-nowrap">{highlightInfoValue(left)}</p>
+      {right ? <p className="max-w-[42%] shrink-0 truncate whitespace-nowrap text-right">{highlightInfoValue(right)}</p> : null}
     </div>
+  );
+}
+
+function highlightInfoValue(text: string) {
+  const [label, ...rest] = text.split("：");
+  const value = rest.join("：");
+
+  if (!value) {
+    return text;
+  }
+
+  return (
+    <>
+      <span className="text-mutedInk">{label}：</span>
+      <b className="font-semibold text-ink">{value}</b>
+    </>
   );
 }
 
@@ -184,18 +201,18 @@ function ChartInsightActions({ columns, href, aiCommandHref }: { columns: ChartC
   const relations = buildOriginalRelations(columns);
 
   return (
-    <section className="mt-4 border-t border-[#eeeeee] bg-white px-4 py-7">
+    <section className="mx-4 rounded-[22px] bg-white px-4 py-5 shadow-soft">
       <div className="grid grid-cols-[minmax(0,1fr)_128px] gap-4">
-        <Link href={href} className="flex h-14 items-center justify-center rounded-full bg-white text-[24px] font-semibold shadow-[0_6px_22px_rgba(0,0,0,0.08)]">
+        <Link href={href} className="flex h-12 items-center justify-center rounded-full bg-black text-[17px] font-semibold text-[#e8d4a7]">
           智能干支图示 ›
         </Link>
         <ProtectedAiCommandLink href={aiCommandHref} />
       </div>
 
-      <div className="mt-7 space-y-4 text-[20px] leading-8">
-        <p><span className="font-semibold text-[#9b8749]">原局天干：</span>{relations.stems}</p>
-        <p><span className="font-semibold text-[#9b8749]">原局地支：</span>{relations.branches}</p>
-        <p><span className="font-semibold text-[#9b8749]">原局整柱：</span>{relations.pillars}</p>
+      <div className="mt-5 space-y-3 text-[15px] leading-7 text-[#444]">
+        <p><span className="font-semibold text-[#a58024]">原局天干：</span>{relations.stems}</p>
+        <p><span className="font-semibold text-[#a58024]">原局地支：</span>{relations.branches}</p>
+        <p><span className="font-semibold text-[#a58024]">原局整柱：</span>{relations.pillars}</p>
       </div>
     </section>
   );
@@ -371,35 +388,35 @@ function getDetailRowClass(rowIndex: number, large?: boolean, stack?: boolean) {
 }
 
 function TableLabel({ children, rowIndex, large, stack }: { children: React.ReactNode; rowIndex: number; large?: boolean; stack?: boolean }) {
-  return <div className={cn("flex items-center justify-center border-b border-[#ededed] px-2 text-[17px] text-[#969696]", getRowClass(rowIndex, large, stack))}>{children}</div>;
+  return <div className={cn("flex items-center justify-center border-b border-[#ebe7dd] px-2 text-[13px] text-mutedInk", getRowClass(rowIndex, large, stack))}>{children}</div>;
 }
 
 function TableCell({ children, muted, rowIndex }: { children: React.ReactNode; muted?: boolean; rowIndex: number }) {
   return (
-    <div className={cn("flex items-center justify-center border-b border-[#ededed] px-1 text-[17px]", getRowClass(rowIndex), muted && "text-[#969696]")}>
+    <div className={cn("flex items-center justify-center border-b border-l border-[#ebe7dd] px-1 text-[14px] text-ink", getRowClass(rowIndex), muted && "text-mutedInk")}>
       {children}
     </div>
   );
 }
 
 function StemBranchCell({ value, rowIndex }: { value: string; rowIndex: number }) {
-  const color = value === "乙" || value === "卯" ? "text-[#2ea84c]" : value === "庚" ? "text-[#bf8d10]" : "text-[#c40000]";
+  const color = getStemColorClass(value);
 
-  return <div className={cn("flex items-center justify-center border-b border-[#ededed] px-1 text-[36px] font-semibold", getRowClass(rowIndex, true), color)}>{value}</div>;
+  return <div className={cn("flex items-center justify-center border-b border-l border-[#ebe7dd] px-1 text-[32px] font-semibold", getRowClass(rowIndex, true), color)}>{value}</div>;
 }
 
 function StackCell({ items, gold, rowIndex }: { items: string[]; gold?: boolean; rowIndex: number }) {
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center border-b border-[#ededed] px-1",
-        rowIndex === 10 ? "text-[14px] leading-6" : "text-[16px] leading-7",
+        "flex flex-col items-center justify-center border-b border-l border-[#ebe7dd] px-1",
+        rowIndex === 10 ? "text-[11px] leading-[1.5]" : "text-[12px] leading-[1.4]",
         getRowClass(rowIndex, false, true),
-        gold && "text-[#9b8749]"
+        gold ? "text-[#9b8749]" : "text-ink"
       )}
     >
       {items.map((item) => (
-        <p key={item}>{item}</p>
+        <p key={item} className={gold && rowIndex === 4 ? getStemColorClass(item.slice(0, 1)) : undefined}>{item}</p>
       ))}
     </div>
   );
@@ -407,8 +424,8 @@ function StackCell({ items, gold, rowIndex }: { items: string[]; gold?: boolean;
 
 function getRowClass(rowIndex: number, large?: boolean, stack?: boolean) {
   return cn(
-    rowIndex % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]",
-    large ? "min-h-[88px]" : stack ? (rowIndex === 10 ? "min-h-[156px] py-3" : "min-h-[108px] py-3") : "min-h-[58px] py-3"
+    rowIndex % 2 === 0 ? "bg-white" : "bg-[#fbfaf4]",
+    large ? "min-h-[76px] py-2" : stack ? (rowIndex === 10 ? "min-h-[116px] py-3" : "min-h-[86px] py-3") : "min-h-[40px] py-2"
   );
 }
 
@@ -568,7 +585,7 @@ function getStemColorClass(value: string) {
     火: "text-[#c40000]",
     金: "text-[#bf8d10]",
     土: "text-[#8b6f43]",
-    木: "text-[#2ea84c]",
+    木: "text-[#4caf50]",
     水: "text-[#3f7edb]"
   };
 
@@ -735,5 +752,5 @@ function buildBackHref(params: Record<string, string | string[] | undefined>) {
 
   const query = nextParams.toString();
 
-  return query ? `/?${query}` : "/";
+  return query ? `/bazi?${query}` : "/bazi";
 }

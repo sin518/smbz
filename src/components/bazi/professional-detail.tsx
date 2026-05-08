@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LunarUtil, Solar } from "lunar-typescript";
 import { getSelfSeatStage } from "@/lib/bazi/changsheng";
 import type { ChartColumn, LuckColumn } from "@/lib/bazi/demo";
@@ -37,7 +37,13 @@ export function ProfessionalDetail({ columns, luckCycles, commander }: Professio
   const [selectedYearIndex, setSelectedYearIndex] = useState(initialYearIndex);
   const selectedYear = years[selectedYearIndex] ?? years[0];
   const months = useMemo(() => buildMonthsForYear(Number(selectedYear?.year ?? new Date().getFullYear())), [selectedYear]);
+  const initialMonthIndex = Math.max(0, months.findIndex((item) => item.active));
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState(initialMonthIndex);
   const detailColumns = useMemo(() => buildDetailColumns(columns, selectedLuck, selectedYear), [columns, selectedLuck, selectedYear]);
+
+  useEffect(() => {
+    setSelectedMonthIndex(Math.max(0, months.findIndex((item) => item.active)));
+  }, [months]);
 
   function handleLuckSelect(index: number) {
     const nextLuck = luckCycles[index] ?? luckCycles[0];
@@ -49,10 +55,10 @@ export function ProfessionalDetail({ columns, luckCycles, commander }: Professio
   }
 
   return (
-    <section className="bg-[#f4f4f2] pb-8">
+    <section className="bg-paper pb-8 pt-4">
       <ProfessionalChart columns={detailColumns} />
       <div className="px-4 py-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-[16px] leading-7">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[22px] bg-white px-4 py-4 text-[15px] leading-7 text-[#444] shadow-soft">
           <div>
             <p>起运：出生后4年10月17天10时起运</p>
             <p>交运：逢壬、丁年清明后2天交大运</p>
@@ -67,14 +73,14 @@ export function ProfessionalDetail({ columns, luckCycles, commander }: Professio
       </div>
       <LuckScroller title="大运" items={luckCycles} selectedIndex={selectedLuckIndex} onSelect={handleLuckSelect} />
       <LuckScroller title="流年" items={years} selectedIndex={selectedYearIndex} onSelect={setSelectedYearIndex} />
-      <LuckScroller title="流月" items={months} selectedIndex={months.findIndex((item) => item.active)} onSelect={() => undefined} />
+      <LuckScroller title="流月" items={months} selectedIndex={selectedMonthIndex} onSelect={setSelectedMonthIndex} />
     </section>
   );
 }
 
 function ProfessionalChart({ columns }: { columns: DetailColumn[] }) {
   return (
-    <section className="bg-white">
+    <section className="mx-4 overflow-hidden rounded-[22px] bg-white shadow-soft">
       <div className="grid grid-cols-[64px_repeat(6,minmax(0,1fr))] text-center">
         <DetailLabel rowIndex={0}>日期</DetailLabel>
         {columns.map((column) => (
@@ -192,8 +198,8 @@ function LuckScroller({ title, items, selectedIndex, onSelect }: { title: string
   const visibleItems = items.slice(0, 10);
 
   return (
-    <div className="mt-4 grid grid-cols-[52px_1fr] bg-white">
-      <div className="flex items-center justify-center border-r text-[24px] font-semibold text-[#777] [writing-mode:vertical-rl]">{title}</div>
+    <div className="mx-4 mt-4 grid grid-cols-[52px_1fr] overflow-hidden rounded-[22px] bg-white shadow-soft">
+      <div className="flex items-center justify-center border-r border-[#ebe7dd] text-[24px] font-semibold text-mutedInk [writing-mode:vertical-rl]">{title}</div>
       <div className="grid grid-cols-10 overflow-hidden">
         {visibleItems.map((item, index) => (
           <button
@@ -201,8 +207,8 @@ function LuckScroller({ title, items, selectedIndex, onSelect }: { title: string
             type="button"
             onClick={() => onSelect(index)}
             className={cn(
-              "min-w-0 border-r px-0.5 py-2 text-center text-[11px]",
-              index === selectedIndex && "bg-[#e7e7e7] font-semibold"
+              "min-w-0 border-r border-[#ebe7dd] px-0.5 py-2 text-center text-[11px]",
+              index === selectedIndex && "bg-[#f6f0e2] font-semibold"
             )}
           >
             <p className="truncate">{item.year}</p>

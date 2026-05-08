@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Diamond } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SettingsAccountName } from "@/components/settings/settings-account-name";
@@ -42,24 +42,24 @@ export function SettingsAccountEntry() {
   }
 
   return (
-    <button type="button" onClick={openAccount} className="flex w-full items-center gap-4 text-left" aria-label="登录或查看账号">
-      <div className="flex h-[76px] w-[76px] shrink-0 items-center justify-center rounded-full border-2 border-[#d8b96d] bg-black text-[42px] font-semibold text-[#d8b96d] shadow-[inset_0_0_18px_rgba(216,185,109,0.35)]">
+    <button type="button" onClick={openAccount} className="relative flex w-full items-center gap-5 overflow-hidden text-left" aria-label="登录或查看账号">
+      <div className="pointer-events-none absolute -right-8 -top-6 h-44 w-44 rounded-full border-[14px] border-[#ece8dc] opacity-70">
+        <div className="absolute inset-8 rounded-full border-[12px] border-[#ece8dc]" />
+        <div className="absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#e2ded2]" />
+      </div>
+      <div className="flex h-[82px] w-[82px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-[radial-gradient(circle_at_35%_25%,#f7d18d,#7b4d31_42%,#192235_76%)] text-[40px] font-semibold text-white shadow-[0_10px_24px_rgba(35,30,18,0.12)]">
         真
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="relative z-10 min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-2 text-[#33312d]">
           <SettingsAccountName />
-          <span className="inline-flex h-9 items-center gap-1 rounded-[8px] bg-white/35 px-3 text-[15px] font-medium text-white">
-            <Diamond size={18} strokeWidth={1.8} />
-            未开通会员
-          </span>
         </div>
-        <p className="mt-4 text-[17px] leading-none">
-          <span className="text-[#d8b96d]">初学弟子</span>
-          <span className="ml-3 text-white">您已研究0个八字</span>
+        <p className="mt-3 text-[17px] leading-none text-[#8c887d]">
+          <span>初学弟子</span>
+          <span className="ml-3">已研究0个八字</span>
         </p>
       </div>
-      <ChevronRight className="shrink-0 text-white" size={31} strokeWidth={2.4} />
+      <ChevronRight className="relative z-10 shrink-0 text-[#8c887d]" size={28} strokeWidth={2.2} />
     </button>
   );
 }

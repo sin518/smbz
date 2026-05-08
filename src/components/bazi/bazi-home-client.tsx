@@ -1,15 +1,19 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronRight } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronDown, Clock3, Folder, MapPin, Save } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { AppBottomNav } from "@/components/app-bottom-nav";
-import { getCurrentDemoChart } from "@/lib/bazi";
+import {
+  DivinationProfileCard,
+  SharedFieldRow,
+  SharedFormCard,
+  saveSharedProfile
+} from "@/components/shared/divination-profile-card";
 import { chinaLocationOptions } from "@/lib/locations/china";
 import { cn } from "@/lib/utils";
 
@@ -41,10 +45,10 @@ const defaultValues: BaziFormValues = {
   save: true
 };
 
-export function BaziHomeClient() {
+export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?: boolean; backHref?: string } = {}) {
+  const Shell = embedded ? "section" : "main";
   const router = useRouter();
   const searchParams = useSearchParams();
-  const chart = useMemo(() => getCurrentDemoChart(new Date("2026-04-30T10:41:00+08:00")), []);
   const initialValues = useMemo(() => getInitialFormValues(searchParams), [searchParams]);
   const [birthPickerOpen, setBirthPickerOpen] = useState(false);
   const {
@@ -82,7 +86,7 @@ export function BaziHomeClient() {
     }
   }, [district, districts, setValue]);
 
-  function onSubmit(values: BaziFormValues) {
+  async function onSubmit(values: BaziFormValues) {
     const selectedLocation = formatLocation(values);
     if (values.save) {
       window.localStorage.setItem(
@@ -93,181 +97,153 @@ export function BaziHomeClient() {
           savedAt: new Date().toISOString()
         })
       );
+      await saveSharedProfile({
+        source: "八字档案",
+        name: values.name?.trim() ?? "",
+        gender: values.gender,
+        dateTime: values.birthTime,
+        location: selectedLocation
+      });
     }
     router.push(`/bazi/demo?${buildChartQuery(values)}`);
   }
 
   return (
-    <main className="mx-auto flex h-dvh max-w-[430px] flex-col overflow-hidden bg-paper text-ink shadow-soft">
-      <header className="shrink-0 bg-white px-5 pb-3 pt-7">
-        <div className="flex items-center justify-center">
-          <h1 className="text-[24px] font-semibold tracking-normal">赛博八字</h1>
+    <Shell
+      className={cn(
+        "mx-auto max-w-[430px] bg-[#F8F7EE] text-ink",
+        embedded ? "min-h-0 bg-transparent shadow-none" : "min-h-screen pb-8 shadow-soft"
+      )}
+    >
+      {!embedded ? <header className="px-5 pb-2 pt-8">
+        <div className="flex items-center justify-between">
+          <Link href={backHref} className="-ml-2 flex h-10 w-10 items-center justify-center" aria-label="返回首页">
+            <ArrowLeft size={24} />
+          </Link>
+          <h1 className="text-[24px] font-semibold">赛博八字</h1>
+          <span className="h-10 w-10" />
         </div>
-      </header>
+      </header> : null}
 
-      <div className="min-h-0 flex-1 space-y-2.5 overflow-hidden px-3 pb-[74px] pt-3">
-      <section>
-        <form onSubmit={handleSubmit(onSubmit)} className="rounded-2xl bg-white px-4 pb-4 pt-3 shadow-soft">
-          <FieldRow label="姓名" error={errors.name?.message}>
-            <input
-              {...register("name")}
-              className="w-full bg-transparent text-right text-[16px] text-ink outline-none placeholder:text-[#c5c5c5]"
-              placeholder="请输入姓名"
-            />
-          </FieldRow>
+      <div className={cn("space-y-4", embedded ? "px-0 pt-0" : "px-4 pt-4")}>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <Controller
+            name="gender"
+            control={control}
+            render={({ field }) => (
+              <DivinationProfileCard
+                nameInputProps={register("name")}
+                nameError={errors.name?.message}
+                gender={field.value}
+                onGenderChange={field.onChange}
+                dateTime={birthTime}
+                dateTimeError={errors.birthTime?.message}
+                onOpenTimePicker={() => setBirthPickerOpen(true)}
+                onApplyProfile={(profile) => {
+                  setValue("name", profile.name, { shouldDirty: true, shouldValidate: true });
+                  setValue("gender", profile.gender, { shouldDirty: true, shouldValidate: true });
+                  setValue("birthTime", profile.dateTime, { shouldDirty: true, shouldValidate: true });
+                }}
+              />
+            )}
+          />
 
-          <div className="grid grid-cols-[1fr_1.85fr] gap-2.5 border-b border-[#deddd9] py-2.5">
-            <Controller
-              name="gender"
-              control={control}
-              render={({ field }) => (
-                <SegmentedControl
-                  ariaLabel="选择性别"
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={[
-                    { label: "男", value: "male" },
-                    { label: "女", value: "female" }
-                  ]}
-                />
-              )}
-            />
+          <SharedFormCard>
             <Controller
               name="calendar"
               control={control}
               render={({ field }) => (
-                <SegmentedControl
-                  ariaLabel="选择历法"
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={[
-                    { label: "公历", value: "solar" },
-                    { label: "农历", value: "lunar" },
-                    { label: "四柱", value: "pillars" }
-                  ]}
-                />
+                <SharedFieldRow icon={CalendarDays} label="历法模式">
+                  <CalendarModePill
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                </SharedFieldRow>
               )}
             />
-          </div>
 
-          <FieldRow label="出生时间" required error={errors.birthTime?.message}>
-            <button
-              type="button"
-              onClick={() => setBirthPickerOpen(true)}
-              className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[15px] text-ink"
-              aria-label="选择出生时间"
-            >
-              {formatPickerLabel(birthTime)}
-              <ChevronRight size={19} strokeWidth={2} className="shrink-0 text-[#bfbfbf]" />
-            </button>
-          </FieldRow>
+            <SharedFieldRow icon={MapPin} label="出生地点" error={errors.province?.message || errors.city?.message || errors.district?.message}>
+              <div className="grid min-w-0 grid-cols-3 gap-1.5">
+                <select {...register("province")} className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none" aria-label="省份">
+                  {chinaLocationOptions.map((item) => (
+                    <option key={item.province} value={item.province}>
+                      {item.province}
+                    </option>
+                  ))}
+                </select>
+                <select {...register("city")} className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none" aria-label="城市">
+                  {cities.map((item) => (
+                    <option key={item.city} value={item.city}>
+                      {item.city}
+                    </option>
+                  ))}
+                </select>
+                <select {...register("district")} className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none" aria-label="区县">
+                  {districts.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </SharedFieldRow>
 
-          <FieldRow label="出生地点" error={errors.province?.message || errors.city?.message || errors.district?.message}>
-            <div className="grid min-w-0 grid-cols-3 gap-2">
-              <select {...register("province")} className="min-w-0 bg-transparent text-right text-[14px] text-ink outline-none" aria-label="省份">
-                {chinaLocationOptions.map((item) => (
-                  <option key={item.province} value={item.province}>
-                    {item.province}
-                  </option>
-                ))}
-              </select>
-              <select {...register("city")} className="min-w-0 bg-transparent text-right text-[14px] text-ink outline-none" aria-label="城市">
-                {cities.map((item) => (
-                  <option key={item.city} value={item.city}>
-                    {item.city}
-                  </option>
-                ))}
-              </select>
-              <select {...register("district")} className="min-w-0 bg-transparent text-right text-[14px] text-ink outline-none" aria-label="区县">
-                {districts.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </FieldRow>
+            <SharedFieldRow icon={Folder} label="分组" error={errors.group?.message} last>
+              <button type="button" className="flex w-full items-center justify-end gap-1 text-[18px] font-semibold text-[#55514a]">
+                全部
+                <ChevronDown size={20} strokeWidth={2.5} className="text-[#302f2c]" />
+              </button>
+            </SharedFieldRow>
+          </SharedFormCard>
 
-          <FieldRow label="分组" error={errors.group?.message}>
-            <button type="button" className="flex w-full items-center justify-end gap-1 text-[16px] text-ink">
-              全部
-              <ChevronRight size={19} strokeWidth={2} className="text-[#bfbfbf]" />
-            </button>
-          </FieldRow>
-
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 py-2.5">
-            <div className="min-w-0 space-y-0.5 text-[12px] leading-5 text-[#999894]">
-              <p>真太阳时： {solarTimeText}</p>
-              <p>
-                地址经纬： 北纬{locationMeta.latitude.toFixed(2)} 东经{locationMeta.longitude.toFixed(2)}
-              </p>
-            </div>
+          <SharedFormCard>
+            <SharedFieldRow icon={Clock3} label="真太阳时">
+              <span className="block text-right text-[16px] font-semibold text-[#aaa8a1]">{solarTimeText}</span>
+            </SharedFieldRow>
+            <SharedFieldRow icon={MapPin} label="经纬参考">
+              <span className="block text-right text-[15px] font-semibold text-[#aaa8a1]">
+                北纬{locationMeta.latitude.toFixed(2)} 东经{locationMeta.longitude.toFixed(2)}
+              </span>
+            </SharedFieldRow>
             <Controller
               name="save"
               control={control}
               render={({ field }) => (
-                <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[15px]">
-                  <span>保存</span>
-                  <button
-                    type="button"
-                    onClick={() => field.onChange(!field.value)}
-                    className={cn(
-                      "relative h-7 w-12 overflow-hidden rounded-full transition-colors",
-                      field.value ? "bg-gold" : "bg-[#d7d7d7]"
-                    )}
-                    aria-pressed={field.value}
-                    aria-label="是否保存"
-                  >
-                    <span
+                <SharedFieldRow icon={Save} label="保存记录" last>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => field.onChange(!field.value)}
                       className={cn(
-                        "absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
-                        field.value ? "translate-x-5" : "translate-x-0"
+                        "relative h-8 w-14 overflow-hidden rounded-full transition-colors",
+                        field.value ? "bg-black" : "bg-[#d7d7d7]"
                       )}
-                    />
-                  </button>
-                </div>
+                      aria-pressed={field.value}
+                      aria-label="是否保存"
+                    >
+                      <span
+                        className={cn(
+                          "absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-sm transition-transform",
+                          field.value ? "translate-x-6" : "translate-x-0"
+                        )}
+                      />
+                    </button>
+                  </div>
+                </SharedFieldRow>
               )}
             />
-          </div>
+          </SharedFormCard>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="mt-1 h-12 w-full rounded-full bg-black text-[20px] font-semibold text-[#e8d4a7] shadow-[0_10px_18px_rgba(0,0,0,0.12)]"
+            className="mx-auto mt-10 block h-14 w-[68%] rounded-full bg-black text-[22px] font-semibold text-[#e8d4a7] shadow-soft disabled:opacity-70"
           >
             开始排盘
           </button>
         </form>
-      </section>
-
-      <section>
-        <div className="grid grid-cols-[1fr_auto] gap-3 rounded-2xl bg-white p-3 shadow-soft">
-          <div>
-            <div className="grid max-w-[132px] grid-cols-4 gap-3 text-center text-[23px] leading-tight">
-              {chart.pillars.map((pillar, index) => (
-                <div key={`${pillar.stem}${pillar.branch}-${index}`}>
-                  <div>{pillar.stem}</div>
-                  <div>{pillar.branch}</div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-2 space-y-0.5 text-[12px] leading-5 text-[#818086]">
-              <p>农历： {chart.lunarText}</p>
-              <p>公历： {chart.solarText}</p>
-            </div>
-          </div>
-          <div className="flex flex-col items-end justify-center gap-3">
-            <p className="text-[22px]">{chart.currentHour}</p>
-            <Link href="/bazi/demo" className="flex h-9 w-28 items-center justify-center rounded-full border border-[#d6d2cb] text-[16px] font-semibold text-[#55514b]">
-              即时排盘
-            </Link>
-          </div>
-        </div>
-      </section>
-
       </div>
 
-      <AppBottomNav active="chart" />
       <BirthTimePickerSheet
         open={birthPickerOpen}
         value={birthTime}
@@ -279,56 +255,33 @@ export function BaziHomeClient() {
           setBirthPickerOpen(false);
         }}
       />
-    </main>
+    </Shell>
   );
 }
 
-function FieldRow({
-  label,
-  required,
-  error,
-  children
-}: {
-  label: string;
-  required?: boolean;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="border-b border-[#deddd9] py-2.5">
-      <div className="grid grid-cols-[88px_1fr] items-center gap-2">
-        <label className="text-[17px] font-medium text-ink">
-          {label}
-          {required ? <span className="ml-1 text-[11px] font-normal text-[#999894]">(必填)</span> : null}
-        </label>
-        {children}
-      </div>
-      {error ? <p className="mt-2 text-right text-sm text-red-600">{error}</p> : null}
-    </div>
-  );
-}
-
-function SegmentedControl<TValue extends string>({
+function CalendarModePill({
   value,
-  onChange,
-  options,
-  ariaLabel
+  onChange
 }: {
-  value: TValue;
-  onChange: (value: TValue) => void;
-  options: Array<{ label: string; value: TValue }>;
-  ariaLabel: string;
+  value: BaziFormValues["calendar"];
+  onChange: (value: BaziFormValues["calendar"]) => void;
 }) {
+  const options = [
+    { label: "公", value: "solar" },
+    { label: "农", value: "lunar" },
+    { label: "柱", value: "pillars" }
+  ] as const;
+
   return (
-    <div className="flex h-9 items-center rounded-full border border-[#deddd9] p-1" aria-label={ariaLabel}>
+    <div className="ml-auto grid h-10 w-[150px] grid-cols-3 rounded-full bg-[#f2f2f0] p-1" aria-label="选择历法">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
           className={cn(
-            "h-full flex-1 rounded-full text-[15px] font-medium transition-colors",
-            option.value === value ? "bg-gold text-white" : "text-[#9b9b9b]"
+            "rounded-full text-[18px] font-semibold leading-none transition-colors",
+            option.value === value ? "bg-black text-[#e8d4a7]" : "text-[#8b8985]"
           )}
         >
           {option.label}
@@ -473,7 +426,7 @@ function BirthTimePickerSheet({
           <button
             type="button"
             onClick={() => setDaylightSaving((current) => !current)}
-            className={cn("relative h-8 w-14 rounded-full transition-colors", daylightSaving ? "bg-gold" : "bg-[#e2e2e2]")}
+            className={cn("relative h-8 w-14 rounded-full transition-colors", daylightSaving ? "bg-black" : "bg-[#e2e2e2]")}
             aria-pressed={daylightSaving}
             aria-label="是否使用夏令时"
           >

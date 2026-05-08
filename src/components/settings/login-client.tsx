@@ -12,7 +12,6 @@ import {
   MapPin,
   Power,
   Search,
-  ShieldCheck,
   Smartphone,
   UsersRound,
   UserRound,
@@ -64,11 +63,14 @@ type UserProfileSettings = {
   birthPlace: string;
 };
 
+const DEFAULT_SMS_MESSAGE = "当前为开发环境，验证码会显示在页面提示中";
+const DEFAULT_PASSWORD_MESSAGE = "账号密码仅在本地开发服务中保存";
+
 export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextHref = sanitizeNextHref(searchParams.get("next"));
-  const [sessionStatus, setSessionStatus] = useState<SessionStatus>("loading");
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>(profileRoute ? "loading" : "signed-out");
   const [sessionUser, setSessionUser] = useState<AuthSessionResponse["user"]>(null);
   const [loginMode, setLoginMode] = useState<LoginMode>("sms");
   const [passwordMode, setPasswordMode] = useState<PasswordMode>("login");
@@ -83,7 +85,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   const [loadingCode, setLoadingCode] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [agreementShake, setAgreementShake] = useState(false);
-  const [message, setMessage] = useState("当前为开发环境，验证码会显示在页面提示中");
+  const [message, setMessage] = useState(DEFAULT_SMS_MESSAGE);
   const [devCode, setDevCode] = useState<string | null>(null);
 
   const normalizedPhone = useMemo(() => phone.replace(/\s|-/g, ""), [phone]);
@@ -108,12 +110,17 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
 
   useEffect(() => {
     let mounted = true;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      controller.abort();
+    }, 5000);
 
     async function loadSession() {
       try {
         const response = await fetch("/api/auth/get-session", {
           method: "GET",
-          credentials: "include"
+          credentials: "include",
+          signal: controller.signal
         });
         const data = response.ok ? ((await response.json()) as AuthSessionResponse | null) : null;
 
@@ -159,6 +166,8 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
 
     return () => {
       mounted = false;
+      window.clearTimeout(timeoutId);
+      controller.abort();
     };
   }, []);
 
@@ -334,12 +343,12 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
 
   function switchLoginMode(nextMode: LoginMode) {
     setLoginMode(nextMode);
-    setMessage(nextMode === "sms" ? "当前为开发环境，验证码会显示在页面提示中" : "账号密码仅在本地开发服务中保存");
+    setMessage(nextMode === "sms" ? DEFAULT_SMS_MESSAGE : DEFAULT_PASSWORD_MESSAGE);
   }
 
   if (sessionStatus === "loading") {
     return (
-      <main className="mx-auto flex min-h-screen max-w-[430px] items-center justify-center bg-[#f6f6f5] text-ink shadow-soft">
+      <main className="mx-auto flex min-h-screen max-w-[430px] items-center justify-center bg-[#F8F7EE] text-ink shadow-soft">
         <Loader2 className="animate-spin text-[#a58024]" size={30} />
       </main>
     );
@@ -349,102 +358,89 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
     return <UserSettingsPage user={sessionUser} onSignedOut={() => setSessionStatus("signed-out")} />;
   }
 
+  const showInlineMessage = message !== DEFAULT_SMS_MESSAGE && message !== DEFAULT_PASSWORD_MESSAGE;
+
   return (
-    <main className="mx-auto flex h-dvh max-w-[430px] flex-col overflow-hidden bg-[#0d0b0a] text-white shadow-soft">
-      <section className="relative flex h-dvh flex-col overflow-hidden px-6 pb-5 pt-8">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(128,102,63,0.42),transparent_32%),linear-gradient(180deg,rgba(27,23,20,0.88),rgba(8,7,6,0.96))]" />
-        <div className="absolute inset-x-8 top-28 h-[360px] rounded-full bg-[#6d5635]/20 blur-3xl" />
-
-        <div className="relative z-10">
-          <Link href="/settings" className="-ml-2 flex h-9 w-9 items-center justify-center" aria-label="返回设置">
-            <ChevronLeft size={32} strokeWidth={2.4} />
+    <main className="relative mx-auto min-h-screen max-w-[430px] overflow-hidden bg-paper pb-10 text-ink shadow-soft">
+      <header className="sticky top-0 z-20 bg-[#F8F7EE] px-5 pb-5 pt-14">
+        <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center">
+          <Link href="/settings" className="-ml-2 flex h-10 w-10 items-center justify-center text-ink" aria-label="返回设置">
+            <ChevronLeft size={28} strokeWidth={2.2} />
           </Link>
+          <h1 className="text-center text-[22px] font-semibold">登录</h1>
+          <span className="h-10 w-10" />
         </div>
+      </header>
 
-        <section className="relative z-10 mt-8 text-center">
-          <h1 className="text-[32px] font-semibold leading-[1.08]">登录提供存储功能</h1>
-          <p className="mt-3 text-[18px] font-light leading-snug text-white/58">享受跨设备无缝同步的便利性和可靠性</p>
-        </section>
+      <section className="px-4 pt-2">
+        <div className="rounded-[22px] bg-white px-5 pb-6 pt-7 text-center shadow-soft">
+          <h2 className="m-0 text-[26px] font-semibold leading-[1.25]">登录提供存储功能</h2>
+          <p className="mt-3 text-[15px] leading-6 text-mutedInk">保存排盘记录，并在同一账号下查看历史报告。</p>
 
-        <section className="relative z-10 mt-8">
-          <div className="mb-3 grid grid-cols-2 rounded-full bg-white/14 p-1">
+          <div className="mt-6 grid h-10 grid-cols-2 rounded-full bg-[#f2f2f0] p-1">
             <button
               type="button"
               onClick={() => switchLoginMode("sms")}
-              className={`h-9 rounded-full text-[15px] ${loginMode === "sms" ? "bg-white text-[#211b15]" : "text-white/66"}`}
+              className={`rounded-full text-[15px] font-semibold transition-colors ${loginMode === "sms" ? "bg-black text-[#e8d4a7]" : "text-[#8b8985]"}`}
             >
               验证码登录
             </button>
             <button
               type="button"
               onClick={() => switchLoginMode("password")}
-              className={`h-9 rounded-full text-[15px] ${loginMode === "password" ? "bg-white text-[#211b15]" : "text-white/66"}`}
+              className={`rounded-full text-[15px] font-semibold transition-colors ${loginMode === "password" ? "bg-black text-[#e8d4a7]" : "text-[#8b8985]"}`}
             >
               账号密码
             </button>
           </div>
 
-          <p className="mb-3 text-center text-[17px] text-white/72">
-            {loginMode === "sms" ? "未注册手机验证后即完成注册" : passwordMode === "login" ? "使用手机号/邮箱和密码登录" : "创建手机号/邮箱密码账号"}
+          <p className="mb-5 mt-6 text-[16px] font-semibold text-[#55514a]">
+            {loginMode === "sms" ? "未注册手机验证后即完成注册" : passwordMode === "login" ? "使用账号密码登录" : "创建账号密码登录"}
           </p>
-
-          {loginMode === "password" ? (
-            <div className="mb-3 grid grid-cols-2 rounded-full bg-white/10 p-1">
-              <button
-                type="button"
-                onClick={() => setPasswordMode("login")}
-                className={`h-9 rounded-full text-[15px] ${passwordMode === "login" ? "bg-[#d8b96d] text-[#1c1408]" : "text-white/62"}`}
-              >
-                登录
-              </button>
-              <button
-                type="button"
-                onClick={() => setPasswordMode("register")}
-                className={`h-9 rounded-full text-[15px] ${passwordMode === "register" ? "bg-[#d8b96d] text-[#1c1408]" : "text-white/62"}`}
-              >
-                注册
-              </button>
-            </div>
-          ) : null}
 
           {loginMode === "sms" ? (
             <>
               <input
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
-                className="h-[54px] w-full rounded-full bg-white/70 px-6 text-[18px] text-[#2f2d2a] outline-none placeholder:text-white/80"
+                className="h-[54px] w-full rounded-full border-0 bg-[#f2f2f0] px-6 text-[20px] text-ink outline-none placeholder:text-[#aaa8a1]"
                 inputMode="tel"
                 maxLength={13}
                 placeholder="请输入手机号"
                 aria-label="手机号"
               />
-              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_112px] gap-3">
-              <input
+              {cooldown > 0 || devCode || code ? (
+                <input
                 value={code}
                 onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                className="h-[52px] min-w-0 rounded-full bg-white/70 px-6 text-[18px] text-[#2f2d2a] outline-none placeholder:text-white/80"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="验证码"
-                aria-label="验证码"
-              />
+                  className="mt-[14px] h-[54px] w-full rounded-full border-0 bg-[#f2f2f0] px-6 text-[20px] text-ink outline-none placeholder:text-[#aaa8a1]"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="请输入验证码"
+                  aria-label="验证码"
+                />
+              ) : null}
               <button
                 type="button"
-                onClick={requestCode}
-                disabled={!canRequestCode}
-                className="flex h-[52px] items-center justify-center rounded-full bg-white/78 px-3 text-[15px] font-medium text-[#737373] disabled:opacity-55"
-                aria-label="获取验证码"
+                onClick={cooldown > 0 || code ? login : requestCode}
+                disabled={(cooldown <= 0 && !canRequestCode && !code) || loggingIn}
+                className={`mt-[14px] flex h-[54px] w-full items-center justify-center rounded-full border-0 bg-black text-[20px] font-semibold text-[#e8d4a7] disabled:opacity-55 ${agreementShake ? "animate-agreement-shake" : ""}`}
               >
-                {loadingCode ? <Loader2 className="animate-spin" size={20} /> : cooldown > 0 ? `${cooldown}s` : "获取验证码"}
+                {loadingCode || loggingIn ? <Loader2 className="animate-spin" size={22} /> : cooldown > 0 || code ? "登录并保存" : "获取验证码"}
               </button>
-              </div>
+              {cooldown > 0 && !code ? <p className="mt-3 text-[13px] text-mutedInk">{cooldown}s 后可重新获取验证码</p> : null}
+              {devCode ? (
+                <button type="button" onClick={() => setCode(devCode)} className="mt-2 w-full text-center text-[13px] font-semibold text-[#a58024]">
+                  填入开发验证码
+                </button>
+              ) : null}
             </>
           ) : (
-            <div className="mt-3 space-y-3">
+            <div className="space-y-3">
               <input
                 value={accountIdentifier}
                 onChange={(event) => setAccountIdentifier(event.target.value)}
-                className={`h-[54px] w-full rounded-full bg-white/70 px-6 text-[18px] text-[#2f2d2a] outline-none placeholder:text-white/80 ${accountIdentifier && !isValidPasswordIdentifier ? "ring-2 ring-[#ff5a5f]" : ""}`}
+                className={`h-[54px] w-full rounded-full border-0 bg-[#f2f2f0] px-6 text-[20px] text-ink outline-none placeholder:text-[#aaa8a1] ${accountIdentifier && !isValidPasswordIdentifier ? "ring-2 ring-[#c62828]" : ""}`}
                 inputMode="email"
                 maxLength={80}
                 placeholder="请输入手机号或邮箱"
@@ -455,7 +451,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
                 onChange={setPassword}
                 visible={showPassword}
                 onToggleVisible={() => setShowPassword((value) => !value)}
-                placeholder={passwordMode === "register" ? "设置密码，至少8位含字母数字" : "请输入密码"}
+                placeholder={passwordMode === "register" ? "设置密码" : "请输入密码"}
                 ariaLabel="密码"
               />
               {passwordMode === "register" ? (
@@ -468,70 +464,57 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
                   ariaLabel="确认密码"
                 />
               ) : null}
-              {passwordFormError ? <p className="px-4 text-[13px] leading-5 text-[#ff5a5f]">{passwordFormError}</p> : null}
+              <button
+                type="button"
+                onClick={submitPasswordAuth}
+                disabled={loggingIn}
+                className={`flex h-[54px] w-full items-center justify-center rounded-full bg-black text-[20px] font-semibold text-[#e8d4a7] disabled:opacity-55 ${agreementShake ? "animate-agreement-shake" : ""}`}
+              >
+                {loggingIn ? <Loader2 className="animate-spin" size={22} /> : passwordMode === "register" ? "注册并登录" : "账号密码登录"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPasswordMode(passwordMode === "login" ? "register" : "login")}
+                className="w-full text-center text-[14px] font-semibold text-[#a58024]"
+              >
+                {passwordMode === "login" ? "没有账号？立即注册" : "已有账号？返回登录"}
+              </button>
+              {passwordFormError ? <p className="px-4 text-[13px] leading-5 text-[#c62828]">{passwordFormError}</p> : null}
             </div>
           )}
 
-          <p className="mt-2 min-h-5 text-center text-[13px] leading-5 text-[#d8c29b]">{message}</p>
-          {loginMode === "sms" ? (
-            <button
-              type="button"
-              onClick={login}
-              disabled={loggingIn}
-              className={`mt-1 flex h-[54px] w-full items-center justify-center rounded-full bg-[#d8b96d] text-[19px] font-semibold text-[#1c1408] disabled:bg-white/28 disabled:text-white/55 ${agreementShake ? "animate-agreement-shake" : ""}`}
-            >
-              {loggingIn ? <Loader2 className="animate-spin" size={22} /> : "登录并保存"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={submitPasswordAuth}
-              disabled={loggingIn}
-              className={`mt-1 flex h-[54px] w-full items-center justify-center rounded-full bg-[#d8b96d] text-[19px] font-semibold text-[#1c1408] disabled:bg-white/28 disabled:text-white/55 ${agreementShake ? "animate-agreement-shake" : ""}`}
-            >
-              {loggingIn ? <Loader2 className="animate-spin" size={22} /> : passwordMode === "register" ? "注册并登录" : "账号密码登录"}
-            </button>
-          )}
-          {devCode ? (
-            <button type="button" onClick={() => setCode(devCode)} className="mt-2 w-full text-center text-[13px] text-white/55">
-              填入开发验证码
-            </button>
-          ) : null}
-        </section>
+          <p className="mt-3 min-h-5 text-center text-[13px] leading-5 text-mutedInk">{showInlineMessage ? message : ""}</p>
+        </div>
+      </section>
 
-        <section className="relative z-10 mt-auto text-center">
-          <p className="mb-4 text-[16px] text-white/54">其他登录方式</p>
-          <div className="flex items-start justify-center gap-6">
-            <LoginMethod label={loginMode === "password" ? "验证码登录" : "账号密码登录"} icon={IdCard} onClick={() => switchLoginMode(loginMode === "password" ? "sms" : "password")} />
+      <section className="px-4 pt-4 text-center">
+        <div className="rounded-[22px] bg-white px-4 py-5 shadow-soft">
+          <p className="mb-4 text-[16px] font-semibold text-[#55514a]">其他登录方式</p>
+          <div className="flex justify-center gap-4">
             <LoginMethod label="Google登录" icon={Search} onClick={() => signInWithSocial("google")} />
             <LoginMethod label="GitHub登录" icon={Github} onClick={() => signInWithSocial("github")} />
           </div>
-        </section>
+        </div>
+      </section>
 
-        <label className={`relative z-10 mt-6 flex items-center gap-2.5 text-[15px] leading-6 text-white/64 ${agreementShake ? "text-[#d8b96d]" : ""}`}>
+      <section className="px-4 pt-4">
+        <label className={`flex items-center justify-center gap-1 whitespace-nowrap text-[13px] leading-5 text-mutedInk ${agreementShake ? "text-ink" : ""}`}>
           <input
             checked={agreed}
             onChange={(event) => setAgreed(event.target.checked)}
             type="checkbox"
-            className="h-6 w-6 shrink-0 appearance-none rounded-full border-2 border-white/55 bg-transparent checked:border-[#d8b96d] checked:bg-[#d8b96d]"
+            className="mr-0.5 h-3.5 w-3.5 shrink-0 appearance-none rounded-full border-[1.5px] border-[#aaa8a1] bg-transparent checked:border-black checked:bg-black"
             aria-label="同意用户协议和隐私政策"
           />
-          <span>
-            我已阅读并同意
-            <Link href="/settings/login" className="text-white">
-              《用户协议》
-            </Link>
-            和
-            <Link href="/settings/login" className="text-white">
-              《隐私政策》
-            </Link>
-          </span>
+          <span>我已阅读并同意</span>
+          <Link href="/settings/login" className="font-semibold text-ink">
+            《用户协议》
+          </Link>
+          <span>和</span>
+          <Link href="/settings/login" className="font-semibold text-ink">
+            《隐私政策》
+          </Link>
         </label>
-
-        <div className="relative z-10 mt-4 flex justify-center text-white/45">
-          <ShieldCheck size={16} />
-          <span className="ml-1.5 text-xs">验证码 5 分钟内有效，请勿泄露给他人</span>
-        </div>
       </section>
     </main>
   );
@@ -640,45 +623,44 @@ function UserSettingsPage({
   }
 
   return (
-    <main className="mx-auto flex h-dvh max-w-[430px] flex-col overflow-hidden bg-[#f6f6f5] text-ink shadow-soft">
-      <header className="shrink-0 bg-white px-5 pb-3 pt-7">
-        <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center">
-          <Link href="/settings" className="-ml-2 flex h-9 w-9 items-center justify-center text-[#30343a]" aria-label="返回设置">
-            <ChevronLeft size={28} strokeWidth={2.4} />
-          </Link>
-          <h1 className="text-center text-[23px] font-semibold tracking-[0.14em]">个人设置</h1>
-          <span />
-        </div>
+    <main className="mx-auto min-h-dvh max-w-[430px] bg-[#f7f7f7] text-ink shadow-soft">
+      <header className="grid h-[108px] grid-cols-[44px_minmax(0,1fr)_44px] items-center border-b border-[#f1f1f1] bg-white px-[22px] pt-[38px]">
+        <Link href="/settings" className="-ml-2 flex h-10 w-10 items-center justify-center text-[#222]" aria-label="返回设置">
+          <ChevronLeft size={34} strokeWidth={1.8} />
+        </Link>
+        <h1 className="text-center text-[24px] font-medium tracking-[0.08em]">个人设置</h1>
+        <span />
       </header>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-      <section className="mt-2 bg-white px-5">
-        <SettingsRow icon={IdCard} label="ID" value={displayId} />
-        <SettingsRow icon={Smartphone} label={accountLabel} value={accountValue} actionable />
-      </section>
+      <div>
+        <section className="mt-[18px] bg-white pl-[17px]">
+          <SettingsRow icon={IdCard} label="ID" value={displayId} />
+          <SettingsRow icon={Smartphone} label={accountLabel} value={accountValue} actionable />
+        </section>
 
-      <section className="mt-2 bg-white px-5 py-2">
-        <p className="mb-1.5 text-[12px] leading-5 text-[#c85f66]">*输入出生信息，将会在用户列表排盘置顶，便于用户使用</p>
-        <SettingsRow icon={UserRound} label="昵称" value={profile.name || "未填写"} actionable onClick={() => startEdit("name")} />
-        <SettingsRow icon={UsersRound} label="性别" value={profile.gender || "未填写"} actionable onClick={() => startEdit("gender")} />
-        <SettingsRow icon={Clock3} label="出生时间" value={formatProfileBirthTime(profile.birthTime)} actionable onClick={() => startEdit("birthTime")} />
-        <SettingsRow icon={MapPin} label="出生地区" value={profile.birthPlace || "未填写"} actionable last onClick={() => startEdit("birthPlace")} />
-      </section>
+        <p className="mt-[26px] px-[17px] pb-4 text-[14px] leading-[1.6] text-[#d95f68]">*输入出生信息，将会在用户列表排盘置顶，便于用户使用</p>
 
-      <section className="mt-2 bg-white px-5">
-        <SettingsRow icon={Power} label="账号注销" value="" actionable muted last onClick={() => setDeleteWarningOpen(true)} />
-      </section>
+        <section className="bg-white pl-[17px]">
+          <SettingsRow icon={UserRound} label="昵称" value={profile.name || "未填写"} actionable onClick={() => startEdit("name")} />
+          <SettingsRow icon={UsersRound} label="性别" value={profile.gender || "未填写"} actionable onClick={() => startEdit("gender")} />
+          <SettingsRow icon={Clock3} label="出生时间" value={formatProfileBirthTime(profile.birthTime)} actionable onClick={() => startEdit("birthTime")} />
+          <SettingsRow icon={MapPin} label="出生地区" value={profile.birthPlace || "未填写"} actionable last onClick={() => startEdit("birthPlace")} />
+        </section>
 
-      <section className="px-5 pt-2">
-        <button
-          type="button"
-          onClick={signOut}
-          disabled={signingOut}
-          className="flex h-[48px] w-full items-center justify-center rounded-full bg-[#eeeeed] text-[18px] font-medium text-[#777] disabled:opacity-60"
-        >
-          {signingOut ? <Loader2 className="animate-spin" size={21} /> : "退出登录"}
-        </button>
-      </section>
+        <section className="mt-6 bg-white pl-[17px]">
+          <SettingsRow icon={Power} label="账号注销" value="" actionable muted last onClick={() => setDeleteWarningOpen(true)} />
+        </section>
+
+        <section className="px-[15px] pt-7">
+          <button
+            type="button"
+            onClick={signOut}
+            disabled={signingOut}
+            className="flex h-[54px] w-full items-center justify-center rounded-full bg-[#eeeeee] text-[18px] font-medium tracking-[0.08em] text-[#666] disabled:opacity-60"
+          >
+            {signingOut ? <Loader2 className="animate-spin" size={21} /> : "退出登录"}
+          </button>
+        </section>
       </div>
 
       {editingField ? (
@@ -724,9 +706,9 @@ function SettingsRow({
     <>
       <Icon className={muted ? "text-[#b3b3b3]" : "text-[#6f7275]"} size={21} strokeWidth={1.9} />
       <span className={`text-[18px] font-medium ${muted ? "text-[#8a8a8a]" : "text-black"}`}>{label}</span>
-      <span className="flex min-w-0 items-center justify-end text-right text-[16px] text-[#858585]">
+      <span className="flex min-w-0 items-center justify-end text-right text-[16px] text-[#8d8d8d]">
         <span className="max-w-[160px] truncate">{value}</span>
-        {actionable ? <ChevronRight className="ml-1 shrink-0" size={19} strokeWidth={2.1} /> : null}
+        {actionable ? <ChevronRight className="ml-1 shrink-0 text-[#999]" size={20} strokeWidth={2.1} /> : null}
       </span>
     </>
   );
@@ -736,7 +718,7 @@ function SettingsRow({
       <button
         type="button"
         onClick={onClick}
-        className={`grid min-h-[48px] w-full grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-2 text-left ${last ? "" : "border-b border-[#ecebea]"}`}
+        className={`grid min-h-[58px] w-full grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2 pr-[18px] text-left ${last ? "" : "border-b border-[#eeeeee]"}`}
       >
         {content}
       </button>
@@ -744,7 +726,7 @@ function SettingsRow({
   }
 
   return (
-    <div className={`grid min-h-[48px] grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-2 ${last ? "" : "border-b border-[#ecebea]"}`}>
+    <div className={`grid min-h-[58px] grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2 pr-[18px] ${last ? "" : "border-b border-[#eeeeee]"}`}>
       {content}
     </div>
   );
@@ -823,20 +805,20 @@ function DeleteAccountDialog({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-5">
-      <div className="w-full max-w-[398px] rounded-[24px] bg-white p-5 shadow-soft">
-        <h2 className="text-center text-[24px] font-semibold text-[#c62828]">确认注销账号？</h2>
-        <p className="mt-4 text-[17px] leading-7 text-[#c62828]">
+      <div className="w-full max-w-[398px] rounded-[24px] bg-white px-5 pb-5 pt-6 shadow-soft">
+        <h2 className="text-center text-[22px] font-semibold tracking-[0.04em] text-black">确认注销账号？</h2>
+        <p className="mt-4 text-[16px] leading-7 text-[#666]">
           注销账户会清空该账号的所有资料、排盘记录、AI 报告、登录信息和相关账号数据。删除后无法恢复。
         </p>
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <button type="button" onClick={onClose} disabled={deleting} className="h-[52px] rounded-full bg-[#eeeeed] text-[18px] font-medium text-[#666]">
+          <button type="button" onClick={onClose} disabled={deleting} className="h-[52px] rounded-full bg-[#eeeeee] text-[18px] font-medium text-[#666] disabled:opacity-65">
             取消
           </button>
           <button
             type="button"
             onClick={onConfirm}
             disabled={deleting}
-            className="flex h-[52px] items-center justify-center rounded-full bg-[#c62828] text-[18px] font-semibold text-white disabled:opacity-65"
+            className="flex h-[52px] items-center justify-center rounded-full bg-[#bd3f59] text-[18px] font-semibold text-white disabled:opacity-65"
           >
             {deleting ? <Loader2 className="animate-spin" size={22} /> : "确认注销"}
           </button>
@@ -964,11 +946,11 @@ function PasswordField({
   ariaLabel: string;
 }) {
   return (
-    <div className="grid h-[54px] grid-cols-[minmax(0,1fr)_48px] items-center rounded-full bg-white/70">
+    <div className="grid h-[54px] grid-cols-[minmax(0,1fr)_48px] items-center rounded-full bg-[#f2f2f0]">
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-w-0 bg-transparent px-6 pr-3 text-[18px] text-[#2f2d2a] outline-none placeholder:text-white/80"
+        className="min-w-0 bg-transparent px-6 pr-3 text-[20px] text-ink outline-none placeholder:text-[#aaa8a1]"
         type={visible ? "text" : "password"}
         maxLength={32}
         placeholder={placeholder}
@@ -985,11 +967,11 @@ function LoginMethod({ label, icon, onClick }: { label: string; icon: LucideIcon
   const Icon = icon;
 
   return (
-    <button type="button" onClick={onClick} className="flex w-[78px] flex-col items-center" aria-label={label}>
-      <span className="flex h-[54px] w-[54px] items-center justify-center rounded-full bg-white text-black">
-        <Icon size={28} strokeWidth={2.1} />
+    <button type="button" onClick={onClick} className="flex w-[92px] flex-col items-center text-[15px]" aria-label={label}>
+      <span className="mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-full bg-[#f6f0e2] text-[#a58024]">
+        <Icon size={24} strokeWidth={2.2} />
       </span>
-      <span className="mt-2 text-[15px] leading-tight text-white">{label}</span>
+      <span className="leading-tight text-[#55514a]">{label}</span>
     </button>
   );
 }

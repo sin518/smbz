@@ -1,60 +1,23 @@
-"use client";
-
+import { cookies, headers } from "next/headers";
 import Link from "next/link";
-import { Loader2, Search, UserRoundCheck } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Search, UserRoundCheck } from "lucide-react";
 import { AppBottomNav } from "@/components/app-bottom-nav";
+import { auth } from "@/lib/auth/better-auth";
+import { getUserBySessionToken } from "@/lib/auth/password-account";
 
-type SessionResponse = {
-  session?: unknown;
-  user?: {
-    id?: string;
-    phone?: string;
-    email?: string | null;
-    name?: string | null;
-  } | null;
-};
+type SessionUser = {
+  id?: string;
+  phone?: string;
+  email?: string | null;
+  name?: string | null;
+} | null;
 
-type SessionStatus = "checking" | "signed-in" | "signed-out";
-
-export default function RecordsPage() {
-  const [sessionStatus, setSessionStatus] = useState<SessionStatus>("checking");
-  const [sessionUser, setSessionUser] = useState<SessionResponse["user"]>(null);
-  const isSignedIn = sessionStatus === "signed-in";
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function checkSession() {
-      try {
-        const response = await fetch("/api/auth/get-session", {
-          method: "GET",
-          credentials: "include"
-        });
-        const data = response.ok ? ((await response.json()) as SessionResponse | null) : null;
-
-        if (mounted) {
-          setSessionUser(data?.user ?? null);
-          setSessionStatus(data?.session && data.user ? "signed-in" : "signed-out");
-        }
-      } catch {
-        if (mounted) {
-          setSessionUser(null);
-          setSessionStatus("signed-out");
-        }
-      }
-    }
-
-    void checkSession();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+export default async function RecordsPage() {
+  const sessionUser = await getRecordsSessionUser();
 
   return (
     <main className="mx-auto min-h-screen max-w-[430px] bg-paper pb-28 text-ink shadow-soft">
-      <header className="sticky top-0 z-20 bg-white px-5 pb-5 pt-14">
+      <header className="sticky top-0 z-20 bg-[#F8F7EE] px-5 pb-5 pt-14">
         <div className="flex items-center justify-between">
           <h1 className="text-[30px] font-semibold">排盘记录</h1>
           <Link href="/" className="rounded-full bg-black px-5 py-2 text-[16px] font-semibold text-[#e8d4a7]">
@@ -67,16 +30,52 @@ export default function RecordsPage() {
         </div>
       </header>
 
-      {sessionStatus === "checking" ? <RecordsLoading /> : null}
-      {sessionStatus === "signed-out" ? <LoginRequiredCard /> : null}
-      {isSignedIn ? <RecordsContent user={sessionUser} /> : null}
+      {sessionUser ? <RecordsContent user={sessionUser} /> : <LoginRequiredCard />}
 
       <AppBottomNav active="records" />
     </main>
   );
 }
 
-function RecordsContent({ user }: { user: SessionResponse["user"] }) {
+async function getRecordsSessionUser(): Promise<SessionUser> {
+  const token = (await cookies()).get("sm1_session")?.value;
+
+  if (token) {
+    try {
+      const session = await Promise.race([getUserBySessionToken(token), timeoutSessionLookup()]);
+
+      if (session?.user) {
+        return session.user;
+      }
+    } catch {
+      // Fall through to Better Auth session lookup.
+    }
+  }
+
+  try {
+    const session = await Promise.race([auth.api.getSession({ headers: await headers() }), timeoutSessionLookup()]);
+
+    if (!session?.session || !session.user?.id) {
+      return null;
+    }
+
+    return {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name
+    };
+  } catch {
+    return null;
+  }
+}
+
+function timeoutSessionLookup() {
+  return new Promise<null>((resolve) => {
+    setTimeout(() => resolve(null), 4000);
+  });
+}
+
+function RecordsContent({ user }: { user: SessionUser }) {
   const accountName = user?.name || user?.phone || user?.email || "已登录用户";
 
   return (
@@ -102,16 +101,6 @@ function RecordsContent({ user }: { user: SessionResponse["user"] }) {
         </div>
       </section>
     </>
-  );
-}
-
-function RecordsLoading() {
-  return (
-    <section className="px-4 pt-10">
-      <div className="flex min-h-[180px] items-center justify-center rounded-[22px] bg-white text-mutedInk shadow-soft">
-        <Loader2 className="animate-spin text-[#a58024]" size={28} />
-      </div>
-    </section>
   );
 }
 

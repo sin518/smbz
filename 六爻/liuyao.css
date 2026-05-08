@@ -1,0 +1,159 @@
+```css
+:root {
+    --primary-red: #c23521;
+    --bg-gray: #f8f8f8;
+    --text-dark: #333;
+    --text-light: #666;
+    --gua-color: #333;
+}
+
+body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    background-color: #fff;
+    color: var(--text-dark);
+}
+
+.app-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding-bottom: 20px;
+}
+
+/* 顶部导航 */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    height: 44px;
+}
+.header h1 {
+    font-size: 18px;
+    font-weight: 500;
+}
+
+/* 个人信息 */
+.info-section {
+    padding: 10px 20px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-light);
+}
+.info-row {
+    display: flex;
+    gap: 40px;
+}
+
+/* 灰底标题栏 */
+.section-title {
+    background-color: #888;
+    color: white;
+    text-align: center;
+    padding: 5px 0;
+    margin-top: 10px;
+}
+
+/* 神煞网格 */
+.god-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    padding: 15px 0;
+    text-align: center;
+}
+.god-item {
+    color: #d2691e;
+    font-size: 15px;
+    margin-bottom: 8px;
+}
+.god-item span {
+    color: var(--text-dark);
+}
+
+/* 红色时间轴 */
+.time-banner {
+    background-color: var(--primary-red);
+    color: white;
+    text-align: center;
+    padding: 8px 0;
+    font-size: 15px;
+}
+
+/* 六爻排盘表格 */
+.gua-table {
+    padding: 10px 20px;
+}
+.table-header {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+    font-size: 14px;
+    color: #999;
+}
+.highlight {
+    color: var(--primary-red);
+}
+
+.gua-row {
+    display: grid;
+    grid-template-columns: 80px 100px 1fr;
+    align-items: center;
+    height: 45px;
+}
+
+/* 卦象线条绘制 */
+.gua-line {
+    height: 12px;
+    background-color: var(--gua-color);
+    position: relative;
+}
+/* 阴爻：中间断开 */
+.yin::after {
+    content: "";
+    position: absolute;
+    left: 40%;
+    width: 20%;
+    height: 100%;
+    background-color: #fff; /* 用背景色遮盖中间 */
+}
+/* 阳爻：完整长条，无需额外处理 */
+
+.branch {
+    padding-left: 20px;
+    font-size: 15px;
+}
+.red-tag {
+    color: var(--primary-red);
+    font-weight: normal;
+    margin-left: 5px;
+}
+
+/* 底部解读区 */
+.interpretation {
+    padding: 10px 15px;
+}
+.sub-title {
+    font-size: 16px;
+    border-left: 4px solid var(--primary-red);
+    padding-left: 10px;
+    margin-bottom: 10px;
+}
+.content-card {
+    background-color: #fffdf5;
+    border: 1px solid #f0e6cc;
+    border-radius: 4px;
+    padding: 15px;
+}
+.content-card h3 {
+    font-size: 15px;
+    margin: 10px 0 5px 0;
+}
+.content-card p {
+    font-size: 14px;
+    color: #444;
+    line-height: 1.6;
+    margin: 0;
+}
+```
+

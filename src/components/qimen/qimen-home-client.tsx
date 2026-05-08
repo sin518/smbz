@@ -10,6 +10,12 @@ import { z } from "zod";
 import { calculateQimenChart } from "@/lib/qimen";
 import { chinaLocationOptions } from "@/lib/locations/china";
 import { cn } from "@/lib/utils";
+import {
+  DivinationProfileCard,
+  DivinationTimePickerSheet,
+  formatDateTimeLocal as formatSharedDateTimeLocal,
+  saveSharedProfile
+} from "@/components/shared/divination-profile-card";
 
 const qimenFormSchema = z.object({
   name: z.string().trim().max(20, "姓名不能超过 20 个字").optional(),
@@ -100,7 +106,8 @@ const juOptions = [
   { label: "阳遁九局", value: "yang-9" }
 ] as const;
 
-export function QimenHomeClient() {
+export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {}) {
+  const Shell = embedded ? "section" : "main";
   const router = useRouter();
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [divinationTypeOpen, setDivinationTypeOpen] = useState(false);
@@ -128,7 +135,7 @@ export function QimenHomeClient() {
   const districts = getDistricts(province, city);
 
   useEffect(() => {
-    const currentDateTime = formatDateTimeLocal(new Date());
+    const currentDateTime = formatSharedDateTimeLocal(new Date());
     setValue("dateTime", currentDateTime);
     // Run once after hydration so server and client do not render different minutes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,7 +155,7 @@ export function QimenHomeClient() {
     }
   }, [district, districts, setValue]);
 
-  function onSubmit(values: QimenFormValues) {
+  async function onSubmit(values: QimenFormValues) {
     const location = formatLocation(values);
     const nextChart = calculateQimenChart({
       dateTime: values.dateTime,
@@ -169,69 +176,52 @@ export function QimenHomeClient() {
 
     if (values.save) {
       window.localStorage.setItem("sm1:last-qimen-input", JSON.stringify(payload));
+      await saveSharedProfile({
+        source: "奇门档案",
+        name: values.name?.trim() ?? "",
+        gender: values.gender,
+        dateTime: values.dateTime,
+        location
+      });
     }
 
     router.push("/qimen/result");
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-[430px] bg-[#f6f5ef] pb-8 text-ink shadow-soft">
-      <header className="px-5 pb-2 pt-8">
+    <Shell className={cn("mx-auto max-w-[430px] text-ink", embedded ? "bg-transparent pb-0 shadow-none" : "min-h-screen bg-[#F8F7EE] pb-8 shadow-soft")}>
+      {!embedded ? <header className="px-5 pb-2 pt-8">
         <div className="flex items-center justify-between">
-          <Link href="/settings" className="-ml-2 flex h-10 w-10 items-center justify-center" aria-label="返回设置">
+          <Link href="/" className="-ml-2 flex h-10 w-10 items-center justify-center" aria-label="返回首页">
             <ArrowLeft size={24} />
           </Link>
           <h1 className="text-[24px] font-semibold">奇门遁甲</h1>
           <span className="h-10 w-10" />
         </div>
-      </header>
+      </header> : null}
 
-      <div className="space-y-4 px-4 pt-4">
+      <div className={cn("space-y-4", embedded ? "px-0 pt-0" : "px-4 pt-4")}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <FormCard>
-            <FieldRow icon={UserRound} label="姓名" error={errors.name?.message}>
-              <div className="flex min-w-0 items-center justify-end gap-2">
-                <input
-                  {...register("name")}
-                  className="min-w-0 flex-1 bg-transparent text-right text-[18px] font-semibold text-ink outline-none placeholder:text-[#bdbbb5]"
-                  placeholder="请输入姓名"
-                />
-                <button type="button" className="h-9 rounded-lg border border-[#33312e] px-3 text-[15px] font-semibold">
-                  档案
-                </button>
-              </div>
-            </FieldRow>
-
-            <Controller
-              name="gender"
-              control={control}
-              render={({ field }) => (
-                <FieldRow icon={Users} label="性别">
-                  <SegmentedPill
-                    value={field.value}
-                    onChange={field.onChange}
-                    options={[
-                      { label: "男", value: "male" },
-                      { label: "女", value: "female" }
-                    ]}
-                    ariaLabel="选择性别"
-                  />
-                </FieldRow>
-              )}
-            />
-
-            <FieldRow icon={CalendarClock} label="出生时间" error={errors.dateTime?.message} last>
-              <button
-                type="button"
-                onClick={() => setTimePickerOpen(true)}
-                className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#aaa8a1]"
-                aria-label="选择出生时间"
-              >
-                {dateTime ? formatPickerLabel(dateTime) : "请选择"}
-                <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
-              </button>
-            </FieldRow>
-          </FormCard>
+          <Controller
+            name="gender"
+            control={control}
+            render={({ field }) => (
+              <DivinationProfileCard
+                nameInputProps={register("name")}
+                nameError={errors.name?.message}
+                gender={field.value}
+                onGenderChange={field.onChange}
+                dateTime={dateTime}
+                dateTimeError={errors.dateTime?.message}
+                onOpenTimePicker={() => setTimePickerOpen(true)}
+                onApplyProfile={(profile) => {
+                  setValue("name", profile.name, { shouldDirty: true, shouldValidate: true });
+                  setValue("gender", profile.gender, { shouldDirty: true, shouldValidate: true });
+                  setValue("dateTime", profile.dateTime, { shouldDirty: true, shouldValidate: true });
+                }}
+              />
+            )}
+          />
 
           <FormCard>
             <Controller
@@ -329,7 +319,7 @@ export function QimenHomeClient() {
                   <Save size={19} className="text-[#a58024]" />
                   保存起局参数
                 </span>
-                <span className={cn("relative h-7 w-12 rounded-full transition-colors", field.value ? "bg-gold" : "bg-[#d7d7d7]")}>
+                <span className={cn("relative h-7 w-12 rounded-full transition-colors", field.value ? "bg-black" : "bg-[#d7d7d7]")}>
                   <span className={cn("absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", field.value && "translate-x-5")} />
                 </span>
               </button>
@@ -339,17 +329,13 @@ export function QimenHomeClient() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="mx-auto block h-14 w-[68%] rounded-lg bg-[#c91f08] text-[22px] font-semibold text-white shadow-[0_10px_18px_rgba(201,31,8,0.16)] disabled:opacity-70"
+            className="mx-auto block h-14 w-[68%] rounded-full bg-black text-[22px] font-semibold text-[#e8d4a7] shadow-soft disabled:opacity-70"
           >
             开始排盘
           </button>
         </form>
-
-        <Link href="/records" className="block py-2 text-center text-[24px] font-semibold">
-          历史记录
-        </Link>
       </div>
-      <QimenTimePickerSheet
+      <DivinationTimePickerSheet
         open={timePickerOpen}
         value={dateTime}
         onClose={() => setTimePickerOpen(false)}
@@ -388,12 +374,12 @@ export function QimenHomeClient() {
           setJuPickerOpen(false);
         }}
       />
-    </main>
+    </Shell>
   );
 }
 
 function FormCard({ children }: { children: React.ReactNode }) {
-  return <section className="rounded-xl border border-[#e5e0d4] bg-[#fffef7] px-4 shadow-soft">{children}</section>;
+  return <section className="rounded-[22px] bg-white px-4 shadow-soft">{children}</section>;
 }
 
 function FieldRow({
@@ -435,7 +421,7 @@ function SegmentedPill<TValue extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div className="ml-auto grid h-10 w-[104px] grid-cols-2 rounded-full border-2 border-[#c92208] p-1" aria-label={ariaLabel}>
+    <div className="ml-auto grid h-10 w-[104px] grid-cols-2 rounded-full bg-[#f2f2f0] p-1" aria-label={ariaLabel}>
       {options.map((option) => (
         <button
           key={option.value}
@@ -443,7 +429,7 @@ function SegmentedPill<TValue extends string>({
           onClick={() => onChange(option.value)}
           className={cn(
             "rounded-full text-[19px] font-semibold leading-none transition-colors",
-            option.value === value ? "bg-[#c92208] text-white" : "text-[#aaa8a1]"
+            option.value === value ? "bg-black text-[#e8d4a7]" : "text-[#8b8985]"
           )}
         >
           {option.label}
@@ -518,7 +504,7 @@ function OptionSheet<TValue extends string>({
               onClick={() => onSelect(option.value)}
               className={cn(
                 "min-h-12 rounded-lg border-2 px-2 text-[18px] font-semibold leading-tight",
-                option.value === value ? "border-[#c92208] bg-[#c92208] text-white" : "border-[#c92208] text-[#c92208]"
+                option.value === value ? "border-black bg-black text-[#e8d4a7]" : "border-[#d8c8a6] text-[#6f5a25]"
               )}
             >
               {option.label}

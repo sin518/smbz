@@ -45,7 +45,7 @@ export function ProtectedAiCommandLink({ href }: { href: string }) {
       href={href}
       onClick={handleClick}
       aria-disabled={checking}
-      className="flex h-14 items-center justify-center rounded-full bg-white text-[24px] font-semibold shadow-[0_6px_22px_rgba(0,0,0,0.08)]"
+      className="flex h-12 items-center justify-center rounded-full bg-black text-[17px] font-semibold text-[#e8d4a7]"
     >
       {checking ? "检查中..." : "AI指令 ›"}
     </Link>

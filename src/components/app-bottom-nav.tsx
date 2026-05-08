@@ -10,7 +10,7 @@ const navItems: Array<{
   href: string;
   icon: typeof Sparkles;
 }> = [
-  { key: "chart", label: "排盘", href: "/", icon: Sparkles },
+  { key: "chart", label: "首页", href: "/", icon: Sparkles },
   { key: "records", label: "记录", href: "/records", icon: NotepadText },
   { key: "settings", label: "设置", href: "/settings", icon: SlidersHorizontal }
 ];

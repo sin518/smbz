@@ -1,112 +1,174 @@
-import Link from "next/link";
-import {
-  Bell,
-  BriefcaseBusiness,
-  CalendarDays,
-  Compass,
-  Headphones,
-  Settings2,
-  Sparkles,
-  UserRoundCheck
-} from "lucide-react";
-import { AppBottomNav } from "@/components/app-bottom-nav";
-import { SettingsAccountEntry } from "@/components/settings/settings-account-entry";
+"use client";
 
-type SettingsItem = {
-  label: string;
-  icon: typeof Settings2;
-  locked?: boolean;
-  href?: string;
+import {
+  ChevronRight,
+  CircleDotDashed,
+  Settings,
+  Smartphone,
+  Sun,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { AppBottomNav } from "@/components/app-bottom-nav";
+import { cn } from "@/lib/utils";
+
+type SessionResponse = {
+  session?: unknown;
+  user?: {
+    id?: string | null;
+  } | null;
 };
 
-const quickItems: SettingsItem[] = [
-  { label: "偏好设置", icon: Settings2 },
-  { label: "联系反馈", icon: Headphones },
-  { label: "生日提醒", icon: Bell },
-  { label: "问真招聘", icon: BriefcaseBusiness }
+type AuthState = {
+  status: "loading" | "signed-in" | "signed-out";
+  userId?: string;
+};
+
+type MenuItem = {
+  label: string;
+  icon: LucideIcon;
+  href?: string;
+  accent?: boolean;
+  right?: ReactNode;
+};
+
+const firstMenu: MenuItem[] = [
+  { label: "已读主题", icon: CircleDotDashed, href: "/records" }
 ];
 
-const toolItems: SettingsItem[] = [
-  { label: "紫微斗数", icon: Sparkles },
-  { label: "奇门遁甲", icon: Compass, href: "/qimen" },
-  { label: "吉真万年历", icon: CalendarDays }
+const secondMenu: MenuItem[] = [
+  { label: "Android 版", icon: Smartphone, accent: true },
+  {
+    label: "外观",
+    icon: Sun,
+    right: <AppearanceSwitch />
+  }
 ];
 
 export default function SettingsPage() {
+  const [authState, setAuthState] = useState<AuthState>({ status: "loading" });
+  const profileHref = authState.status === "signed-in" && authState.userId ? buildUserSettingsHref(authState.userId) : "/settings/login";
+  const loginLabel = authState.status === "signed-in" ? "已登录" : "登录";
+  const userMenu = [
+    secondMenu[0],
+    { label: "用户资料", icon: Settings, href: profileHref },
+    secondMenu[1]
+  ].filter(Boolean) as MenuItem[];
+
+  useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
+    async function loadSession() {
+      try {
+        const response = await fetch("/api/auth/get-session", {
+          method: "GET",
+          credentials: "include",
+          signal: controller.signal
+        });
+        const data = response.ok ? ((await response.json()) as SessionResponse | null) : null;
+
+        if (!mounted) {
+          return;
+        }
+
+        if (data?.session && data.user?.id) {
+          setAuthState({ status: "signed-in", userId: data.user.id });
+          return;
+        }
+      } catch {
+        // Session lookup failure should keep the page usable as signed out.
+      }
+
+      if (mounted) {
+        setAuthState({ status: "signed-out" });
+      }
+    }
+
+    void loadSession();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, []);
+
   return (
-    <main className="mx-auto min-h-screen max-w-[430px] bg-[#f1f1ef] pb-32 text-ink shadow-soft">
-      <section className="rounded-b-[28px] bg-[#23262e] px-5 pb-[74px] pt-14 text-white">
-        <SettingsAccountEntry />
+    <main className="relative mx-auto min-h-screen max-w-[430px] overflow-hidden bg-paper pb-[108px] text-ink shadow-soft">
+      <header className="sticky top-0 z-20 bg-[#F8F7EE] px-5 pb-5 pt-14">
+        <h1 className="text-[30px] font-semibold">设置</h1>
+      </header>
+
+      <section className="px-4 pt-2">
+        <div className="flex h-[126px] items-center justify-center rounded-[22px] bg-white shadow-soft">
+          <Link
+            href={profileHref}
+            className="flex h-[52px] w-28 items-center justify-center rounded-full bg-black text-[24px] font-bold text-[#e8d4a7]"
+          >
+            {loginLabel}
+          </Link>
+        </div>
       </section>
 
-      <div className="mt-5 space-y-5 px-4">
-        <SettingsGrid items={quickItems} columns="grid-cols-4" />
-
-        <section className="rounded-[22px] bg-white px-5 pb-7 pt-7 shadow-soft">
-          <h2 className="mb-7 text-[29px] font-semibold leading-none text-black">其他工具</h2>
-          <SettingsGrid items={toolItems} columns="grid-cols-3" nested />
-        </section>
-
-        <section className="rounded-[22px] bg-white p-5 shadow-soft">
-          <div className="flex items-start gap-3">
-            <UserRoundCheck className="mt-0.5 shrink-0 text-[#a58024]" size={24} />
-            <div>
-              <h2 className="text-[20px] font-semibold">登录后可保存排盘</h2>
-              <p className="mt-2 text-[15px] leading-7 text-mutedInk">
-                参考登录页的存储说明，后续接入短信、账号密码、Google 或 GitHub 登录后，会把记录同步到用户账号。
-              </p>
-            </div>
-          </div>
-        </section>
-      </div>
+      <MenuSection className="mt-5" items={firstMenu} />
+      <MenuSection items={userMenu} />
 
       <AppBottomNav active="settings" />
     </main>
   );
 }
 
-function SettingsGrid({
-  items,
-  columns,
-  nested = false
-}: {
-  items: SettingsItem[];
-  columns: "grid-cols-3" | "grid-cols-4";
-  nested?: boolean;
-}) {
+function buildUserSettingsHref(id: string) {
+  return `/settings/login/${encodeURIComponent(id)}`;
+}
+
+function MenuSection({ items, className }: { items: MenuItem[]; className?: string }) {
   return (
-    <section className={nested ? "" : "rounded-[22px] bg-white px-4 py-7 shadow-soft"}>
-      <div className={`grid ${columns === "grid-cols-4" ? "grid-cols-4" : "grid-cols-3"} gap-y-8`}>
-        {items.map((item) => (
-          <SettingsButton key={item.label} item={item} />
+    <section className={cn("px-4 pt-4", className)}>
+      <div className="overflow-hidden rounded-[22px] bg-white shadow-soft">
+        {items.map((item, index) => (
+          <MenuRow key={item.label} item={item} last={index === items.length - 1} />
         ))}
       </div>
     </section>
   );
 }
 
-function SettingsButton({ item }: { item: SettingsItem }) {
+function MenuRow({ item, last }: { item: MenuItem; last: boolean }) {
   const Icon = item.icon;
   const content = (
-    <>
-      <span className="flex h-11 w-11 items-center justify-center rounded-full text-black">
-        <Icon className={item.locked ? "text-[#b6a377]" : "text-black"} size={30} strokeWidth={1.75} />
-      </span>
-      <span className="mt-3 max-w-[4.5em] text-center text-[18px] leading-tight text-[#343a3f]">{item.label}</span>
-    </>
+    <div className={cn("ml-[61px] flex h-16 items-center justify-between pr-[18px]", !last && "border-b border-[#ebe7dd]")}>
+      <div className="-ml-[42px] flex items-center gap-[22px] text-[20px] font-bold text-[#33312e]">
+        <Icon className={cn("w-6 text-[#a58024]", item.accent && "text-[#a58024]")} size={27} strokeWidth={1.7} />
+        <span>{item.label}</span>
+      </div>
+      {item.right ?? <ChevronRight className="text-[#a9a59d]" size={32} strokeWidth={1.5} />}
+    </div>
   );
 
   if (item.href) {
     return (
-      <Link href={item.href} className="flex min-h-[86px] flex-col items-center justify-start">
+      <Link href={item.href} className="block">
         {content}
       </Link>
     );
   }
 
   return (
-    <button type="button" className="flex min-h-[86px] flex-col items-center justify-start" aria-label={item.label}>
+    <button type="button" className="block w-full text-left">
       {content}
     </button>
+  );
+}
+
+function AppearanceSwitch() {
+  return (
+    <div className="flex h-7 w-[218px] items-center rounded-[10px] bg-[#f2f0e8] p-0.5 text-[15px] font-bold text-[#9d9a92]">
+      <span className="flex-1 text-center leading-6">浅色</span>
+      <span className="flex-1 border-l border-[#e0dbce] text-center leading-6">深色</span>
+      <span className="flex-1 rounded-lg bg-black text-center leading-6 text-[#e8d4a7]">跟随系统</span>
+    </div>
   );
 }

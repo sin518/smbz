@@ -19,24 +19,26 @@ export function BaziProfileHero({ name, zodiac, lunar, solar, editHref }: BaziPr
   const displaySolar = visible ? solar : "****-**-** **:**";
 
   return (
-    <section className="bg-[radial-gradient(circle_at_50%_0%,#302a20,#111_55%,#080808)] px-5 py-5 text-white">
-      <div className="grid grid-cols-[82px_minmax(0,1fr)_84px] items-center gap-3">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-[#c9ad70] text-4xl">{zodiac}</div>
-        <div className="min-w-0 text-[12px] font-semibold leading-5">
-          <p className="truncate text-[12px] text-[#d7bc7d]">{displayName}</p>
-          <p className="truncate">农历：{displayLunar} 乾造</p>
-          <p className="truncate">阳历：{displaySolar}</p>
+    <section className="mx-4 mt-2 rounded-[22px] bg-white px-4 py-4 text-ink shadow-soft">
+      <div className="grid grid-cols-[60px_minmax(0,1fr)_78px] items-center gap-4">
+        <div className="flex h-[60px] w-[60px] items-center justify-center rounded-[18px] bg-black text-[26px] font-semibold text-[#e8d4a7]">{zodiac}</div>
+        <div className="min-w-0">
+          <p className="truncate text-[18px] font-semibold text-ink">{displayName}</p>
+          <div className="mt-1 space-y-1 text-[13px] font-medium leading-4 text-mutedInk">
+            <p className="truncate">农历：{displayLunar} 乾造</p>
+            <p className="truncate">阳历：{displaySolar}</p>
+          </div>
         </div>
-        <div className="flex justify-end gap-2 text-[#e9d29b]">
+        <div className="flex justify-end gap-2 text-[#a58024]">
           <button
             type="button"
             onClick={() => setVisible((current) => !current)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f6f0e2]"
             aria-label={visible ? "隐藏资料" : "显示资料"}
           >
             {visible ? <Eye size={20} /> : <EyeOff size={20} />}
           </button>
-          <Link href={editHref} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10" aria-label="编辑资料">
+          <Link href={editHref} className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f6f0e2]" aria-label="编辑资料">
             <Pencil size={20} />
           </Link>
         </div>
