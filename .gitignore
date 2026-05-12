@@ -1,5 +1,6 @@
 node_modules
 .next
+.pnpm-store
 .npm-cache
 *.log
 *.tsbuildinfo
@@ -7,7 +8,11 @@ node_modules
 .env*
 !.env.example
 
-/src/generated/prisma
+/frontend/src/generated/prisma
+/backend/.venv
+/backend/__pycache__
+/backend/.pycache
+/backend/.pytest_cache
 .DS_Store
 /image/
 /dunjia/
