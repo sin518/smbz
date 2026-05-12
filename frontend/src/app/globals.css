@@ -248,6 +248,104 @@ button {
   transform: rotate(-10deg);
 }
 
+.liuyao-coins {
+  width: min(64vw, 250px);
+  height: min(37vw, 148px);
+}
+
+.qianlong-coin {
+  position: absolute;
+  display: block;
+  width: min(26vw, 98px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  filter: drop-shadow(0 13px 14px rgba(90, 76, 49, 0.22));
+  perspective: 680px;
+}
+
+.qianlong-coin-flipper {
+  position: absolute;
+  inset: 0;
+  --coin-turn: 0deg;
+  transform: rotateY(var(--coin-turn));
+  transform-style: preserve-3d;
+}
+
+.qianlong-coin-flipper.is-back {
+  --coin-turn: 180deg;
+}
+
+.qianlong-coin-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background-image: url("/liuyao/qianlong-tongbao.webp");
+  background-repeat: no-repeat;
+  background-size: 200% 100%;
+  backface-visibility: hidden;
+  overflow: hidden;
+  box-shadow:
+    inset 0 2px 6px rgba(255, 247, 210, 0.18),
+    inset 0 -4px 8px rgba(64, 42, 18, 0.2);
+}
+
+.coin-front {
+  background-position: left center;
+}
+
+.coin-back {
+  background-position: right center;
+  transform: rotateY(180deg);
+}
+
+.coin-one {
+  left: 0;
+  top: 24%;
+  transform: rotate(-8deg);
+}
+
+.coin-two {
+  left: 50%;
+  top: 24%;
+  transform: translateX(-50%) rotate(2deg);
+}
+
+.coin-three {
+  right: 0;
+  top: 24%;
+  transform: rotate(8deg);
+}
+
+.animate-liuyao-phone-shake .qianlong-coin-flipper {
+  animation: qianlong-coin-flip 0.68s cubic-bezier(0.25, 0.8, 0.3, 1.08);
+}
+
+.animate-liuyao-phone-shake .coin-two .qianlong-coin-flipper {
+  animation-delay: 0.05s;
+}
+
+.animate-liuyao-phone-shake .coin-three .qianlong-coin-flipper {
+  animation-delay: 0.1s;
+}
+
+@keyframes qianlong-coin-flip {
+  0% {
+    transform: translateY(0) rotateY(var(--coin-turn)) rotateZ(0deg);
+  }
+  28% {
+    transform: translateY(-18px) rotateY(calc(var(--coin-turn) + 150deg)) rotateZ(-6deg);
+  }
+  58% {
+    transform: translateY(7px) rotateY(calc(var(--coin-turn) + 330deg)) rotateZ(5deg);
+  }
+  82% {
+    transform: translateY(-4px) rotateY(calc(var(--coin-turn) + 510deg)) rotateZ(-2deg);
+  }
+  100% {
+    transform: translateY(0) rotateY(calc(var(--coin-turn) + 720deg)) rotateZ(0deg);
+  }
+}
+
 .liuyao-bagua {
   opacity: 0.42;
   border: 3px solid rgba(255, 250, 182, 0.88);
