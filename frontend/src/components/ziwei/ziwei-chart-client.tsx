@@ -3,6 +3,7 @@
 import { ArrowLeft, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ZiweiAiCommandModal } from "@/components/ziwei/ziwei-ai-command-modal";
 import { calculateZiweiChart, type ZiweiChart, type ZiweiPalace } from "@/lib/ziwei/calculate";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,7 @@ const rightDirections = ["西偏南", "正西方", "西偏北", "北偏西"] as 
 
 export function ZiweiChartClient() {
   const [chart, setChart] = useState<ZiweiChart | null>(null);
+  const [isAiCommandOpen, setIsAiCommandOpen] = useState(false);
 
   useEffect(() => {
     const raw = window.localStorage.getItem("sm1:current-ziwei-profile") ?? window.localStorage.getItem("sm1:last-ziwei-profile");
@@ -65,8 +67,8 @@ export function ZiweiChartClient() {
   }
 
   return (
-    <main className="light-surface-text-scope mx-auto min-h-dvh max-w-[430px] bg-[#F8F7EE] pb-5 text-ink shadow-soft [font-family:'PingFang_SC','Microsoft_YaHei',sans-serif]">
-      <header className="sticky top-0 z-20 flex h-20 items-center justify-between bg-[#F8F7EE] px-[15px] pb-2 pt-6">
+    <main className="light-surface-text-scope mx-auto min-h-dvh max-w-[430px] bg-[#F8F7EE] pb-3 text-ink shadow-soft [font-family:'PingFang_SC','Microsoft_YaHei',sans-serif]">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between bg-[#F8F7EE] px-[15px] pb-1 pt-4">
         <Link href="/ziwei/profile" className="-ml-1 flex h-10 w-10 items-center justify-center" aria-label="返回资料页">
           <ArrowLeft size={24} />
         </Link>
@@ -76,7 +78,7 @@ export function ZiweiChartClient() {
         </button>
       </header>
 
-      <section className="mx-4 rounded-[22px] bg-white px-4 py-4 text-[14px] leading-[1.8] text-mutedInk shadow-soft">
+      <section className="mx-4 rounded-[18px] bg-white px-4 py-3 text-[13px] leading-[1.55] text-mutedInk shadow-soft">
         <div className="flex gap-10">
           <InfoLine label="姓名" value={chart.profile.name} />
           <InfoLine label="性别" value={chart.profile.gender} />
@@ -87,17 +89,8 @@ export function ZiweiChartClient() {
         <InfoLine label="命盘类型" value="三合紫薇斗数" />
       </section>
 
-      <section className="px-4 pt-4">
-        <div className="grid grid-cols-4 rounded-full bg-black px-4 py-2 text-center text-[13px] font-normal leading-snug text-[#e8d4a7]">
-          <span>年 {chart.pillars.year}</span>
-          <span>月 {chart.pillars.month}</span>
-          <span>日 {chart.pillars.day}</span>
-          <span>时 {chart.pillars.hour}</span>
-        </div>
-      </section>
-
-      <section className="mx-4 mt-4 rounded-[22px] bg-white px-1.5 py-3 shadow-soft">
-        <div className="grid grid-cols-[20px_minmax(0,1fr)_20px] grid-rows-[24px_auto_24px]">
+      <section className="mx-4 mt-3 rounded-[18px] bg-white px-1.5 py-2.5 shadow-soft">
+        <div className="grid grid-cols-[20px_minmax(0,1fr)_20px] grid-rows-[20px_auto_20px]">
           <div className="col-start-2 grid grid-cols-4 items-end text-center text-[13px] font-semibold leading-none text-[#6f6a63]">
             <span />
             <span>正南方</span>
@@ -126,6 +119,21 @@ export function ZiweiChartClient() {
           </div>
         </div>
       </section>
+
+      <section className="mx-4 mt-3 rounded-[18px] bg-white px-4 py-3 shadow-soft">
+        <button
+          type="button"
+          onClick={() => setIsAiCommandOpen(true)}
+          className="flex h-11 w-full items-center justify-center rounded-full bg-black text-[16px] font-semibold text-[#e8d4a7]"
+        >
+          AI指令 ›
+        </button>
+        <p className="mt-2 text-[12px] leading-5 text-[#6f6a63]">
+          复制紫微斗数分析提示词，粘贴到第三方 AI 大模型中使用。
+        </p>
+      </section>
+
+      {isAiCommandOpen ? <ZiweiAiCommandModal chart={chart} onClose={() => setIsAiCommandOpen(false)} /> : null}
     </main>
   );
 }
@@ -151,14 +159,22 @@ function InfoLine({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PalaceCell({ palace, className, sihua }: { palace: ZiweiPalace; className: string; sihua: ZiweiChart["sihua"] }) {
+function PalaceCell({
+  palace,
+  className,
+  sihua
+}: {
+  palace: ZiweiPalace;
+  className: string;
+  sihua: ZiweiChart["sihua"];
+}) {
   const lowerLeftStars = getLowerLeftStars(palace);
   const upperLeftStars = getUpperLeftStars(palace);
 
   return (
     <div className={cn("relative min-h-[136px] border border-[#eaded2] bg-[#fffdf7] p-1.5 pb-8 text-[#2f2d2a]", className)}>
-      <div className="flex min-h-[92px] content-start items-start justify-start overflow-hidden pr-1">
-        <div className="flex max-h-[92px] flex-nowrap items-start justify-start gap-x-1 text-[12px] font-semibold leading-[1.05] text-[#34322f]">
+      <div className="flex min-h-[92px] flex-col content-start items-start justify-start overflow-hidden pr-1">
+        <div className="flex max-h-[68px] flex-nowrap items-start justify-start gap-x-1 text-[12px] font-semibold leading-[1.05] text-[#34322f]">
           {upperLeftStars.length > 0 ? upperLeftStars.map((star, index) => {
             const mainStarIndex = palace.mainStars.indexOf(star);
             const isMainStar = mainStarIndex !== -1;
@@ -185,6 +201,16 @@ function PalaceCell({ palace, className, sihua }: { palace: ZiweiPalace; classNa
             );
           }) : <span className="text-[#bbb6aa]">空宫</span>}
         </div>
+        <div className="mt-1 w-full space-y-0.5 text-[6px] font-semibold leading-[7px] text-[#8b806d]">
+          <p>
+            <span className="text-[#c9432f]">流年：</span>
+            {formatLimitAges(palace.annualAges)}
+          </p>
+          <p>
+            <span className="text-[#2f72b8]">小限：</span>
+            {formatLimitAges(palace.smallLimitAges)}
+          </p>
+        </div>
       </div>
       <div className="absolute bottom-2 left-2 flex max-w-[54px] flex-col items-start gap-0.5 overflow-hidden text-[9px] font-semibold leading-[10px]">
         {lowerLeftStars.map((star, index) => (
@@ -194,11 +220,8 @@ function PalaceCell({ palace, className, sihua }: { palace: ZiweiPalace; classNa
           </span>
         ))}
       </div>
-      {palace.isBodyPalace ? (
-        <span className="absolute right-2 top-[56px] rounded border border-[#c9432f]/40 px-1 text-[12px] font-semibold text-[#c9432f]">身</span>
-      ) : null}
       <div className="absolute bottom-2 right-1 flex items-end justify-end gap-0.5 text-[10px] font-semibold leading-none">
-        <span className="text-[#c9432f]">{palace.palaceName}</span>
+        <span className="text-[#c9432f]">{palace.isBodyPalace ? `身｜${palace.palaceName}` : palace.palaceName}</span>
         <span className="flex flex-col items-center gap-0.5 text-[10px]">
           <span className="text-[#8b806d]">{palace.changSheng}</span>
           <span className="text-[#a58024] [writing-mode:vertical-rl]">{palace.stem}{palace.branch}</span>
@@ -300,6 +323,12 @@ function getStarSize(index: number) {
   }
 
   return "text-[12px]";
+}
+
+function formatLimitAges(ages: number[]) {
+  const visibleAges = ages.slice(0, 5);
+
+  return `${visibleAges.join(",")}${ages.length > visibleAges.length ? "..." : ""}`;
 }
 
 const STAR_BRIGHTNESS: Record<string, Record<string, string>> = {

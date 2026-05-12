@@ -14,6 +14,8 @@ export interface ZiweiPalace {
   stem: HeavenlyStem;
   palaceName: PalaceName;
   ageRange: string;
+  annualAges: number[];
+  smallLimitAges: number[];
   mainStars: string[];
   auxiliaryStars: string[];
   maleficStars: string[];
@@ -155,6 +157,8 @@ export function calculateZiweiChart(input: ZiweiCalculationInput): ZiweiChart {
       stem: palaceStems[branch],
       palaceName: palaceNamesByBranch[branch],
       ageRange: getAgeRange(branch, lifeBranch, juNumber, forward),
+      annualAges: buildAnnualAges(branch, yearBranch),
+      smallLimitAges: buildSmallLimitAges(branch, yearBranch, input.gender),
       mainStars,
       auxiliaryStars,
       maleficStars,
@@ -187,7 +191,7 @@ export function calculateZiweiChart(input: ZiweiCalculationInput): ZiweiChart {
       lifeBranch,
       bodyBranch,
       annualBranch: yearBranch,
-      smallLimitBranch: getSmallLimitBranch(lifeBranch, birth.year, input.gender),
+      smallLimitBranch: getSmallLimitBranch(yearBranch, birth.year, input.gender),
       ...buildLuckStartInfo(lunar, birth, input.gender, yearStem)
     },
     pillars: {
@@ -583,11 +587,61 @@ function getAgeRange(branch: EarthlyBranch, lifeBranch: EarthlyBranch, juNumber:
   return `${start}-${start + 9}`;
 }
 
-function getSmallLimitBranch(lifeBranch: EarthlyBranch, solarYear: number, gender: ZiweiGender) {
+function buildAnnualAges(branch: EarthlyBranch, yearBranch: EarthlyBranch) {
+  return buildLimitAges(branch, yearBranch, 1);
+}
+
+function buildSmallLimitAges(branch: EarthlyBranch, yearBranch: EarthlyBranch, gender: ZiweiGender) {
+  const startBranch = getSmallLimitStartBranch(yearBranch, gender);
+
+  return buildLimitAges(branch, startBranch, gender === "male" ? 1 : -1);
+}
+
+function buildLimitAges(branch: EarthlyBranch, startBranch: EarthlyBranch, direction: 1 | -1) {
+  return Array.from({ length: 120 }, (_, index) => index + 1).filter((age) => (
+    moveBranchByZodiac(startBranch, direction * (age - 1)) === branch
+  ));
+}
+
+function getSmallLimitBranch(yearBranch: EarthlyBranch, solarYear: number, gender: ZiweiGender) {
   const age = Math.max(1, new Date().getFullYear() - solarYear + 1);
   const offset = (age - 1) % 12;
+  const startBranch = getSmallLimitStartBranch(yearBranch, gender);
 
-  return moveBranchByZodiac(lifeBranch, gender === "male" ? offset : -offset);
+  return moveBranchByZodiac(startBranch, gender === "male" ? offset : -offset);
+}
+
+function getSmallLimitStartBranch(yearBranch: EarthlyBranch, gender: ZiweiGender) {
+  const maleStarts: Record<EarthlyBranch, EarthlyBranch> = {
+    寅: "辰",
+    午: "辰",
+    戌: "辰",
+    申: "戌",
+    子: "戌",
+    辰: "戌",
+    巳: "未",
+    酉: "未",
+    丑: "未",
+    亥: "丑",
+    卯: "丑",
+    未: "丑"
+  };
+  const femaleStarts: Record<EarthlyBranch, EarthlyBranch> = {
+    寅: "戌",
+    午: "戌",
+    戌: "戌",
+    申: "辰",
+    子: "辰",
+    辰: "辰",
+    巳: "丑",
+    酉: "丑",
+    丑: "丑",
+    亥: "未",
+    卯: "未",
+    未: "未"
+  };
+
+  return gender === "male" ? maleStarts[yearBranch] : femaleStarts[yearBranch];
 }
 
 function buildLuckStartInfo(

@@ -1,39 +1,26 @@
 "use client";
 
-import Link from "next/link";
 import { Check, Copy, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { buildAiCommandText, getAiCommandFocusDescription, type AiCommandFocus } from "@/lib/ai/bazi-command";
-import type { DemoBaziChart } from "@/lib/bazi/demo";
+import { buildZiweiAiCommandText, getZiweiAiCommandFocusDescription, type ZiweiAiCommandFocus } from "@/lib/ai/ziwei-command";
+import type { ZiweiChart } from "@/lib/ziwei/calculate";
 import { cn } from "@/lib/utils";
 
-const commandTypes = ["全项", "事业", "财运", "婚恋", "子女", "六亲", "健康", "学业"] as const;
+const commandTypes = ["全项", "命格", "事业", "财运", "婚恋", "健康", "大限", "流年"] as const;
 
-type CommandType = AiCommandFocus;
-
-type AiCommandModalProps = {
-  chart: DemoBaziChart;
-  closeHref: string;
-  useSolarTime?: boolean;
+type ZiweiAiCommandModalProps = {
+  chart: ZiweiChart;
+  onClose: () => void;
 };
 
-export function AiCommandModal({ chart, closeHref, useSolarTime }: AiCommandModalProps) {
-  const [isOpen, setIsOpen] = useState(true);
-  const [selectedType, setSelectedType] = useState<CommandType>("全项");
+export function ZiweiAiCommandModal({ chart, onClose }: ZiweiAiCommandModalProps) {
+  const [selectedType, setSelectedType] = useState<ZiweiAiCommandFocus>("全项");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "selected">("idle");
   const commandTextRef = useRef<HTMLTextAreaElement>(null);
-  const router = useRouter();
   const commandText = useMemo(
-    () => buildAiCommandText({ chart, focus: selectedType, useSolarTime }),
-    [chart, selectedType, useSolarTime]
+    () => buildZiweiAiCommandText({ chart, focus: selectedType }),
+    [chart, selectedType]
   );
-
-  function handleClose(event: React.MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
-    setIsOpen(false);
-    router.replace(closeHref);
-  }
 
   async function handleCopy() {
     try {
@@ -46,30 +33,26 @@ export function AiCommandModal({ chart, closeHref, useSolarTime }: AiCommandModa
     }
   }
 
-  if (!isOpen) {
-    return null;
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/62 px-3 py-3">
       <section
         className="flex max-h-[96dvh] w-full max-w-[386px] flex-col overflow-hidden rounded-[18px] bg-white text-ink shadow-[0_22px_80px_rgba(0,0,0,0.3)]"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="ai-command-title"
+        aria-labelledby="ziwei-ai-command-title"
       >
         <header className="relative flex min-h-[52px] items-center justify-center border-b border-[#eeeeee] px-12">
-          <h2 id="ai-command-title" className="text-[24px] font-extrabold tracking-normal">
+          <h2 id="ziwei-ai-command-title" className="text-[24px] font-extrabold tracking-normal">
             Ai指令复制
           </h2>
-          <Link
-            href={closeHref}
-            onClick={handleClose}
+          <button
+            type="button"
+            onClick={onClose}
             className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-[#2f2f2f]"
             aria-label="关闭 AI 指令复制"
           >
             <X size={28} strokeWidth={2.2} />
-          </Link>
+          </button>
         </header>
 
         <div className="overflow-y-auto px-5 pb-5 pt-4">
@@ -78,11 +61,11 @@ export function AiCommandModal({ chart, closeHref, useSolarTime }: AiCommandModa
           </p>
 
           <div className="mt-3 rounded-[8px] bg-white px-3 py-3 text-[13px] leading-5 text-[#767676] shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
-            <p>建议开启“深度思考”模式，并关闭“联网搜索”功能，以便模型更专注地进行盘面分析或相关训练。</p>
+            <p>建议开启“深度思考”模式，并关闭“联网搜索”功能，以便模型更专注地进行紫微命盘分析。</p>
             <p className="mt-1.5">
               温馨提示：目前AI在易学领域仍处于早期探索阶段，生成内容可能存在不准确或主观推测的情况，请保持理性判断，结果仅供学术参考与娱乐使用。
             </p>
-            <p className="mt-1.5 font-semibold text-[#9b8749]">{getAiCommandFocusDescription(selectedType)}</p>
+            <p className="mt-1.5 font-semibold text-[#9b8749]">{getZiweiAiCommandFocusDescription(selectedType)}</p>
           </div>
 
           <div className="mt-4 grid grid-cols-4 gap-x-3 gap-y-3">
@@ -90,7 +73,10 @@ export function AiCommandModal({ chart, closeHref, useSolarTime }: AiCommandModa
               <button
                 key={type}
                 type="button"
-                onClick={() => setSelectedType(type)}
+                onClick={() => {
+                  setSelectedType(type);
+                  setCopyStatus("idle");
+                }}
                 className={cn(
                   "flex h-10 items-center justify-center rounded-full text-[17px] font-bold transition",
                   selectedType === type ? "bg-[#ad9255] text-white shadow-[0_8px_18px_rgba(173,146,85,0.28)]" : "bg-[#fbfbfb] text-[#4a4a4a] shadow-[0_8px_20px_rgba(0,0,0,0.05)]"
