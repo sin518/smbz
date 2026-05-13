@@ -22,6 +22,8 @@ type ProfilesResponse = {
   profiles?: SharedProfileValue[];
 };
 
+const LOCAL_PROFILE_CACHE_KEY = "sm1:shared-profiles";
+
 type DivinationProfileCardProps = {
   nameInputProps: UseFormRegisterReturn;
   nameError?: string;
@@ -109,11 +111,17 @@ function SharedProfileSheet({
   onApply: (profile: SharedProfileValue) => void;
 }) {
   const [profiles, setProfiles] = useState<SharedProfileValue[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "ready">("loading");
+  const [cloudUnavailable, setCloudUnavailable] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    clearLegacyProfileCache();
+    const localProfiles = getLocalProfiles();
+
+    if (localProfiles.length > 0) {
+      setProfiles(localProfiles);
+      setStatus("ready");
+    }
 
     async function loadProfiles() {
       try {
@@ -127,12 +135,15 @@ function SharedProfileSheet({
           return;
         }
 
-        setProfiles(dedupeProfiles(data?.profiles ?? []));
+        const nextProfiles = dedupeProfiles([...(data?.profiles ?? []), ...localProfiles]);
+        setProfiles(nextProfiles);
+        setCloudUnavailable(!response.ok);
         setStatus("ready");
       } catch {
         if (mounted) {
-          setProfiles([]);
-          setStatus("error");
+          setProfiles(localProfiles);
+          setCloudUnavailable(true);
+          setStatus("ready");
         }
       }
     }
@@ -153,11 +164,16 @@ function SharedProfileSheet({
         </button>
         <h2 className="pr-12 text-[23px] font-semibold text-ink">选择通用档案</h2>
         <p className="mt-1 text-[14px] leading-6 text-[#8f8b82]">八字、六爻、奇门共用姓名、性别和出生时间。</p>
+        {cloudUnavailable ? (
+          <p className="mt-3 rounded-xl bg-[#f8f3e7] px-3 py-2 text-[13px] leading-5 text-[#9b761f]">
+            云端档案暂时不可用，已优先显示本机最近保存的资料。
+          </p>
+        ) : null}
 
         {status === "loading" ? (
           <div className="mt-5 rounded-xl bg-white px-4 py-5 text-center shadow-sm">
             <p className="text-[18px] font-semibold text-ink">正在读取档案</p>
-            <p className="mt-2 text-[14px] leading-6 text-[#8f8b82]">会显示当前登录账号保存过的通用档案。</p>
+            <p className="mt-2 text-[14px] leading-6 text-[#8f8b82]">会同时检查本机最近资料和当前账号档案。</p>
           </div>
         ) : profiles.length > 0 ? (
           <div className="mt-5 space-y-3">
@@ -181,9 +197,7 @@ function SharedProfileSheet({
         ) : (
           <div className="mt-5 rounded-xl bg-white px-4 py-5 text-center shadow-sm">
             <p className="text-[18px] font-semibold text-ink">暂无可用档案</p>
-            <p className="mt-2 text-[14px] leading-6 text-[#8f8b82]">
-              {status === "error" ? "档案读取失败，请稍后重试。" : "登录后保存一次八字、六爻或奇门资料，这里会统一显示。"}
-            </p>
+            <p className="mt-2 text-[14px] leading-6 text-[#8f8b82]">保存一次八字、六爻、奇门或紫微资料后，这里会自动显示。</p>
           </div>
         )}
       </section>
@@ -471,6 +485,8 @@ export function formatDateTimeLocal(date: Date) {
 }
 
 export async function saveSharedProfile(profile: Omit<SharedProfileValue, "id">) {
+  saveLocalProfile(profile);
+
   try {
     await fetchWithTimeout("/api/profiles", {
       method: "POST",
@@ -506,13 +522,120 @@ function formatDisplayDateTime(value: string) {
   return value.replace("T", " ");
 }
 
-function clearLegacyProfileCache() {
+function getLocalProfiles() {
   if (typeof window === "undefined") {
+    return [];
+  }
+
+  migrateLegacyProfileCache();
+
+  try {
+    const raw = window.localStorage.getItem(LOCAL_PROFILE_CACHE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return dedupeProfiles(parsed.filter(isSharedProfileValue)).slice(0, 10);
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalProfile(profile: Omit<SharedProfileValue, "id">) {
+  if (typeof window === "undefined" || !profile.dateTime) {
     return;
   }
 
+  const normalized: SharedProfileValue = {
+    id: `local-${profile.source}-${profile.name}-${profile.gender}-${profile.dateTime}`,
+    source: profile.source || "本机档案",
+    name: profile.name ?? "",
+    gender: profile.gender,
+    dateTime: profile.dateTime,
+    location: profile.location
+  };
+  const nextProfiles = dedupeProfiles([normalized, ...getLocalProfiles()]).slice(0, 10);
+
+  window.localStorage.setItem(LOCAL_PROFILE_CACHE_KEY, JSON.stringify(nextProfiles));
+}
+
+function migrateLegacyProfileCache() {
+  const migrated = getLegacyProfiles();
+  if (migrated.length === 0) {
+    return;
+  }
+
+  const raw = window.localStorage.getItem(LOCAL_PROFILE_CACHE_KEY);
+  const current = raw ? (JSON.parse(raw) as unknown) : [];
+  const currentProfiles = Array.isArray(current) ? current.filter(isSharedProfileValue) : [];
+  const nextProfiles = dedupeProfiles([...currentProfiles, ...migrated]).slice(0, 10);
+
+  window.localStorage.setItem(LOCAL_PROFILE_CACHE_KEY, JSON.stringify(nextProfiles));
   window.localStorage.removeItem("sm1:last-bazi-input");
   window.localStorage.removeItem("sm1:last-qimen-input");
+}
+
+function getLegacyProfiles() {
+  const profiles: SharedProfileValue[] = [];
+
+  ["sm1:last-bazi-input", "sm1:last-qimen-input"].forEach((key) => {
+    try {
+      const raw = window.localStorage.getItem(key);
+      const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+
+      if (!isLegacyProfileValue(parsed)) {
+        return;
+      }
+
+      profiles.push({
+        id: `local-${key}-${parsed.name}-${parsed.gender}-${parsed.birthTime}`,
+        source: key.includes("bazi") ? "八字档案" : "奇门档案",
+        name: parsed.name ?? "",
+        gender: parsed.gender,
+        dateTime: parsed.birthTime,
+        location: parsed.location
+      });
+    } catch {
+      // Ignore broken legacy cache entries.
+    }
+  });
+
+  return profiles;
+}
+
+function isSharedProfileValue(value: unknown): value is SharedProfileValue {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const profile = value as Record<string, unknown>;
+
+  return (
+    typeof profile.source === "string" &&
+    typeof profile.name === "string" &&
+    (profile.gender === "male" || profile.gender === "female") &&
+    typeof profile.dateTime === "string"
+  );
+}
+
+function isLegacyProfileValue(value: unknown): value is {
+  name?: string;
+  gender: GenderValue;
+  birthTime: string;
+  location?: string;
+} {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const profile = value as Record<string, unknown>;
+
+  return (
+    (profile.gender === "male" || profile.gender === "female") &&
+    typeof profile.birthTime === "string"
+  );
 }
 
 function dedupeProfiles(profiles: SharedProfileValue[]) {

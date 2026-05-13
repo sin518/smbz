@@ -14,6 +14,8 @@ import {
   SharedFormCard,
   saveSharedProfile
 } from "@/components/shared/divination-profile-card";
+import { calculateBaziChart } from "@/lib/bazi/calculate";
+import { saveLocalBaziRecord, scheduleDailyBaziRecordSync } from "@/lib/bazi/local-records";
 import { chinaLocationOptions } from "@/lib/locations/china";
 import { cn } from "@/lib/utils";
 
@@ -23,10 +25,36 @@ const baziFormSchema = z.object({
     required_error: "请选择性别"
   }),
   calendar: z.enum(["solar", "lunar", "pillars"]),
-  birthTime: z.string().min(1, "请选择出生时间"),
+  birthTime: z.string().min(1, "请选择出生时间").superRefine((value, context) => {
+    const parsed = parseBirthTimeForValidation(value);
+
+    if (!parsed) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "出生时间格式不正确"
+      });
+      return;
+    }
+
+    if (parsed.year < 1900) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "出生年份不能早于 1900 年"
+      });
+      return;
+    }
+
+    if (parsed.date.getTime() > Date.now()) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "出生时间不能晚于当前时间"
+      });
+    }
+  }),
   province: z.string().min(1, "请选择省份"),
   city: z.string().min(1, "请选择城市"),
   district: z.string().min(1, "请选择区县"),
+  useSolarTime: z.boolean(),
   group: z.string().min(1, "请选择分组"),
   save: z.boolean()
 });
@@ -37,10 +65,11 @@ const defaultValues: BaziFormValues = {
   name: "",
   gender: "male",
   calendar: "solar",
-  birthTime: "1990-01-01T00:00",
+  birthTime: "",
   province: "北京市",
   city: "北京市",
   district: "东城区",
+  useSolarTime: false,
   group: "全部",
   save: true
 };
@@ -66,6 +95,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
   const province = useWatch({ control, name: "province" });
   const city = useWatch({ control, name: "city" });
   const district = useWatch({ control, name: "district" });
+  const useSolarTime = useWatch({ control, name: "useSolarTime" });
   const location = `${province} ${city} ${district}`;
   const locationMeta = getLocationMeta(location);
   const solarTimeText = formatBirthTime(birthTime);
@@ -88,6 +118,15 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
 
   async function onSubmit(values: BaziFormValues) {
     const selectedLocation = formatLocation(values);
+    const chartQuery = buildChartQuery(values);
+    const chartJson = calculateBaziChart({
+      name: values.name?.trim(),
+      gender: values.gender,
+      birthTime: values.birthTime,
+      location: selectedLocation,
+      calendar: values.calendar
+    });
+
     if (values.save) {
       window.localStorage.setItem(
         "sm1:last-bazi-input",
@@ -97,15 +136,28 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
           savedAt: new Date().toISOString()
         })
       );
-      await saveSharedProfile({
+      void saveSharedProfile({
         source: "八字档案",
         name: values.name?.trim() ?? "",
         gender: values.gender,
         dateTime: values.birthTime,
         location: selectedLocation
       });
+      const localRecord = saveLocalBaziRecord({
+        name: values.name?.trim() ?? "",
+        gender: values.gender,
+        birthTime: values.birthTime,
+        calendar: values.calendar,
+        location: selectedLocation,
+        useSolarTime: values.useSolarTime,
+        chartJson
+      });
+      scheduleDailyBaziRecordSync();
+      router.push(`/bazi/local/${localRecord.id}`);
+      return;
     }
-    router.push(`/bazi/demo?${buildChartQuery(values)}`);
+
+    router.push(`/bazi/demo?${chartQuery}`);
   }
 
   return (
@@ -197,8 +249,38 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
           </SharedFormCard>
 
           <SharedFormCard>
-            <SharedFieldRow icon={Clock3} label="真太阳时">
-              <span className="block text-right text-[16px] font-semibold text-[#aaa8a1]">{solarTimeText}</span>
+            <Controller
+              name="useSolarTime"
+              control={control}
+              render={({ field }) => (
+                <SharedFieldRow icon={Clock3} label="真太阳时">
+                  <div className="flex items-center justify-end gap-3">
+                    <span className="text-[15px] font-semibold text-[#aaa8a1]">{field.value ? "已开启" : "未使用"}</span>
+                    <button
+                      type="button"
+                      onClick={() => field.onChange(!field.value)}
+                      className={cn(
+                        "relative h-8 w-14 overflow-hidden rounded-full transition-colors",
+                        field.value ? "bg-black" : "bg-[#d7d7d7]"
+                      )}
+                      aria-pressed={field.value}
+                      aria-label="是否使用真太阳时"
+                    >
+                      <span
+                        className={cn(
+                          "absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-sm transition-transform",
+                          field.value ? "translate-x-6" : "translate-x-0"
+                        )}
+                      />
+                    </button>
+                  </div>
+                </SharedFieldRow>
+              )}
+            />
+            <SharedFieldRow icon={Clock3} label="校正时间">
+              <span className={cn("block text-right text-[16px] font-semibold", useSolarTime ? "text-[#55514a]" : "text-[#aaa8a1]")}>
+                {useSolarTime ? solarTimeText : "未启用"}
+              </span>
             </SharedFieldRow>
             <SharedFieldRow icon={MapPin} label="经纬参考">
               <span className="block text-right text-[15px] font-semibold text-[#aaa8a1]">
@@ -267,9 +349,9 @@ function CalendarModePill({
   onChange: (value: BaziFormValues["calendar"]) => void;
 }) {
   const options = [
-    { label: "公", value: "solar" },
-    { label: "农", value: "lunar" },
-    { label: "柱", value: "pillars" }
+    { label: "公", value: "solar", disabled: false },
+    { label: "农", value: "lunar", disabled: true },
+    { label: "柱", value: "pillars", disabled: true }
   ] as const;
 
   return (
@@ -278,10 +360,17 @@ function CalendarModePill({
         <button
           key={option.value}
           type="button"
-          onClick={() => onChange(option.value)}
+          onClick={() => {
+            if (!option.disabled) {
+              onChange(option.value);
+            }
+          }}
+          disabled={option.disabled}
+          title={option.disabled ? "即将支持" : undefined}
           className={cn(
             "rounded-full text-[18px] font-semibold leading-none transition-colors",
-            option.value === value ? "bg-black text-[#e8d4a7]" : "text-[#8b8985]"
+            option.value === value ? "bg-black text-[#e8d4a7]" : "text-[#8b8985]",
+            option.disabled && "cursor-not-allowed text-[#c9c7c0]"
           )}
         >
           {option.label}
@@ -308,6 +397,7 @@ function BirthTimePickerSheet({
 }) {
   const [draft, setDraft] = useState(() => parseBirthTime(value));
   const [quickInput, setQuickInput] = useState("");
+  const [quickInputError, setQuickInputError] = useState("");
   const [daylightSaving, setDaylightSaving] = useState(false);
   const years = useMemo(() => buildNumberRange(1920, 2050), []);
   const months = useMemo(() => buildNumberRange(1, 12), []);
@@ -319,6 +409,7 @@ function BirthTimePickerSheet({
     if (open) {
       setDraft(parseBirthTime(value));
       setQuickInput("");
+      setQuickInputError("");
     }
   }, [open, value]);
 
@@ -340,7 +431,11 @@ function BirthTimePickerSheet({
     const parsed = parseCompactBirthTime(quickInput);
     if (parsed) {
       setDraft(parsed);
+      setQuickInputError("");
+      return;
     }
+
+    setQuickInputError("请输入有效的年月日时分");
   };
 
   return (
@@ -350,17 +445,24 @@ function BirthTimePickerSheet({
         <div className="grid grid-cols-[1fr_48px_86px] items-center gap-4">
           <div className="grid h-12 grid-cols-3 rounded-full bg-[#f4f4f3] p-1">
             {[
-              { label: "公历", value: "solar" },
-              { label: "农历", value: "lunar" },
-              { label: "四柱", value: "pillars" }
+              { label: "公历", value: "solar", disabled: false },
+              { label: "农历", value: "lunar", disabled: true },
+              { label: "四柱", value: "pillars", disabled: true }
             ].map((option) => (
               <button
                 key={option.value}
                 type="button"
-                onClick={() => onCalendarChange(option.value as BaziFormValues["calendar"])}
+                onClick={() => {
+                  if (!option.disabled) {
+                    onCalendarChange(option.value as BaziFormValues["calendar"]);
+                  }
+                }}
+                disabled={option.disabled}
+                title={option.disabled ? "即将支持" : undefined}
                 className={cn(
                   "rounded-full text-[18px] font-semibold",
-                  calendar === option.value ? "bg-white text-ink shadow-sm" : "text-[#cfcfce]"
+                  calendar === option.value ? "bg-white text-ink shadow-sm" : "text-[#cfcfce]",
+                  option.disabled && "cursor-not-allowed opacity-55"
                 )}
               >
                 {option.label}
@@ -386,7 +488,10 @@ function BirthTimePickerSheet({
         <div className="mt-5 grid h-14 grid-cols-[minmax(0,1fr)_72px] items-center gap-2 rounded-full bg-[#f4f4f3] p-1.5 text-[#c7c7c7]">
           <input
             value={quickInput}
-            onChange={(event) => setQuickInput(event.target.value.replace(/\D/g, "").slice(0, 12))}
+            onChange={(event) => {
+              setQuickInput(event.target.value.replace(/\D/g, "").slice(0, 12));
+              setQuickInputError("");
+            }}
             inputMode="numeric"
             placeholder="输入年月日时分，如199303270255"
             className="min-w-0 bg-transparent px-4 text-[15px] font-semibold outline-none placeholder:text-[#cfcfce]"
@@ -401,6 +506,7 @@ function BirthTimePickerSheet({
             查询
           </button>
         </div>
+        {quickInputError ? <p className="mt-2 text-right text-sm font-semibold text-red-600">{quickInputError}</p> : null}
 
         <div className="mt-6 border-t border-[#f0f0ef] pt-4">
           <div className="grid grid-cols-5 text-center text-[20px] font-semibold text-[#3d3a36]">
@@ -581,7 +687,8 @@ function buildChartQuery(values: BaziFormValues) {
     gender: values.gender,
     birthTime: values.birthTime,
     location: formatLocation(values),
-    calendar: values.calendar
+    calendar: values.calendar,
+    useSolarTime: values.useSolarTime ? "true" : "false"
   });
 
   return params.toString();
@@ -599,6 +706,7 @@ function getInitialFormValues(searchParams: ReadonlyURLSearchParams): BaziFormVa
     gender: toGender(searchParams.get("gender")),
     calendar: toCalendarValue(searchParams.get("calendar")),
     birthTime: searchParams.get("birthTime") ?? defaultValues.birthTime,
+    useSolarTime: toBooleanParam(searchParams.get("useSolarTime")),
     ...locationParts
   };
 
@@ -639,11 +747,11 @@ function toGender(value: string | null): BaziFormValues["gender"] {
 }
 
 function toCalendarValue(value: string | null): BaziFormValues["calendar"] {
-  if (value === "lunar" || value === "pillars") {
-    return value;
-  }
-
   return "solar";
+}
+
+function toBooleanParam(value: string | null) {
+  return value === "1" || value === "true";
 }
 
 type BirthTimeParts = {
@@ -674,6 +782,41 @@ function parseBirthTime(value: string): BirthTimeParts {
     day: Number(match[3]),
     hour: Number(match[4]),
     minute: Number(match[5])
+  };
+}
+
+function parseBirthTimeForValidation(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) {
+    return null;
+  }
+
+  const parsed = {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5])
+  };
+
+  if (
+    parsed.month < 1 ||
+    parsed.month > 12 ||
+    parsed.day < 1 ||
+    parsed.day > getDaysInMonth(parsed.year, parsed.month) ||
+    parsed.hour < 0 ||
+    parsed.hour > 23 ||
+    parsed.minute < 0 ||
+    parsed.minute > 59
+  ) {
+    return null;
+  }
+
+  const date = new Date(parsed.year, parsed.month - 1, parsed.day, parsed.hour, parsed.minute);
+
+  return {
+    ...parsed,
+    date
   };
 }
 

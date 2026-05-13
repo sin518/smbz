@@ -1,54 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { Search, UserRoundCheck } from "lucide-react";
+import { ChevronRight, Cloud, CloudOff, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppBottomNav } from "@/components/app-bottom-nav";
-
-type SessionUser = {
-  id?: string;
-  phone?: string;
-  email?: string | null;
-  name?: string | null;
-} | null;
+import {
+  getLocalBaziRecords,
+  scheduleDailyBaziRecordSync,
+  type LocalBaziRecord
+} from "@/lib/bazi/local-records";
 
 export default function RecordsPage() {
-  const [sessionUser, setSessionUser] = useState<SessionUser>(null);
-  const [status, setStatus] = useState<"loading" | "ready">("loading");
+  const [records, setRecords] = useState<LocalBaziRecord[]>([]);
 
   useEffect(() => {
-    let mounted = true;
-    const controller = new AbortController();
-
-    async function loadSession() {
-      try {
-        const response = await fetch("/api/auth/get-session", {
-          method: "GET",
-          credentials: "include",
-          signal: controller.signal
-        });
-        const data = response.ok ? ((await response.json()) as { session?: unknown; user?: SessionUser } | null) : null;
-
-        if (mounted) {
-          setSessionUser(data?.session && data.user?.id ? data.user : null);
-        }
-      } catch {
-        if (mounted) {
-          setSessionUser(null);
-        }
-      } finally {
-        if (mounted) {
-          setStatus("ready");
-        }
-      }
-    }
-
-    void loadSession();
-
-    return () => {
-      mounted = false;
-      controller.abort();
-    };
+    setRecords(getLocalBaziRecords());
+    scheduleDailyBaziRecordSync();
   }, []);
 
   return (
@@ -66,67 +33,105 @@ export default function RecordsPage() {
         </div>
       </header>
 
-      {status === "loading" ? <RecordsLoadingCard /> : sessionUser ? <RecordsContent user={sessionUser} /> : <LoginRequiredCard />}
+      <section className="px-4 pt-5">
+        <div className="rounded-[22px] bg-white p-5 shadow-soft">
+          <p className="text-sm text-mutedInk">本机记录</p>
+          <h2 className="mt-2 text-[22px] font-semibold">本地优先保存</h2>
+          <p className="mt-2 text-[14px] leading-6 text-mutedInk">打开记录页只读取本机数据；每天 03:30 后浏览器空闲时自动尝试同步到云端。</p>
+        </div>
+      </section>
+
+      {records.length > 0 ? (
+        <section className="space-y-3 px-4 pt-5">
+          {records.map((record) => (
+            <Link key={record.id} href={`/bazi/local/${record.id}`} className="block rounded-[22px] bg-white p-4 shadow-soft">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="truncate text-[21px] font-semibold">{record.name || "未命名"}</h2>
+                    <span className="rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[12px] font-semibold text-[#a58024]">
+                      {record.gender === "female" ? "女" : "男"}
+                    </span>
+                    <SyncBadge status={record.syncStatus} />
+                  </div>
+                  <p className="mt-2 truncate text-[14px] font-semibold text-[#55514a]">{record.pillars || "四柱待生成"}</p>
+                  <p className="mt-1 truncate text-[13px] leading-6 text-mutedInk">
+                    {formatDateTime(record.birthTime)} · {record.location || "未知地"}
+                  </p>
+                  <p className="text-[13px] leading-6 text-mutedInk">
+                    {formatCalendar(record.calendar)}{record.useSolarTime ? " · 真太阳时" : ""} · {formatCreatedAt(record.createdAt)}
+                  </p>
+                </div>
+                <ChevronRight size={22} className="mt-1 shrink-0 text-[#b7b1a5]" />
+              </div>
+            </Link>
+          ))}
+        </section>
+      ) : (
+        <section className="px-4 pt-5">
+          <div className="rounded-[22px] bg-white p-6 text-center shadow-soft">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#f6f0e2] text-[#a58024]">
+              <Search size={27} />
+            </div>
+            <h2 className="mt-4 text-[22px] font-semibold">暂无本机记录</h2>
+            <p className="mt-3 text-[15px] leading-7 text-mutedInk">新建排盘并保存后，会先存到本机，不需要等待服务器。</p>
+            <Link href="/" className="mt-5 flex h-12 items-center justify-center rounded-full bg-black text-[18px] font-semibold text-[#e8d4a7]">
+              新建排盘
+            </Link>
+          </div>
+        </section>
+      )}
 
       <AppBottomNav active="records" />
     </main>
   );
 }
 
-function RecordsContent({ user }: { user: SessionUser }) {
-  const accountName = user?.name || user?.phone || user?.email || "已登录用户";
+function SyncBadge({ status }: { status: LocalBaziRecord["syncStatus"] }) {
+  if (status === "synced") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#eef6ed] px-2 py-0.5 text-[11px] font-semibold text-[#5f8d55]">
+        <Cloud size={12} />
+        已同步
+      </span>
+    );
+  }
 
   return (
-    <>
-      <section className="px-4 pt-5">
-        <div className="rounded-[22px] bg-white p-5 shadow-soft">
-          <p className="text-sm text-mutedInk">当前账号</p>
-          <h2 className="mt-2 break-all text-[22px] font-semibold">{accountName}</h2>
-          <p className="mt-2 text-[14px] leading-6 text-mutedInk">只会显示该账号保存到数据库的排盘记录。</p>
-        </div>
-      </section>
-
-      <section className="px-4 pt-5">
-        <div className="rounded-[22px] bg-white p-6 text-center shadow-soft">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#f6f0e2] text-[#a58024]">
-            <Search size={27} />
-          </div>
-          <h2 className="mt-4 text-[22px] font-semibold">暂无排盘记录</h2>
-          <p className="mt-3 text-[15px] leading-7 text-mutedInk">演示记录已清空。新建排盘并保存后，会在这里显示当前账号自己的记录。</p>
-          <Link href="/" className="mt-5 flex h-12 items-center justify-center rounded-full bg-black text-[18px] font-semibold text-[#e8d4a7]">
-            新建排盘
-          </Link>
-        </div>
-      </section>
-    </>
+    <span className="inline-flex items-center gap-1 rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[11px] font-semibold text-[#a58024]">
+      <CloudOff size={12} />
+      待同步
+    </span>
   );
 }
 
-function RecordsLoadingCard() {
-  return (
-    <section className="px-4 pt-10">
-      <div className="rounded-[22px] bg-white p-6 text-center shadow-soft">
-        <div className="mx-auto h-14 w-14 animate-pulse rounded-full bg-[#f6f0e2]" />
-        <h2 className="mt-4 text-[22px] font-semibold">正在读取记录</h2>
-        <p className="mt-3 text-[15px] leading-7 text-mutedInk">请稍候，正在确认当前登录状态。</p>
-      </div>
-    </section>
-  );
+function formatDateTime(value: string) {
+  return value.replace("T", " ");
 }
 
-function LoginRequiredCard() {
-  return (
-    <section className="px-4 pt-10">
-      <div className="rounded-[22px] bg-white p-6 text-center shadow-soft">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#f6f0e2] text-[#a58024]">
-          <UserRoundCheck size={28} />
-        </div>
-        <h2 className="mt-4 text-[22px] font-semibold">登录后查看排盘记录</h2>
-        <p className="mt-3 text-[15px] leading-7 text-mutedInk">当前未登录，记录列表已隐藏。登录后会显示已保存的排盘和 AI 报告。</p>
-        <Link href="/settings/login?next=%2Frecords" className="mt-5 flex h-12 items-center justify-center rounded-full bg-black text-[18px] font-semibold text-[#e8d4a7]">
-          去登录
-        </Link>
-      </div>
-    </section>
-  );
+function formatCreatedAt(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function formatCalendar(value: LocalBaziRecord["calendar"]) {
+  if (value === "lunar") {
+    return "农历";
+  }
+
+  if (value === "pillars") {
+    return "四柱";
+  }
+
+  return "公历";
 }
