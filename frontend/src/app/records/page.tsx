@@ -1,22 +1,53 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Cloud, CloudOff, Search } from "lucide-react";
+import { ChevronRight, Cloud, CloudOff, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppBottomNav } from "@/components/app-bottom-nav";
 import {
+  deleteLocalBaziRecord,
   getLocalBaziRecords,
   scheduleDailyBaziRecordSync,
+  syncPendingBaziRecords,
   type LocalBaziRecord
 } from "@/lib/bazi/local-records";
 
 export default function RecordsPage() {
   const [records, setRecords] = useState<LocalBaziRecord[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
 
   useEffect(() => {
     setRecords(getLocalBaziRecords());
     scheduleDailyBaziRecordSync();
   }, []);
+
+  async function handleManualSync() {
+    setSyncing(true);
+    setSyncMessage("正在上传本机排盘记录，请勿关闭页面。");
+
+    try {
+      const [nextRecords] = await Promise.all([
+        syncPendingBaziRecords(true),
+        waitForMinimumUploadAnimation()
+      ]);
+      setRecords(nextRecords);
+      const pendingCount = nextRecords.filter((record) => record.syncStatus !== "synced").length;
+      setSyncMessage(pendingCount > 0 ? `上传完成，仍有 ${pendingCount} 条等待下次同步。` : "上传完成，记录已同步。");
+    } finally {
+      setSyncing(false);
+      window.setTimeout(() => setSyncMessage(""), 3200);
+    }
+  }
+
+  function handleDeleteRecord(id: string) {
+    const confirmed = window.confirm("删除后仅会移除本机记录，无法从当前浏览器恢复。确定删除吗？");
+    if (!confirmed) {
+      return;
+    }
+
+    setRecords(deleteLocalBaziRecord(id));
+  }
 
   return (
     <main className="light-surface-text-scope mx-auto min-h-screen max-w-[430px] bg-paper pb-28 text-ink shadow-soft">
@@ -36,17 +67,47 @@ export default function RecordsPage() {
       <section className="px-4 pt-5">
         <div className="rounded-[22px] bg-white p-5 shadow-soft">
           <p className="text-sm text-mutedInk">本机记录</p>
-          <h2 className="mt-2 text-[22px] font-semibold">本地优先保存</h2>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <h2 className="text-[22px] font-semibold">本地优先保存</h2>
+            <button
+              type="button"
+              onClick={handleManualSync}
+              disabled={syncing}
+              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-black px-4 text-[14px] font-semibold text-[#e8d4a7] disabled:opacity-60"
+            >
+              <RefreshCw size={15} className={syncing ? "animate-spin" : undefined} />
+              {syncing ? "上传中" : "手动上传"}
+            </button>
+          </div>
           <p className="mt-2 text-[14px] leading-6 text-mutedInk">打开记录页只读取本机数据；每天 03:30 后浏览器空闲时自动尝试同步到云端。</p>
+          {syncing || syncMessage ? (
+            <div className="mt-4 overflow-hidden rounded-2xl bg-[#f6f0e2] px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-[#e8d4a7]">
+                  <RefreshCw size={16} className={syncing ? "animate-spin" : undefined} />
+                  {syncing ? <span className="absolute inset-[-4px] animate-ping rounded-full border border-black/25" /> : null}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-semibold text-[#4d4537]">{syncing ? "正在上传资料" : "上传状态"}</p>
+                  <p className="mt-0.5 text-[13px] leading-5 text-[#8f7b52]">{syncMessage}</p>
+                </div>
+              </div>
+              {syncing ? (
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white">
+                  <div className="h-full w-1/2 animate-[sync-progress_1.1s_ease-in-out_infinite] rounded-full bg-black" />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </section>
 
       {records.length > 0 ? (
         <section className="space-y-3 px-4 pt-5">
           {records.map((record) => (
-            <Link key={record.id} href={`/bazi/local/${record.id}`} className="block rounded-[22px] bg-white p-4 shadow-soft">
+            <div key={record.id} className="rounded-[22px] bg-white p-4 shadow-soft">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <Link href={`/bazi/local/${record.id}`} className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <h2 className="truncate text-[21px] font-semibold">{record.name || "未命名"}</h2>
                     <span className="rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[12px] font-semibold text-[#a58024]">
@@ -61,10 +122,22 @@ export default function RecordsPage() {
                   <p className="text-[13px] leading-6 text-mutedInk">
                     {formatCalendar(record.calendar)}{record.useSolarTime ? " · 真太阳时" : ""} · {formatCreatedAt(record.createdAt)}
                   </p>
+                </Link>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteRecord(record.id)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-[#b07a69] transition-colors hover:bg-[#f8eee9]"
+                    aria-label={`删除${record.name || "未命名"}记录`}
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                  <Link href={`/bazi/local/${record.id}`} className="flex h-9 w-7 items-center justify-center" aria-label={`打开${record.name || "未命名"}记录`}>
+                    <ChevronRight size={22} className="text-[#b7b1a5]" />
+                  </Link>
                 </div>
-                <ChevronRight size={22} className="mt-1 shrink-0 text-[#b7b1a5]" />
               </div>
-            </Link>
+            </div>
           ))}
         </section>
       ) : (
@@ -103,6 +176,10 @@ function SyncBadge({ status }: { status: LocalBaziRecord["syncStatus"] }) {
       待同步
     </span>
   );
+}
+
+function waitForMinimumUploadAnimation() {
+  return new Promise((resolve) => window.setTimeout(resolve, 2000));
 }
 
 function formatDateTime(value: string) {

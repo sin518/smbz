@@ -24,6 +24,12 @@ export function SettingsAccountEntry() {
     setChecking(true);
 
     try {
+      const storedUserId = getStoredUserId();
+      if (storedUserId) {
+        router.push(buildUserSettingsHref(storedUserId));
+        return;
+      }
+
       const response = await fetch("/api/auth/get-session", {
         method: "GET",
         credentials: "include"
@@ -66,4 +72,14 @@ export function SettingsAccountEntry() {
 
 function buildUserSettingsHref(id: string) {
   return `/settings/login/${encodeURIComponent(id)}`;
+}
+
+function getStoredUserId() {
+  try {
+    const rawUser = window.localStorage.getItem("sm1:user");
+    const user = rawUser ? (JSON.parse(rawUser) as { id?: string }) : null;
+    return user?.id ?? "";
+  } catch {
+    return "";
+  }
 }

@@ -71,7 +71,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   const searchParams = useSearchParams();
   const nextHref = sanitizeNextHref(searchParams.get("next"));
   const oauthError = searchParams.get("error");
-  const [sessionStatus, setSessionStatus] = useState<SessionStatus>(profileRoute ? "loading" : "signed-out");
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>("loading");
   const [sessionUser, setSessionUser] = useState<AuthSessionResponse["user"]>(null);
   const [loginMode, setLoginMode] = useState<LoginMode>("sms");
   const [passwordMode, setPasswordMode] = useState<PasswordMode>("login");
@@ -118,9 +118,37 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
+    const storedUser = getStoredUser();
+
+    if (storedUser?.id) {
+      setSessionUser(storedUser);
+      setSessionStatus("signed-in");
+      if (!profileRoute) {
+        router.replace(buildUserSettingsHref(storedUser.id));
+      }
+    }
+
+    const finishSignedOut = () => {
+      if (!mounted) {
+        return;
+      }
+
+      if (getStoredUser()?.id) {
+        setSessionStatus("signed-in");
+        return;
+      }
+
+      if (profileRoute) {
+        router.replace("/settings/login");
+        return;
+      }
+
+      setSessionStatus("signed-out");
+    };
     const timeoutId = window.setTimeout(() => {
       controller.abort();
-    }, 5000);
+      finishSignedOut();
+    }, 2500);
 
     async function loadSession() {
       try {
@@ -136,6 +164,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
         }
 
         if (data?.session && data.user) {
+          window.clearTimeout(timeoutId);
           setSessionUser(data.user);
           window.localStorage.setItem(
             "sm1:user",
@@ -152,20 +181,11 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
           }
           setSessionStatus("signed-in");
         } else {
-          if (profileRoute) {
-            router.replace("/settings/login");
-            return;
-          }
-          setSessionStatus("signed-out");
+          window.clearTimeout(timeoutId);
+          finishSignedOut();
         }
       } catch {
-        if (mounted) {
-          if (profileRoute) {
-            router.replace("/settings/login");
-            return;
-          }
-          setSessionStatus("signed-out");
-        }
+        finishSignedOut();
       }
     }
 
@@ -336,8 +356,9 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
 
   if (sessionStatus === "loading") {
     return (
-      <main className="light-surface-text-scope mx-auto flex min-h-screen max-w-[430px] items-center justify-center bg-paper text-ink shadow-soft">
+      <main className="light-surface-text-scope mx-auto flex min-h-screen max-w-[430px] flex-col items-center justify-center bg-paper text-ink shadow-soft">
         <Loader2 className="animate-spin text-[#a58024]" size={30} />
+        <p className="mt-4 text-[15px] font-semibold text-mutedInk">正在确认登录状态</p>
       </main>
     );
   }
@@ -519,14 +540,20 @@ function UserSettingsPage({
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteWarningOpen, setDeleteWarningOpen] = useState(false);
-  const storedUser = getStoredUser();
-  const [profile, setProfile] = useState<UserProfileSettings>(() => getStoredProfile(user, storedUser));
+  const [storedUser, setStoredUser] = useState<(LoginResponse["user"] & { email?: string; name?: string }) | null>(null);
+  const [profile, setProfile] = useState<UserProfileSettings>(() => getDefaultProfile(user, null));
   const [editingField, setEditingField] = useState<EditableProfileField | null>(null);
   const [draftValue, setDraftValue] = useState("");
   const userId = user?.id ?? storedUser?.id ?? "";
   const displayId = userId ? userId.slice(0, 8) : "未生成";
   const accountValue = storedUser?.phone || user?.email || storedUser?.email || "未绑定";
   const accountLabel = storedUser?.phone ? "手机号" : "邮箱";
+
+  useEffect(() => {
+    const nextStoredUser = getStoredUser();
+    setStoredUser(nextStoredUser);
+    setProfile(getStoredProfile(user, nextStoredUser));
+  }, [user]);
 
   function startEdit(field: EditableProfileField) {
     setEditingField(field);
@@ -835,6 +862,18 @@ function getStoredProfile(
     // Ignore malformed local profile data and fall back to account data.
   }
 
+  return {
+    name: user?.name || storedUser?.name || "",
+    gender: "",
+    birthTime: "",
+    birthPlace: ""
+  };
+}
+
+function getDefaultProfile(
+  user: AuthSessionResponse["user"],
+  storedUser: (LoginResponse["user"] & { email?: string; name?: string }) | null
+): UserProfileSettings {
   return {
     name: user?.name || storedUser?.name || "",
     gender: "",

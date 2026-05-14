@@ -64,6 +64,19 @@ async def upsert_profile(connection: asyncpg.Connection, user_id: str, body: Pro
     return profile_from_row(row) if row else None
 
 
+async def delete_profile(connection: asyncpg.Connection, user_id: str, profile_id: str) -> bool:
+    await ensure_divination_profile_table(connection)
+    result = await connection.execute(
+        '''
+        DELETE FROM "DivinationProfile"
+        WHERE id = $1 AND "userId" = $2
+        ''',
+        profile_id,
+        user_id,
+    )
+    return result == "DELETE 1"
+
+
 def profile_from_row(row: asyncpg.Record) -> ProfileOut:
     return ProfileOut(
         id=row["id"],

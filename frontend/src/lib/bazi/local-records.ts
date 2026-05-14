@@ -75,6 +75,12 @@ export function getLocalBaziRecord(id: string) {
   return getLocalBaziRecords().find((record) => record.id === id || record.serverId === id) ?? null;
 }
 
+export function deleteLocalBaziRecord(id: string) {
+  const nextRecords = getLocalBaziRecords().filter((record) => record.id !== id && record.serverId !== id);
+  writeRecords(nextRecords);
+  return nextRecords;
+}
+
 export function scheduleDailyBaziRecordSync() {
   if (typeof window === "undefined" || !shouldSyncToday()) {
     return;
@@ -95,11 +101,11 @@ export function scheduleDailyBaziRecordSync() {
 
 export async function syncPendingBaziRecords(force = false) {
   if (typeof window === "undefined") {
-    return;
+    return [];
   }
 
   if (!force && !shouldSyncToday()) {
-    return;
+    return getLocalBaziRecords();
   }
 
   const records = getLocalBaziRecords();
@@ -107,7 +113,7 @@ export async function syncPendingBaziRecords(force = false) {
 
   if (pendingRecords.length === 0) {
     markSyncedToday();
-    return;
+    return records;
   }
 
   let changed = false;
@@ -115,7 +121,7 @@ export async function syncPendingBaziRecords(force = false) {
 
   for (const record of pendingRecords) {
     try {
-      const response = await fetch("/api/bazi/charts", {
+      const response = await fetchWithTimeout("/api/bazi/charts", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -152,6 +158,7 @@ export async function syncPendingBaziRecords(force = false) {
   }
 
   markSyncedToday();
+  return getLocalBaziRecords();
 }
 
 function shouldSyncToday() {
@@ -233,4 +240,14 @@ function isLocalBaziRecord(value: unknown): value is LocalBaziRecord {
     (record.syncStatus === "pending" || record.syncStatus === "synced" || record.syncStatus === "failed") &&
     Boolean(record.chartJson)
   );
+}
+
+function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  return fetch(input, {
+    ...init,
+    signal: controller.signal
+  }).finally(() => window.clearTimeout(timeout));
 }

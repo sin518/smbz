@@ -51,7 +51,7 @@ const secondMenu: MenuItem[] = [
 export default function SettingsPage() {
   const [authState, setAuthState] = useState<AuthState>({ status: "loading" });
   const profileHref = authState.status === "signed-in" && authState.userId ? buildUserSettingsHref(authState.userId) : "/settings/login";
-  const loginLabel = authState.status === "signed-in" ? "已登录" : "登录";
+  const loginLabel = authState.status === "loading" ? "检查中" : authState.status === "signed-in" ? "已登录" : "登录";
   const userMenu = [
     secondMenu[0],
     { label: "用户资料", icon: Settings, href: profileHref },
@@ -61,6 +61,11 @@ export default function SettingsPage() {
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
+    const storedUserId = getStoredUserId();
+
+    if (storedUserId) {
+      setAuthState({ status: "signed-in", userId: storedUserId });
+    }
 
     async function loadSession() {
       try {
@@ -84,6 +89,11 @@ export default function SettingsPage() {
       }
 
       if (mounted) {
+        const storedUserId = getStoredUserId();
+        if (storedUserId) {
+          setAuthState({ status: "signed-in", userId: storedUserId });
+          return;
+        }
         setAuthState({ status: "signed-out" });
       }
     }
@@ -123,6 +133,20 @@ export default function SettingsPage() {
 
 function buildUserSettingsHref(id: string) {
   return `/settings/login/${encodeURIComponent(id)}`;
+}
+
+function getStoredUserId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  try {
+    const rawUser = window.localStorage.getItem("sm1:user");
+    const user = rawUser ? (JSON.parse(rawUser) as { id?: string }) : null;
+    return user?.id ?? "";
+  } catch {
+    return "";
+  }
 }
 
 function MenuSection({ items, className }: { items: MenuItem[]; className?: string }) {

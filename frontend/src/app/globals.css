@@ -401,3 +401,15 @@ button {
     transform: translateX(4%);
   }
 }
+
+@keyframes sync-progress {
+  0% {
+    transform: translateX(-110%);
+  }
+  55% {
+    transform: translateX(65%);
+  }
+  100% {
+    transform: translateX(210%);
+  }
+}

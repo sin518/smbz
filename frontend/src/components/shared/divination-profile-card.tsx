@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, ChevronDown, UserRound, Users, X } from "lucide-react";
+import { CalendarClock, ChevronDown, Loader2, Trash2, UserRound, Users, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -113,6 +113,7 @@ function SharedProfileSheet({
   const [profiles, setProfiles] = useState<SharedProfileValue[]>([]);
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [cloudUnavailable, setCloudUnavailable] = useState(false);
+  const [deletingProfileId, setDeletingProfileId] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -155,6 +156,27 @@ function SharedProfileSheet({
     };
   }, []);
 
+  async function deleteProfile(profile: SharedProfileValue) {
+    const deleteKey = getProfileDeleteKey(profile);
+    setDeletingProfileId(deleteKey);
+    setProfiles((current) => current.filter((item) => getProfileDeleteKey(item) !== deleteKey));
+    deleteLocalProfile(profile);
+
+    if (profile.id && !profile.id.startsWith("local-")) {
+      try {
+        const response = await fetchWithTimeout(`/api/profiles/${encodeURIComponent(profile.id)}`, {
+          method: "DELETE",
+          credentials: "include"
+        });
+        setCloudUnavailable(!response.ok);
+      } catch {
+        setCloudUnavailable(true);
+      }
+    }
+
+    setDeletingProfileId(null);
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
       <button className="absolute inset-0 cursor-default" type="button" aria-label="关闭档案选择" onClick={onClose} />
@@ -178,20 +200,29 @@ function SharedProfileSheet({
         ) : profiles.length > 0 ? (
           <div className="mt-5 space-y-3">
             {profiles.map((profile) => (
-              <button
+              <div
                 key={profile.id ?? `${profile.source}-${profile.name}-${profile.dateTime}`}
-                type="button"
-                onClick={() => onApply(profile)}
-                className="w-full rounded-xl border border-[#e6dfd0] bg-white px-4 py-3 text-left shadow-sm"
+                className="grid grid-cols-[minmax(0,1fr)_116px] items-center gap-3 rounded-xl border border-[#e6dfd0] bg-white px-4 py-3 shadow-sm"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate text-[18px] font-semibold text-ink">{profile.name || "未填写姓名"}</span>
-                  <span className="shrink-0 rounded-full bg-[#f4efe2] px-3 py-1 text-[13px] font-semibold text-[#a58024]">{profile.source}</span>
+                <button type="button" onClick={() => onApply(profile)} className="min-w-0 text-left" aria-label={`选择${profile.name || "未填写姓名"}档案`}>
+                  <span className="block min-w-0 truncate text-[18px] font-semibold text-ink">{profile.name || "未填写姓名"}</span>
+                  <p className="mt-2 text-[15px] font-semibold text-[#77736b]">
+                    {profile.gender === "female" ? "女" : "男"} · {formatPickerLabel(profile.dateTime)}
+                  </p>
+                </button>
+                <div className="flex items-center justify-end gap-2">
+                  <span className="min-w-[68px] shrink-0 rounded-full bg-[#f4efe2] px-3 py-1 text-center text-[13px] font-semibold text-[#a58024]">{profile.source}</span>
+                  <button
+                    type="button"
+                    onClick={() => void deleteProfile(profile)}
+                    disabled={deletingProfileId === getProfileDeleteKey(profile)}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f8f3e7] text-[#b95c45] disabled:opacity-55"
+                    aria-label={`删除${profile.name || "未填写姓名"}档案`}
+                  >
+                    {deletingProfileId === getProfileDeleteKey(profile) ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} strokeWidth={2.1} />}
+                  </button>
                 </div>
-                <p className="mt-2 text-[15px] font-semibold text-[#77736b]">
-                  {profile.gender === "female" ? "女" : "男"} · {formatPickerLabel(profile.dateTime)}
-                </p>
-              </button>
+              </div>
             ))}
           </div>
         ) : (
@@ -559,6 +590,20 @@ function saveLocalProfile(profile: Omit<SharedProfileValue, "id">) {
   const nextProfiles = dedupeProfiles([normalized, ...getLocalProfiles()]).slice(0, 10);
 
   window.localStorage.setItem(LOCAL_PROFILE_CACHE_KEY, JSON.stringify(nextProfiles));
+}
+
+function deleteLocalProfile(profile: SharedProfileValue) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const deleteKey = getProfileDeleteKey(profile);
+  const nextProfiles = getLocalProfiles().filter((item) => getProfileDeleteKey(item) !== deleteKey);
+  window.localStorage.setItem(LOCAL_PROFILE_CACHE_KEY, JSON.stringify(nextProfiles));
+}
+
+function getProfileDeleteKey(profile: SharedProfileValue) {
+  return `${profile.name}-${profile.gender}-${profile.dateTime}`;
 }
 
 function migrateLegacyProfileCache() {
