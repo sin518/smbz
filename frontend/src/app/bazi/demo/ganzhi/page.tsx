@@ -1,8 +1,5 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { GanzhiInsightClient } from "@/components/bazi/ganzhi-insight-client";
-import { calculateBaziChart } from "@/lib/bazi/calculate";
-import { demoBaziChart } from "@/lib/bazi/demo";
 
 type GanzhiPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -10,16 +7,6 @@ type GanzhiPageProps = {
 
 export default async function GanzhiPage({ searchParams }: GanzhiPageProps) {
   const params = (await searchParams) ?? {};
-  const hasInput = Boolean(getParam(params, "birthTime"));
-  const chart = hasInput
-    ? calculateBaziChart({
-        name: getParam(params, "name"),
-        gender: getParam(params, "gender") === "female" ? "female" : "male",
-        birthTime: getParam(params, "birthTime"),
-        location: getParam(params, "location"),
-        calendar: toCalendar(getParam(params, "calendar"))
-      })
-    : demoBaziChart;
 
   return (
     <main className="light-surface-text-scope mx-auto min-h-screen max-w-[430px] bg-paper text-ink shadow-soft">
@@ -30,27 +17,8 @@ export default async function GanzhiPage({ searchParams }: GanzhiPageProps) {
           </Link>
         </div>
       </header>
-
-      <GanzhiInsightClient columns={chart.columns} />
     </main>
   );
-}
-
-function getParam(params: Record<string, string | string[] | undefined>, key: string) {
-  const value = params[key];
-  if (Array.isArray(value)) {
-    return value[0] ?? "";
-  }
-
-  return value ?? "";
-}
-
-function toCalendar(value: string) {
-  if (value === "lunar" || value === "pillars") {
-    return value;
-  }
-
-  return "solar";
 }
 
 function buildBackHref(params: Record<string, string | string[] | undefined>) {

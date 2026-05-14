@@ -50,7 +50,8 @@ const secondMenu: MenuItem[] = [
 
 export default function SettingsPage() {
   const [authState, setAuthState] = useState<AuthState>({ status: "loading" });
-  const profileHref = authState.status === "signed-in" && authState.userId ? buildUserSettingsHref(authState.userId) : "/settings/login";
+  const profileHref = authState.status === "signed-in" && authState.userId ? buildUserSettingsHref(authState.userId) : "/settings/login";  
+
   const loginLabel = authState.status === "loading" ? "检查中" : authState.status === "signed-in" ? "已登录" : "登录";
   const userMenu = [
     secondMenu[0],

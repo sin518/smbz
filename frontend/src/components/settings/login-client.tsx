@@ -25,12 +25,15 @@ type ApiResult<T> = T & {
   message?: string;
 };
 
-type VerificationResponse = {
-  requestId: string;
-  expiresIn: number;
-  cooldown: number;
-  devCode?: string;
-};
+class AuthRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = "AuthRequestError";
+  }
+}
 
 type LoginResponse = {
   user: {
@@ -52,8 +55,6 @@ type AuthSessionResponse = {
   session?: unknown;
 };
 
-type LoginMode = "sms" | "password";
-type PasswordMode = "login" | "register";
 type SessionStatus = "loading" | "signed-in" | "signed-out";
 type EditableProfileField = "name" | "gender" | "birthTime" | "birthPlace";
 type UserProfileSettings = {
@@ -63,43 +64,82 @@ type UserProfileSettings = {
   birthPlace: string;
 };
 
-const DEFAULT_SMS_MESSAGE = "当前为开发环境，验证码会显示在页面提示中";
 const DEFAULT_PASSWORD_MESSAGE = "账号密码仅在本地开发服务中保存";
+const AUTH_REQUEST_TIMEOUT_MS = 10000;
+const HOME_HREF = "/";
+
+function getSafeNextHref(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return HOME_HREF;
+  }
+
+  return value;
+}
+
+function getLoginBackHref(nextHref: string) {
+  const [pathname = "", query = ""] = nextHref.split("?");
+
+  if (pathname === "/bazi/demo/ai-command") {
+    return query ? `/bazi/demo?${query}` : "/bazi/demo";
+  }
+
+  if (pathname.startsWith("/bazi/") || pathname === "/bazi") {
+    return nextHref;
+  }
+
+  return "/settings";
+}
+
+async function requestPasswordAuth(
+  endpoint: "/api/auth/password/login" | "/api/auth/password/register",
+  payload: {
+    identifier: string;
+    password: string;
+    confirmPassword?: string;
+    signal: AbortSignal;
+  }
+): Promise<LoginResponse> {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    signal: payload.signal,
+    body: JSON.stringify({
+      identifier: payload.identifier,
+      password: payload.password,
+      confirmPassword: payload.confirmPassword
+    })
+  });
+  const data = (await response.json()) as ApiResult<LoginResponse>;
+
+  if (!response.ok) {
+    throw new AuthRequestError(data.message ?? "登录失败", response.status);
+  }
+
+  return data;
+}
 
 export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextHref = sanitizeNextHref(searchParams.get("next"));
   const oauthError = searchParams.get("error");
+  const nextHref = getSafeNextHref(searchParams.get("next"));
+  const backHref = getLoginBackHref(nextHref);
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>("loading");
   const [sessionUser, setSessionUser] = useState<AuthSessionResponse["user"]>(null);
-  const [loginMode, setLoginMode] = useState<LoginMode>("sms");
-  const [passwordMode, setPasswordMode] = useState<PasswordMode>("login");
-  const [phone, setPhone] = useState("");
   const [accountIdentifier, setAccountIdentifier] = useState("");
-  const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
-  const [loadingCode, setLoadingCode] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [agreementShake, setAgreementShake] = useState(false);
-  const [message, setMessage] = useState(DEFAULT_SMS_MESSAGE);
-  const [devCode, setDevCode] = useState<string | null>(null);
+  const [message, setMessage] = useState(DEFAULT_PASSWORD_MESSAGE);
 
-  const normalizedPhone = useMemo(() => phone.replace(/\s|-/g, ""), [phone]);
   const normalizedAccountIdentifier = useMemo(() => accountIdentifier.trim(), [accountIdentifier]);
   const isValidPasswordIdentifier = isPhoneOrEmail(normalizedAccountIdentifier);
-  const isValidPassword = /^(?=.*[A-Za-z])(?=.*\d).{8,32}$/.test(password);
-  const canRequestCode = /^1[3-9]\d{9}$/.test(normalizedPhone) && cooldown === 0 && !loadingCode;
-  const canSmsLogin = /^1[3-9]\d{9}$/.test(normalizedPhone) && /^\d{6}$/.test(code) && agreed && !loggingIn;
+  const isRegisterablePassword = /^(?=.*[A-Za-z])(?=.*\d).{8,32}$/.test(password);
   const passwordFormError = getPasswordFormError({
-    identifier: normalizedAccountIdentifier,
-    password,
-    confirmPassword,
-    mode: passwordMode
+    identifier: normalizedAccountIdentifier
   });
 
   function promptAgreement() {
@@ -116,6 +156,19 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   }, [oauthError]);
 
   useEffect(() => {
+    if (!loggingIn) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setLoggingIn(false);
+      setMessage("登录请求超时，请检查后端服务或数据库连接后重试");
+    }, AUTH_REQUEST_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loggingIn]);
+
+  useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
     const storedUser = getStoredUser();
@@ -124,8 +177,9 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
       setSessionUser(storedUser);
       setSessionStatus("signed-in");
       if (!profileRoute) {
-        router.replace(buildUserSettingsHref(storedUser.id));
+        router.replace(nextHref);
       }
+      return;
     }
 
     const finishSignedOut = () => {
@@ -175,9 +229,8 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
               level: "初学弟子"
             })
           );
-          if (!profileRoute && data.user.id) {
-            router.replace(buildUserSettingsHref(data.user.id));
-            return;
+          if (!profileRoute) {
+            router.replace(nextHref);
           }
           setSessionStatus("signed-in");
         } else {
@@ -198,89 +251,6 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
     };
   }, []);
 
-  useEffect(() => {
-    if (cooldown <= 0) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      setCooldown((value) => Math.max(value - 1, 0));
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [cooldown]);
-
-  async function requestCode() {
-    if (!agreed) {
-      promptAgreement();
-      return;
-    }
-
-    if (!/^1[3-9]\d{9}$/.test(normalizedPhone)) {
-      setMessage("请输入正确的手机号");
-      return;
-    }
-
-    setLoadingCode(true);
-    setMessage("正在获取验证码...");
-
-    try {
-      const response = await fetch("/api/auth/verification-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalizedPhone })
-      });
-      const data = (await response.json()) as ApiResult<VerificationResponse>;
-
-      if (!response.ok) {
-        throw new Error(data.message ?? "验证码发送失败");
-      }
-
-      setCooldown(data.cooldown);
-      setDevCode(data.devCode ?? null);
-      setMessage(data.devCode ? `开发验证码：${data.devCode}` : "验证码已发送，请注意查收");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "验证码发送失败，请稍后再试");
-    } finally {
-      setLoadingCode(false);
-    }
-  }
-
-  async function login() {
-    if (!agreed) {
-      promptAgreement();
-      return;
-    }
-
-    if (!canSmsLogin) {
-      setMessage("请填写手机号和 6 位验证码");
-      return;
-    }
-
-    setLoggingIn(true);
-    setMessage("正在登录...");
-
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: normalizedPhone, code })
-      });
-      const data = (await response.json()) as ApiResult<LoginResponse>;
-
-      if (!response.ok) {
-        throw new Error(data.message ?? "登录失败");
-      }
-
-      window.localStorage.setItem("sm1:user", JSON.stringify(data.user));
-      router.push(nextHref ?? buildUserSettingsHref(data.user.id));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "登录失败，请稍后再试");
-    } finally {
-      setLoggingIn(false);
-    }
-  }
-
   async function submitPasswordAuth() {
     if (!agreed) {
       promptAgreement();
@@ -292,46 +262,54 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
       return;
     }
 
-    if (passwordMode === "register" && !isValidPassword) {
-      setMessage("密码需为 8-32 位，并同时包含字母和数字");
-      return;
-    }
-
-    if (passwordMode === "register" && password !== confirmPassword) {
-      setMessage("两次输入的密码不一致");
-      return;
-    }
-
-    if (passwordMode === "login" && !password) {
+    if (!password) {
       setMessage("请输入密码");
       return;
     }
 
     setLoggingIn(true);
-    setMessage(passwordMode === "register" ? "正在注册..." : "正在登录...");
+    setMessage("正在登录...");
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS);
 
     try {
-      const endpoint = passwordMode === "register" ? "/api/auth/password/register" : "/api/auth/password/login";
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      let data: LoginResponse;
+
+      try {
+        data = await requestPasswordAuth("/api/auth/password/login", {
           identifier: normalizedAccountIdentifier,
           password,
-          confirmPassword
-        })
-      });
-      const data = (await response.json()) as ApiResult<LoginResponse>;
+          signal: controller.signal
+        });
+      } catch (error) {
+        if (!(error instanceof AuthRequestError) || error.status !== 404) {
+          throw error;
+        }
 
-      if (!response.ok) {
-        throw new Error(data.message ?? (passwordMode === "register" ? "注册失败" : "登录失败"));
+        if (!isRegisterablePassword) {
+          throw new Error("新账号密码需为 8-32 位，并同时包含字母和数字");
+        }
+
+        setMessage("账号不存在，正在自动注册...");
+        data = await requestPasswordAuth("/api/auth/password/register", {
+          identifier: normalizedAccountIdentifier,
+          password,
+          confirmPassword: password,
+          signal: controller.signal
+        });
       }
 
       window.localStorage.setItem("sm1:user", JSON.stringify(data.user));
-      router.push(nextHref ?? buildUserSettingsHref(data.user.id));
+      router.replace(nextHref);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : passwordMode === "register" ? "注册失败，请稍后再试" : "登录失败，请稍后再试");
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setMessage("登录请求超时，请检查后端服务或数据库连接后重试");
+      } else {
+        setMessage(error instanceof Error ? error.message : "登录失败，请稍后再试");
+      }
     } finally {
+      window.clearTimeout(timeoutId);
       setLoggingIn(false);
     }
   }
@@ -345,13 +323,8 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
     setLoggingIn(true);
     setMessage(provider === "google" ? "正在跳转 Google 登录..." : "正在跳转 GitHub 登录...");
 
-    const nextQuery = encodeURIComponent(nextHref ?? "/settings/login");
+    const nextQuery = encodeURIComponent(nextHref);
     window.location.href = `/api/auth/oauth/${provider}/login?next=${nextQuery}`;
-  }
-
-  function switchLoginMode(nextMode: LoginMode) {
-    setLoginMode(nextMode);
-    setMessage(nextMode === "sms" ? DEFAULT_SMS_MESSAGE : DEFAULT_PASSWORD_MESSAGE);
   }
 
   if (sessionStatus === "loading") {
@@ -364,16 +337,25 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   }
 
   if (sessionStatus === "signed-in") {
-    return <UserSettingsPage user={sessionUser} onSignedOut={() => setSessionStatus("signed-out")} />;
+    if (profileRoute) {
+      return <UserSettingsPage user={sessionUser} onSignedOut={() => setSessionStatus("signed-out")} />;
+    }
+
+    return (
+      <main className="light-surface-text-scope mx-auto flex min-h-screen max-w-[430px] flex-col items-center justify-center bg-paper text-ink shadow-soft">
+        <Loader2 className="animate-spin text-[#a58024]" size={30} />
+        <p className="mt-4 text-[15px] font-semibold text-mutedInk">正在进入首页</p>
+      </main>
+    );
   }
 
-  const showInlineMessage = message !== DEFAULT_SMS_MESSAGE && message !== DEFAULT_PASSWORD_MESSAGE;
+  const showInlineMessage = message !== DEFAULT_PASSWORD_MESSAGE;
 
   return (
     <main className="light-surface-text-scope relative mx-auto min-h-screen max-w-[430px] overflow-hidden bg-paper pb-10 text-ink shadow-soft">
       <header className="sticky top-0 z-20 bg-[#F8F7EE] px-5 pb-5 pt-14">
         <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center">
-          <Link href="/settings" className="-ml-2 flex h-10 w-10 items-center justify-center text-ink" aria-label="返回设置">
+          <Link href={backHref} className="-ml-2 flex h-10 w-10 items-center justify-center text-ink" aria-label={backHref === "/settings" ? "返回设置" : "返回八字"}>
             <ChevronLeft size={28} strokeWidth={2.2} />
           </Link>
           <h1 className="text-center text-[22px] font-semibold">登录</h1>
@@ -386,111 +368,39 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
           <h2 className="m-0 text-[26px] font-semibold leading-[1.25]">登录提供存储功能</h2>
           <p className="mt-3 text-[15px] leading-6 text-mutedInk">保存排盘记录，并在同一账号下查看历史报告。</p>
 
-          <div className="mt-6 grid h-10 grid-cols-2 rounded-full bg-[#f2f2f0] p-1">
-            <button
-              type="button"
-              onClick={() => switchLoginMode("sms")}
-              className={`rounded-full text-[15px] font-semibold transition-colors ${loginMode === "sms" ? "bg-black text-[#e8d4a7]" : "text-[#8b8985]"}`}
-            >
-              验证码登录
-            </button>
-            <button
-              type="button"
-              onClick={() => switchLoginMode("password")}
-              className={`rounded-full text-[15px] font-semibold transition-colors ${loginMode === "password" ? "bg-black text-[#e8d4a7]" : "text-[#8b8985]"}`}
-            >
-              账号密码
-            </button>
-          </div>
-
           <p className="mb-5 mt-6 text-[16px] font-semibold text-[#55514a]">
-            {loginMode === "sms" ? "未注册手机验证后即完成注册" : passwordMode === "login" ? "使用账号密码登录" : "创建账号密码登录"}
+            使用手机号或邮箱密码登录
           </p>
 
-          {loginMode === "sms" ? (
-            <>
-              <input
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                className="h-[54px] w-full rounded-full border-0 bg-[#f2f2f0] px-6 text-[20px] text-ink outline-none placeholder:text-[#aaa8a1]"
-                inputMode="tel"
-                maxLength={13}
-                placeholder="请输入手机号"
-                aria-label="手机号"
-              />
-              {cooldown > 0 || devCode || code ? (
-                <input
-                value={code}
-                onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="mt-[14px] h-[54px] w-full rounded-full border-0 bg-[#f2f2f0] px-6 text-[20px] text-ink outline-none placeholder:text-[#aaa8a1]"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="请输入验证码"
-                  aria-label="验证码"
-                />
-              ) : null}
-              <button
-                type="button"
-                onClick={cooldown > 0 || code ? login : requestCode}
-                disabled={(cooldown <= 0 && !canRequestCode && !code) || loggingIn}
-                className={`mt-[14px] flex h-[54px] w-full items-center justify-center rounded-full border-0 bg-black text-[20px] font-semibold text-[#e8d4a7] disabled:opacity-55 ${agreementShake ? "animate-agreement-shake" : ""}`}
-              >
-                {loadingCode || loggingIn ? <Loader2 className="animate-spin" size={22} /> : cooldown > 0 || code ? "登录并保存" : "获取验证码"}
-              </button>
-              {cooldown > 0 && !code ? <p className="mt-3 text-[13px] text-mutedInk">{cooldown}s 后可重新获取验证码</p> : null}
-              {devCode ? (
-                <button type="button" onClick={() => setCode(devCode)} className="mt-2 w-full text-center text-[13px] font-semibold text-[#a58024]">
-                  填入开发验证码
-                </button>
-              ) : null}
-            </>
-          ) : (
-            <div className="space-y-3">
-              <input
-                value={accountIdentifier}
-                onChange={(event) => setAccountIdentifier(event.target.value)}
-                className={`h-[54px] w-full rounded-full border-0 bg-[#f2f2f0] px-6 text-[20px] text-ink outline-none placeholder:text-[#aaa8a1] ${accountIdentifier && !isValidPasswordIdentifier ? "ring-2 ring-[#c62828]" : ""}`}
-                inputMode="email"
-                maxLength={80}
-                placeholder="请输入手机号或邮箱"
-                aria-label="手机号或邮箱"
-              />
-              <PasswordField
-                value={password}
-                onChange={setPassword}
-                visible={showPassword}
-                onToggleVisible={() => setShowPassword((value) => !value)}
-                placeholder={passwordMode === "register" ? "设置密码" : "请输入密码"}
-                ariaLabel="密码"
-              />
-              {passwordMode === "register" ? (
-                <PasswordField
-                  value={confirmPassword}
-                  onChange={setConfirmPassword}
-                  visible={showPassword}
-                  onToggleVisible={() => setShowPassword((value) => !value)}
-                  placeholder="请再次输入密码"
-                  ariaLabel="确认密码"
-                />
-              ) : null}
-              <button
-                type="button"
-                onClick={submitPasswordAuth}
-                disabled={loggingIn}
-                className={`flex h-[54px] w-full items-center justify-center rounded-full bg-black text-[20px] font-semibold text-[#e8d4a7] disabled:opacity-55 ${agreementShake ? "animate-agreement-shake" : ""}`}
-              >
-                {loggingIn ? <Loader2 className="animate-spin" size={22} /> : passwordMode === "register" ? "注册并登录" : "账号密码登录"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPasswordMode(passwordMode === "login" ? "register" : "login")}
-                className="w-full text-center text-[14px] font-semibold text-[#a58024]"
-              >
-                {passwordMode === "login" ? "没有账号？立即注册" : "已有账号？返回登录"}
-              </button>
-              {passwordFormError ? <p className="px-4 text-[13px] leading-5 text-[#c62828]">{passwordFormError}</p> : null}
-            </div>
-          )}
+          <div className="space-y-3">
+            <input
+              value={accountIdentifier}
+              onChange={(event) => setAccountIdentifier(event.target.value)}
+              className={`h-[54px] w-full rounded-full border-0 bg-[#f2f2f0] px-6 text-[20px] text-ink outline-none placeholder:text-[#aaa8a1] ${accountIdentifier && !isValidPasswordIdentifier ? "ring-2 ring-[#c62828]" : ""}`}
+              inputMode="email"
+              maxLength={80}
+              placeholder="请输入手机号或邮箱"
+              aria-label="手机号或邮箱"
+            />
+            <PasswordField
+              value={password}
+              onChange={setPassword}
+              visible={showPassword}
+              onToggleVisible={() => setShowPassword((value) => !value)}
+              placeholder="请输入密码"
+              ariaLabel="密码"
+            />
+            <button
+              type="button"
+              onClick={submitPasswordAuth}
+              disabled={loggingIn}
+              className={`flex h-[54px] w-full items-center justify-center rounded-full bg-black text-[20px] font-semibold text-[#e8d4a7] disabled:opacity-55 ${agreementShake ? "animate-agreement-shake" : ""}`}
+            >
+              {loggingIn ? <Loader2 className="animate-spin" size={22} /> : "登录 / 自动注册"}
+            </button>
+            <p className="px-4 text-center text-[13px] leading-5 text-[#a58024]">新手机号或邮箱会自动创建账号并登录</p>
+            {passwordFormError ? <p className="px-4 text-[13px] leading-5 text-[#c62828]">{passwordFormError}</p> : null}
+          </div>
 
           <p className="mt-3 min-h-5 text-center text-[13px] leading-5 text-mutedInk">{showInlineMessage ? message : ""}</p>
         </div>
@@ -894,51 +804,17 @@ function formatProfileBirthTime(value: string) {
   return value.replace("T", " ");
 }
 
-function sanitizeNextHref(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return null;
-  }
-
-  return value;
-}
-
-function buildUserSettingsHref(id: string) {
-  return `/settings/login/${encodeURIComponent(id)}`;
-}
-
 function isPhoneOrEmail(value: string) {
   return /^1[3-9]\d{9}$/.test(value.replace(/\s|-/g, "")) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function getPasswordFormError({
-  identifier,
-  password,
-  confirmPassword,
-  mode
+  identifier
 }: {
   identifier: string;
-  password: string;
-  confirmPassword: string;
-  mode: PasswordMode;
 }) {
   if (identifier && !isPhoneOrEmail(identifier)) {
     return "请输入正确的手机号或邮箱";
-  }
-
-  if (mode === "register" && password && password.length < 8) {
-    return "密码至少需要 8 位";
-  }
-
-  if (mode === "register" && password && !/[A-Za-z]/.test(password)) {
-    return "密码需包含字母";
-  }
-
-  if (mode === "register" && password && !/\d/.test(password)) {
-    return "密码需包含数字";
-  }
-
-  if (mode === "register" && confirmPassword && password !== confirmPassword) {
-    return "两次输入的密码不一致";
   }
 
   return "";

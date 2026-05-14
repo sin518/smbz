@@ -160,7 +160,7 @@ async def oauth_callback(
         return oauth_error_redirect("第三方登录回调失败，请稍后重试")
 
     next_path = sanitize_next_path(request.session.pop("oauth_next", None))
-    redirect_url = f"{settings.frontend_url}{next_path or f'/settings/login/{user.id}'}"
+    redirect_url = f"{settings.frontend_url}{next_path or '/'}"
     redirect = RedirectResponse(redirect_url)
     set_session_cookie(redirect, session_token)
     return redirect
@@ -172,7 +172,7 @@ async def social_sign_in_redirect(body: dict[str, str]) -> dict[str, str]:
     if provider not in {"google", "github"}:
         raise HTTPException(status_code=400, detail="不支持的第三方登录方式")
 
-    next_path = sanitize_next_path(body.get("callbackURL")) or "/settings/login"
+    next_path = sanitize_next_path(body.get("callbackURL")) or "/"
     return {"url": f"/api/auth/oauth/{provider}/login?next={next_path}", "redirect": "true"}
 
 
@@ -229,4 +229,3 @@ def sanitize_next_path(value: str | None) -> str | None:
 
 def oauth_error_redirect(message: str) -> RedirectResponse:
     return RedirectResponse(f"{settings.frontend_url}/settings/login?error={quote(message)}")
-

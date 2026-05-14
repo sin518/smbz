@@ -1,3 +1,4 @@
+import { calculateBaziChart } from "@/lib/bazi/calculate";
 import type { DemoBaziChart } from "@/lib/bazi/demo";
 
 export type LocalBaziRecord = {
@@ -14,6 +15,7 @@ export type LocalBaziRecord = {
   createdAt: string;
   updatedAt: string;
   syncStatus: "pending" | "synced" | "failed";
+  origin?: "record" | "profile";
 };
 
 export type LocalBaziRecordInput = Pick<
@@ -23,8 +25,18 @@ export type LocalBaziRecordInput = Pick<
 
 const LOCAL_BAZI_RECORDS_KEY = "sm1:bazi-records";
 const LOCAL_BAZI_LAST_SYNC_KEY = "sm1:bazi-records-last-sync-date";
+const SHARED_PROFILE_CACHE_KEY = "sm1:shared-profiles";
 const DAILY_SYNC_HOUR = 3;
 const DAILY_SYNC_MINUTE = 30;
+
+type SharedProfileValue = {
+  id?: string;
+  source: string;
+  name: string;
+  gender: "male" | "female";
+  dateTime: string;
+  location?: string;
+};
 
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
@@ -44,7 +56,8 @@ export function saveLocalBaziRecord(input: LocalBaziRecordInput) {
     pillars: extractPillars(input.chartJson),
     createdAt: now,
     updatedAt: now,
-    syncStatus: "pending"
+    syncStatus: "pending",
+    origin: "record"
   };
   const nextRecords = [record, ...getLocalBaziRecords()].slice(0, 80);
 
@@ -72,13 +85,30 @@ export function getLocalBaziRecords() {
 }
 
 export function getLocalBaziRecord(id: string) {
-  return getLocalBaziRecords().find((record) => record.id === id || record.serverId === id) ?? null;
+  return getUnifiedBaziRecords().find((record) => record.id === id || record.serverId === id) ?? null;
 }
 
 export function deleteLocalBaziRecord(id: string) {
   const nextRecords = getLocalBaziRecords().filter((record) => record.id !== id && record.serverId !== id);
   writeRecords(nextRecords);
   return nextRecords;
+}
+
+export function getUnifiedBaziRecords() {
+  const localRecords = getLocalBaziRecords();
+  const localKeys = new Set(localRecords.map(getRecordIdentityKey));
+  const profileRecords = getSharedProfileRecords()
+    .filter((record) => !localKeys.has(getRecordIdentityKey(record)))
+    .filter((record) => record.chartJson);
+
+  return [...localRecords, ...profileRecords].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+}
+
+export function deleteUnifiedBaziRecord(id: string) {
+  const deletedLocalRecord = getLocalBaziRecords().find((record) => record.id === id || record.serverId === id);
+  deleteLocalBaziRecord(id);
+  deleteSharedProfileByRecordId(id, deletedLocalRecord);
+  return getUnifiedBaziRecords().filter((record) => record.id !== id && record.serverId !== id);
 }
 
 export function scheduleDailyBaziRecordSync() {
@@ -218,6 +248,110 @@ function markRecordFailed(records: LocalBaziRecord[], id: string) {
 
 function extractPillars(chart: DemoBaziChart) {
   return chart.columns.map((column) => `${column.pillar.stem}${column.pillar.branch}`).join(" ");
+}
+
+function getSharedProfileRecords(): LocalBaziRecord[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(SHARED_PROFILE_CACHE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(isSharedProfileValue).map(profileToBaziRecord);
+  } catch {
+    return [];
+  }
+}
+
+function profileToBaziRecord(profile: SharedProfileValue): LocalBaziRecord {
+  const chartJson = calculateBaziChart({
+    name: profile.name,
+    gender: profile.gender,
+    birthTime: profile.dateTime,
+    location: profile.location,
+    calendar: "solar"
+  });
+  const createdAt = new Date(0).toISOString();
+
+  return {
+    id: profile.id || `profile-${profile.name}-${profile.gender}-${profile.dateTime}`,
+    name: profile.name || "未命名",
+    gender: profile.gender,
+    birthTime: profile.dateTime,
+    calendar: "solar",
+    location: profile.location,
+    useSolarTime: false,
+    chartJson,
+    pillars: extractPillars(chartJson),
+    createdAt,
+    updatedAt: createdAt,
+    syncStatus: profile.id && !profile.id.startsWith("local-") ? "synced" : "pending",
+    origin: "profile"
+  };
+}
+
+function deleteSharedProfileByRecordId(id: string, localRecord?: LocalBaziRecord) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(SHARED_PROFILE_CACHE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+
+    if (!Array.isArray(parsed)) {
+      return;
+    }
+
+    const nextProfiles = parsed.filter((item) => {
+      if (!isSharedProfileValue(item)) {
+        return false;
+      }
+
+      if (item.id === id) {
+        return false;
+      }
+
+      if (!localRecord) {
+        return true;
+      }
+
+      return getProfileIdentityKey(item) !== getRecordIdentityKey(localRecord);
+    });
+
+    window.localStorage.setItem(SHARED_PROFILE_CACHE_KEY, JSON.stringify(nextProfiles));
+  } catch {
+    // Ignore malformed profile cache when deleting a record.
+  }
+}
+
+function getRecordIdentityKey(record: Pick<LocalBaziRecord, "name" | "gender" | "birthTime">) {
+  return `${record.name}-${record.gender}-${record.birthTime}`;
+}
+
+function getProfileIdentityKey(profile: SharedProfileValue) {
+  return `${profile.name}-${profile.gender}-${profile.dateTime}`;
+}
+
+function isSharedProfileValue(value: unknown): value is SharedProfileValue {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const profile = value as Record<string, unknown>;
+
+  return (
+    typeof profile.source === "string" &&
+    typeof profile.name === "string" &&
+    (profile.gender === "male" || profile.gender === "female") &&
+    typeof profile.dateTime === "string"
+  );
 }
 
 function isLocalBaziRecord(value: unknown): value is LocalBaziRecord {

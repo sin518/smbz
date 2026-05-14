@@ -5,6 +5,8 @@ export type LiuyaoInputSnapshot = {
   name?: string;
   gender?: string;
   dateTime?: string;
+  castingTime?: string;
+  castingMethod?: string;
   divinationDirection?: string;
   directionTopic?: string;
   question?: string;
@@ -321,8 +323,9 @@ export function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | undefined,
     yingPosition: 3
   };
   const direction = formatDirection(inputSnapshot);
-  const usefulGodRelation = getUsefulGodRelation(inputSnapshot?.divinationDirection, inputSnapshot?.gender);
-  const castingDate = parseDate(inputSnapshot?.dateTime) ?? new Date();
+  const question = inputSnapshot?.question?.trim() || "未填写";
+  const usefulGodRelation = getUsefulGodRelation(inputSnapshot?.divinationDirection, inputSnapshot?.gender, question);
+  const castingDate = parseDate(inputSnapshot?.castingTime ?? inputSnapshot?.dateTime) ?? new Date();
   const pillars = buildTimePillars(castingDate);
   const dayVoid = pillars.dayVoid;
 
@@ -368,8 +371,6 @@ export function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | undefined,
     };
   });
 
-  const question = inputSnapshot?.question?.trim() || "未填写";
-
   return {
     profile: {
       name: inputSnapshot?.name?.trim() || "未留名",
@@ -398,8 +399,11 @@ export function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | undefined,
     lines: chartLines,
     interpretation: buildInterpretation({
       hexagramName,
+      changedHexagramName: changingCount > 0 ? changedHexagramName : undefined,
       direction,
       question,
+      inputSnapshot,
+      castingDate,
       lines: chartLines,
       palaceInfo,
       pillars,
@@ -469,18 +473,42 @@ function formatDateTime(date: Date) {
   return `${formatDate(date)} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+function formatLunarDateTime(date: Date) {
+  const lunar = Solar.fromYmdHms(date.getFullYear(), date.getMonth() + 1, date.getDate(), date.getHours(), date.getMinutes(), 0).getLunar();
+
+  return `${lunar.getYearInChinese()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()} ${lunar.getTimeZhi()}时`;
+}
+
+function formatCastingMethod(value: string | undefined) {
+  const labels: Record<string, string> = {
+    shake: "摇卦",
+    number: "报数",
+    manual: "指定",
+    time: "时间",
+    text: "汉字"
+  };
+
+  return value ? labels[value] ?? value : "未记录";
+}
+
 function buildInterpretation({
   hexagramName,
+  changedHexagramName,
   direction,
   question,
+  inputSnapshot,
+  castingDate,
   lines,
   palaceInfo,
   pillars,
   usefulGodRelation
 }: {
   hexagramName: string;
+  changedHexagramName?: string;
   direction: string;
   question: string;
+  inputSnapshot?: LiuyaoInputSnapshot;
+  castingDate: Date;
   lines: LiuyaoChartLine[];
   palaceInfo: PalaceInfo;
   pillars: LiuyaoTimePillars;
@@ -489,17 +517,19 @@ function buildInterpretation({
   const shiLine = lines.find((line) => line.marker === "世");
   const yingLine = lines.find((line) => line.marker === "应");
   const usefulLines = lines.filter((line) => line.isUsefulGod);
+  const auxiliaryText = shiLine ? formatDetailedLine(shiLine) : "世爻未定位";
   const usefulText =
     usefulLines.length > 0
-      ? usefulLines.map((line) => `${line.position}爻${line.relation}${line.branch}${line.element}（${line.strength}，${line.monthRelation}，${line.dayRelation}）`).join("；")
+      ? usefulLines.map((line) => `${formatDetailedLine(line)}（${line.strength}，${line.monthRelation}，${line.dayRelation}）`).join("；")
       : "本卦未直接出现对应用神，需后续结合伏神规则补取";
+  const usefulStrength = buildUsefulGodStrengthText(usefulLines, lines, pillars);
   const movingText = lines
     .filter((line) => line.changing)
-    .map((line) => `${line.position}爻${line.relation}${line.branch}${line.element}发动，化${line.changedRelation}${line.changedBranch}${line.changedElement}，${describeMovingTransform(line)}`)
+    .map((line) => `${formatDetailedLine(line)}发动，化${line.changedRelation}${line.changedBranch}${line.changedElement}；动为始、变为终，${describeMovingTransform(line)}`)
     .join("；");
   const shiYingText = [
-    shiLine ? `世爻在${shiLine.position}爻，为${shiLine.relation}${shiLine.branch}${shiLine.element}，${shiLine.strength}` : undefined,
-    yingLine ? `应爻在${yingLine.position}爻，为${yingLine.relation}${yingLine.branch}${yingLine.element}，${yingLine.strength}` : undefined
+    shiLine ? `世爻：${formatDetailedLine(shiLine)}，${shiLine.strength}` : undefined,
+    yingLine ? `应爻：${formatDetailedLine(yingLine)}，${yingLine.strength}` : undefined
   ]
     .filter((item): item is string => Boolean(item))
     .join("；");
@@ -509,32 +539,47 @@ function buildInterpretation({
   const movingDetailPoints = movingText
     ? movingText.split("；")
     : ["本卦无动爻，暂无化回头生克；先看日月对世爻、用神和静爻之间的生克合冲。"];
+  const specialEffects = [...lines.map((line) => `${formatDetailedLine(line)}：${line.monthRelation}，${line.dayRelation}`), ...pairPoints, ...harmonyPoints].slice(0, 8);
+  const finalTone = buildFinalTone(usefulLines, shiLine);
 
   return [
     {
-      title: "基本卦象",
-      body: `${hexagramName}属${palaceInfo.palace}宫${palaceInfo.palaceElement}，为${palaceInfo.place}卦，用于观察「${direction}」的当前态势。卦象呈现的是阶段、阻力和资源分布，不等同于固定结论。`
+      title: "基本信息",
+      points: [
+        `求测事项：${question}`,
+        `求测时间（公历/农历）：${formatDateTime(castingDate)} / ${formatLunarDateTime(castingDate)}`,
+        `四柱干支：${pillars.year.text}年 ${pillars.month.text}月 ${pillars.day.text}日 ${pillars.hour.text}时`,
+        `月建：${pillars.month.branch}；日辰：${pillars.day.branch}`,
+        `起卦方式：${formatCastingMethod(inputSnapshot?.castingMethod)}`,
+        `本卦卦名：${hexagramName}`,
+        `变卦卦名：${changedHexagramName ?? "无"}`
+      ]
     },
     {
-      title: "世应用神",
-      body: `本次所问为「${question}」。${shiYingText || "世应未定位"}。此类问题先取${usefulGodRelation}为用神：${usefulText}。`
+      title: "核心信息标注",
+      points: [
+        `卦宫：${palaceInfo.palace}宫${palaceInfo.palaceElement}，${palaceInfo.place}卦`,
+        shiYingText || "世爻、应爻未定位",
+        `旬空：${pillars.dayVoid}`,
+        `核心用神：${usefulGodRelation}；${usefulText}`,
+        `辅助用神：${auxiliaryText}。自身相关事项必看世爻，世爻代表求测人自身。`
+      ]
     },
     {
-      title: "日月世爻",
-      body: shiMonthDayText
+      title: "旺衰与推理分析",
+      points: [
+        `用神旺衰判断：${usefulStrength}`,
+        `世应关系分析：${shiMonthDayText}${yingLine && shiLine ? ` ${describeLinePair(shiLine, yingLine)}。` : ""}`,
+        `动爻与变爻影响：${movingDetailPoints.join("；")}`,
+        `合冲刑害特殊作用：${specialEffects.join("；")}`
+      ]
     },
     {
-      title: "爻间合克",
-      points: pairPoints
-    },
-    {
-      title: "三合三会",
-      points: harmonyPoints
-    },
-    {
-      title: "动爻化出",
-      // TODO: Add verified 伏神飞神、进退神、反吟伏吟 rule variants before producing a full precision judgment.
-      points: movingDetailPoints
+      title: "最终参考结论",
+      points: [
+        `吉凶定性：${finalTone}`,
+        `关键提示：重点看${usefulGodRelation}是否得月建、日辰、动爻与卦中多爻生扶，同时标注旬空、冲合刑害与动变方向。`
+      ]
     }
   ];
 }
@@ -548,6 +593,50 @@ function buildShiMonthDayText(shiLine: LiuyaoChartLine, pillars: LiuyaoTimePilla
       : "本卦未现明用神，喜忌先以世爻自身旺衰为主";
 
   return `世爻为${formatLine(shiLine)}，当前判为${shiLine.strength}。${monthEffect}；${dayEffect}。对世爻而言，生扶、合扶、同气为喜，冲克泄耗为忌；${usefulEffect}。`;
+}
+
+function buildUsefulGodStrengthText(usefulLines: LiuyaoChartLine[], lines: LiuyaoChartLine[], pillars: LiuyaoTimePillars) {
+  if (usefulLines.length === 0) {
+    return "本卦未直接出现核心用神，暂不能按明现用神定旺衰；需后续补伏神规则后再细断。";
+  }
+
+  return usefulLines.map((line) => describeUsefulLineStrength(line, lines, pillars)).join("；");
+}
+
+function describeUsefulLineStrength(line: LiuyaoChartLine, lines: LiuyaoChartLine[], pillars: LiuyaoTimePillars) {
+  const supportReasons: string[] = [];
+  const damageReasons: string[] = [];
+  const monthEffect = getElementEffect(branchElements[pillars.month.branch], line.element);
+  const dayEffect = getElementEffect(branchElements[pillars.day.branch], line.element);
+  const movingLines = lines.filter((item) => item.changing && item.position !== line.position);
+  const otherLines = lines.filter((item) => item.position !== line.position);
+  const supportingLines = otherLines.filter((item) => getElementEffect(item.element, line.element) === "support");
+  const damagingLines = otherLines.filter((item) => getElementEffect(item.element, line.element) === "damage");
+
+  if (monthEffect === "support") supportReasons.push(`得月建${pillars.month.branch}${branchElements[pillars.month.branch]}生扶/同气`);
+  if (monthEffect === "damage") damageReasons.push(`被月建${pillars.month.branch}${branchElements[pillars.month.branch]}克制`);
+  if (dayEffect === "support") supportReasons.push(`得日辰${pillars.day.branch}${branchElements[pillars.day.branch]}生扶/同气`);
+  if (dayEffect === "damage") damageReasons.push(`被日辰${pillars.day.branch}${branchElements[pillars.day.branch]}克制`);
+
+  movingLines.forEach((movingLine) => {
+    const effect = getElementEffect(movingLine.element, line.element);
+    if (effect === "support") supportReasons.push(`得动爻${formatDetailedLine(movingLine)}生扶`);
+    if (effect === "damage") damageReasons.push(`被动爻${formatDetailedLine(movingLine)}克制`);
+  });
+
+  if (supportingLines.length >= 2) supportReasons.push(`卦中多爻生扶：${supportingLines.map(formatDetailedLine).join("、")}`);
+  if (damagingLines.length >= 2) damageReasons.push(`卦中多爻相克：${damagingLines.map(formatDetailedLine).join("、")}`);
+
+  const status = supportReasons.length > damageReasons.length ? "偏旺" : damageReasons.length > supportReasons.length ? "偏衰" : "平";
+  const voidText = pillars.dayVoid.includes(line.branch) ? `；${line.branch}在旬空${pillars.dayVoid}内，需单独标注为空` : "";
+
+  return `${formatDetailedLine(line)}：${status}。得助依据：${supportReasons.join("，") || "未见明显生扶"}；受损依据：${damageReasons.join("，") || "未见明显克制"}${voidText}`;
+}
+
+function getElementEffect(source: FiveElement, target: FiveElement) {
+  if (source === target || generating[source] === target) return "support";
+  if (controlling[source] === target) return "damage";
+  return "neutral";
 }
 
 function buildLinePairPoints(lines: LiuyaoChartLine[]) {
@@ -702,6 +791,26 @@ function formatDetailedLine(line: LiuyaoChartLine) {
   return `${line.position}爻${line.relation}${line.branch}${line.element}${marker}`;
 }
 
+function buildFinalTone(usefulLines: LiuyaoChartLine[], shiLine: LiuyaoChartLine | undefined) {
+  if (usefulLines.length === 0) {
+    return "核心用神未明现，暂以世爻和日月动爻作保守参考，不宜直接定吉凶。";
+  }
+
+  const strongCount = usefulLines.filter((line) => line.strength === "旺" || line.strength === "相").length;
+  const weakCount = usefulLines.filter((line) => line.strength === "衰").length;
+  const shiSupport = shiLine ? usefulLines.some((line) => getElementEffect(line.element, shiLine.element) === "support" || line.position === shiLine.position) : false;
+
+  if (strongCount > weakCount && shiSupport) {
+    return "用神有力且能帮扶世爻，整体偏有利，但仍需结合动爻、旬空与现实条件谨慎推进。";
+  }
+
+  if (weakCount > strongCount) {
+    return "用神受损较多，整体偏谨慎，当前阻力较明显，适合先补条件、控风险。";
+  }
+
+  return "用神力量不偏不倚，吉凶未成定局，关键在动爻方向、世应用神关系和后续行动。";
+}
+
 type LiuyaoTimePillars = {
   year: { text: string; branch: EarthlyBranch };
   month: { text: string; branch: EarthlyBranch };
@@ -732,14 +841,14 @@ function getSixRelation(palaceElement: FiveElement, lineElement: FiveElement) {
   return "官鬼";
 }
 
-function getUsefulGodRelation(direction: string | undefined, gender: string | undefined) {
-  if (direction === "career") return "官鬼";
-  if (direction === "wealth") return "妻财";
+function getUsefulGodRelation(direction: string | undefined, gender: string | undefined, question = "") {
+  if (/(财运|生意|物价|财物|投资|收入|钱|盈利|创业)/.test(question) || direction === "wealth") return "妻财";
+  if (/(事业|工作|官运|官司|疾病|诉讼|风险)/.test(question) || direction === "career" || direction === "risk" || direction === "health") return "官鬼";
+  if (/(考试|学业|文书|证件|长辈|房屋|合同|资料)/.test(question)) return "父母";
+  if (/(子女|宠物|医药|避灾|娱乐|玩乐)/.test(question)) return "子孙";
+  if (/(同辈|朋友|竞争对手|破财|小人|人际)/.test(question) || direction === "interpersonal") return "兄弟";
   if (direction === "relationship") return gender === "female" ? "官鬼" : "妻财";
-  if (direction === "health") return "世爻";
   if (direction === "cooperation") return "应爻";
-  if (direction === "interpersonal") return "兄弟";
-  if (direction === "risk") return "官鬼";
   return "世爻";
 }
 

@@ -45,7 +45,6 @@ export default async function SavedBaziPage({ params, searchParams }: SavedBaziP
       backHref="/records"
       editHref={buildEditHref(chart)}
       getTabHref={(tab) => buildTabHref(chart.id, tab)}
-      ganzhiHref={buildToolHref(chart, "/bazi/demo/ganzhi")}
       aiCommandHref={buildToolHref(chart, "/bazi/demo/ai-command")}
       profileOverride={{
         name: chart.name || chart.chartJson.profile.name,

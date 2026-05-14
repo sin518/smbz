@@ -2,6 +2,7 @@
 
 import { ArrowLeft, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ZiweiAiCommandModal } from "@/components/ziwei/ziwei-ai-command-modal";
 import { calculateZiweiChart, type ZiweiChart, type ZiweiPalace } from "@/lib/ziwei/calculate";
@@ -12,6 +13,11 @@ type StoredZiweiProfile = {
   gender?: "male" | "female";
   birthTime?: string;
   location?: string;
+};
+
+type SessionResponse = {
+  session?: unknown;
+  user?: unknown;
 };
 
 const defaultProfile: Required<StoredZiweiProfile> = {
@@ -39,8 +45,10 @@ const leftDirections = ["南偏东", "东偏南", "正东方", "东偏北"] as c
 const rightDirections = ["西偏南", "正西方", "西偏北", "北偏西"] as const;
 
 export function ZiweiChartClient() {
+  const router = useRouter();
   const [chart, setChart] = useState<ZiweiChart | null>(null);
   const [isAiCommandOpen, setIsAiCommandOpen] = useState(false);
+  const [checkingAiAccess, setCheckingAiAccess] = useState(false);
 
   useEffect(() => {
     const raw = window.localStorage.getItem("sm1:current-ziwei-profile") ?? window.localStorage.getItem("sm1:last-ziwei-profile");
@@ -64,6 +72,33 @@ export function ZiweiChartClient() {
 
   if (!chart) {
     return <main className="light-surface-text-scope mx-auto min-h-dvh max-w-[430px] bg-[#F8F7EE] shadow-soft" />;
+  }
+
+  async function openAiCommand() {
+    if (checkingAiAccess) {
+      return;
+    }
+
+    setCheckingAiAccess(true);
+
+    try {
+      const response = await fetch("/api/auth/get-session", {
+        method: "GET",
+        credentials: "include"
+      });
+      const data = response.ok ? ((await response.json()) as SessionResponse | null) : null;
+
+      if (data?.session && data.user) {
+        setIsAiCommandOpen(true);
+        return;
+      }
+    } catch {
+      // Fall through to the login page.
+    } finally {
+      setCheckingAiAccess(false);
+    }
+
+    router.push(`/settings/login?next=${encodeURIComponent("/ziwei")}`);
   }
 
   return (
@@ -123,10 +158,11 @@ export function ZiweiChartClient() {
       <section className="mx-4 mt-3 rounded-[18px] bg-white px-4 py-3 shadow-soft">
         <button
           type="button"
-          onClick={() => setIsAiCommandOpen(true)}
+          onClick={() => void openAiCommand()}
+          disabled={checkingAiAccess}
           className="flex h-11 w-full items-center justify-center rounded-full bg-black text-[16px] font-semibold text-[#e8d4a7]"
         >
-          AI指令 ›
+          {checkingAiAccess ? "检查中..." : "AI指令 ›"}
         </button>
         <p className="mt-2 text-[12px] leading-5 text-[#6f6a63]">
           复制紫微斗数分析提示词，粘贴到第三方 AI 大模型中使用。

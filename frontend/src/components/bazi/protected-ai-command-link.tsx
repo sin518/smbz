@@ -9,7 +9,7 @@ type SessionResponse = {
   user?: unknown;
 };
 
-export function ProtectedAiCommandLink({ href }: { href: string }) {
+export function ProtectedAiCommandLink({ href, className = "" }: { href: string; className?: string }) {
   const router = useRouter();
   const [checking, setChecking] = useState(false);
 
@@ -45,7 +45,7 @@ export function ProtectedAiCommandLink({ href }: { href: string }) {
       href={href}
       onClick={handleClick}
       aria-disabled={checking}
-      className="flex h-12 items-center justify-center rounded-full bg-black text-[17px] font-semibold text-[#e8d4a7]"
+      className={`flex h-12 items-center justify-center rounded-full bg-black text-[17px] font-semibold text-[#e8d4a7] ${className}`}
     >
       {checking ? "检查中..." : "AI指令 ›"}
     </Link>

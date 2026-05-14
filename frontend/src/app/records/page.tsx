@@ -5,8 +5,8 @@ import { ChevronRight, Cloud, CloudOff, RefreshCw, Search, Trash2 } from "lucide
 import { useEffect, useState } from "react";
 import { AppBottomNav } from "@/components/app-bottom-nav";
 import {
-  deleteLocalBaziRecord,
-  getLocalBaziRecords,
+  deleteUnifiedBaziRecord,
+  getUnifiedBaziRecords,
   scheduleDailyBaziRecordSync,
   syncPendingBaziRecords,
   type LocalBaziRecord
@@ -18,7 +18,7 @@ export default function RecordsPage() {
   const [syncMessage, setSyncMessage] = useState("");
 
   useEffect(() => {
-    setRecords(getLocalBaziRecords());
+    setRecords(getUnifiedBaziRecords());
     scheduleDailyBaziRecordSync();
   }, []);
 
@@ -31,7 +31,7 @@ export default function RecordsPage() {
         syncPendingBaziRecords(true),
         waitForMinimumUploadAnimation()
       ]);
-      setRecords(nextRecords);
+      setRecords(getUnifiedBaziRecords());
       const pendingCount = nextRecords.filter((record) => record.syncStatus !== "synced").length;
       setSyncMessage(pendingCount > 0 ? `上传完成，仍有 ${pendingCount} 条等待下次同步。` : "上传完成，记录已同步。");
     } finally {
@@ -46,7 +46,7 @@ export default function RecordsPage() {
       return;
     }
 
-    setRecords(deleteLocalBaziRecord(id));
+    setRecords(deleteUnifiedBaziRecord(id));
   }
 
   return (
@@ -114,6 +114,9 @@ export default function RecordsPage() {
                       {record.gender === "female" ? "女" : "男"}
                     </span>
                     <SyncBadge status={record.syncStatus} />
+                    {record.origin === "profile" ? (
+                      <span className="rounded-full bg-[#f2f2f0] px-2 py-0.5 text-[11px] font-semibold text-[#77736b]">档案</span>
+                    ) : null}
                   </div>
                   <p className="mt-2 truncate text-[14px] font-semibold text-[#55514a]">{record.pillars || "四柱待生成"}</p>
                   <p className="mt-1 truncate text-[13px] leading-6 text-mutedInk">

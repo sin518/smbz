@@ -27,7 +27,6 @@ export default async function DemoBaziPage({ searchParams }: DemoBaziPageProps) 
       activeTab={activeTab}
       backHref={buildBackHref(params)}
       getTabHref={(tab) => buildTabHref(params, tab)}
-      ganzhiHref={buildToolHref(params, "/bazi/demo/ganzhi")}
       aiCommandHref={buildToolHref(params, "/bazi/demo/ai-command")}
       profileOverride={{
         name: getParam(params, "name") || chart.profile.name,

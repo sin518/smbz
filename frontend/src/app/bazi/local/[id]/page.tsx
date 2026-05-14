@@ -43,7 +43,6 @@ export default function LocalBaziPage() {
       backHref="/records"
       editHref={buildEditHref(record)}
       getTabHref={(tab) => buildTabHref(record.id, tab)}
-      ganzhiHref={buildToolHref(record, "/bazi/demo/ganzhi")}
       aiCommandHref={buildToolHref(record, "/bazi/demo/ai-command")}
       profileOverride={{
         name: record.name || record.chartJson.profile.name,

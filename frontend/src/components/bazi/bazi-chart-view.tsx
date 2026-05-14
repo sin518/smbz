@@ -26,7 +26,6 @@ type BaziChartViewProps = {
   backHref: string;
   editHref?: string;
   getTabHref: (tab: BaziTab) => string;
-  ganzhiHref: string;
   aiCommandHref: string;
   profileOverride?: BaziProfileOverride;
 };
@@ -37,7 +36,6 @@ export function BaziChartView({
   backHref,
   editHref,
   getTabHref,
-  ganzhiHref,
   aiCommandHref,
   profileOverride
 }: BaziChartViewProps) {
@@ -156,7 +154,7 @@ export function BaziChartView({
 
       {activeTab === "chart" ? (
         <section className="pb-4 pt-4">
-          <ChartInsightActions columns={columns} href={ganzhiHref} aiCommandHref={aiCommandHref} />
+          <ChartInsightActions columns={columns} aiCommandHref={aiCommandHref} />
         </section>
       ) : null}
 
@@ -193,17 +191,18 @@ function highlightInfoValue(text: string) {
   );
 }
 
-function ChartInsightActions({ columns, href, aiCommandHref }: { columns: ChartColumn[]; href: string; aiCommandHref: string }) {
+function ChartInsightActions({
+  columns,
+  aiCommandHref
+}: {
+  columns: ChartColumn[];
+  aiCommandHref: string;
+}) {
   const relations = buildOriginalRelations(columns);
 
   return (
     <section className="mx-4 rounded-[22px] bg-white px-4 py-5 shadow-soft">
-      <div className="grid grid-cols-[minmax(0,1fr)_128px] gap-4">
-        <Link href={href} className="flex h-12 items-center justify-center rounded-full bg-black text-[17px] font-semibold text-[#e8d4a7]">
-          智能干支图示 ›
-        </Link>
-        <ProtectedAiCommandLink href={aiCommandHref} />
-      </div>
+      <ProtectedAiCommandLink href={aiCommandHref} className="w-full" />
 
       <div className="mt-5 space-y-3 text-[15px] leading-7 text-[#444]">
         <p><span className="font-semibold text-[#a58024]">原局天干：</span>{relations.stems}</p>
