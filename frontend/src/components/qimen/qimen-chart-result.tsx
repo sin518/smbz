@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { QimenAiCommandModal } from "@/components/qimen/qimen-ai-command-modal";
 import { calculateQimenChart, type DunType, type QimenChart, type QimenPlateType } from "@/lib/qimen";
 
 interface StoredQimenResult {
@@ -71,7 +72,7 @@ export function QimenChartResult() {
         <>
           <ResultInfoPanel result={result} />
           <QimenPillarBar chart={result.chart} />
-          <QimenChartCard chart={result.chart} />
+          <QimenChartCard result={result} />
         </>
       ) : null}
 
@@ -128,7 +129,10 @@ function QimenPillarBar({ chart }: { chart: QimenChart }) {
   );
 }
 
-function QimenChartCard({ chart }: { chart: QimenChart }) {
+function QimenChartCard({ result }: { result: StoredQimenResult }) {
+  const chart = result.chart;
+  const [isAiCommandOpen, setIsAiCommandOpen] = useState(false);
+
   return (
     <section className="mx-4 mt-4 rounded-[22px] bg-white px-3 py-4 shadow-soft">
       <h2 className="rounded-full bg-[#f2f2f0] py-[7px] text-center text-[16px] font-medium text-ink">九宫盘</h2>
@@ -173,14 +177,25 @@ function QimenChartCard({ chart }: { chart: QimenChart }) {
       <p className="mt-4 text-[14px] leading-6 text-[#7d7972]">
         {chart.location}，{chart.solarText}。值符{chart.zhiFu.star}落{chart.zhiFu.palace}宫。
       </p>
-      <details className="mt-3 rounded-2xl bg-[#f7f6f3] px-3 py-2 text-[13px] leading-6 text-[#77726b]">
-        <summary className="cursor-pointer font-medium text-[#3b3935]">计算说明</summary>
-        <ul className="mt-2 space-y-1">
-          {chart.notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-      </details>
+      <button
+        type="button"
+        onClick={() => setIsAiCommandOpen(true)}
+        className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-black text-[15px] font-semibold text-[#e8d4a7]"
+      >
+        <Sparkles size={16} />
+        AI指令
+      </button>
+      {isAiCommandOpen ? (
+        <QimenAiCommandModal
+          chart={chart}
+          profile={{
+            name: result.input?.name,
+            gender: result.input?.gender,
+            divinationType: result.input?.divinationType
+          }}
+          onClose={() => setIsAiCommandOpen(false)}
+        />
+      ) : null}
     </section>
   );
 }
