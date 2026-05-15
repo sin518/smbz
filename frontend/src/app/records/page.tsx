@@ -12,6 +12,13 @@ import {
   type LocalBaziRecord
 } from "@/lib/bazi/local-records";
 
+type SessionResponse = {
+  session?: unknown;
+  user?: {
+    id?: string | null;
+  } | null;
+};
+
 export default function RecordsPage() {
   const [records, setRecords] = useState<LocalBaziRecord[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -23,17 +30,38 @@ export default function RecordsPage() {
   }, []);
 
   async function handleManualSync() {
+    const pendingRecords = getUnifiedBaziRecords().filter((record) => record.syncStatus !== "synced");
+    if (pendingRecords.length === 0) {
+      setRecords(getUnifiedBaziRecords());
+      setSyncMessage("当前没有需要上传的本机记录。");
+      window.setTimeout(() => setSyncMessage(""), 3200);
+      return;
+    }
+
     setSyncing(true);
-    setSyncMessage("正在上传本机排盘记录，请勿关闭页面。");
+    setSyncMessage("正在检查登录状态。");
 
     try {
+      const signedIn = await checkSignedIn();
+      if (!signedIn) {
+        setRecords(getUnifiedBaziRecords());
+        setSyncMessage("请先登录账号，再手动上传本机排盘记录。");
+        return;
+      }
+
+      setSyncMessage("正在上传本机排盘记录，请勿关闭页面。");
       const [nextRecords] = await Promise.all([
         syncPendingBaziRecords(true),
         waitForMinimumUploadAnimation()
       ]);
       setRecords(getUnifiedBaziRecords());
       const pendingCount = nextRecords.filter((record) => record.syncStatus !== "synced").length;
-      setSyncMessage(pendingCount > 0 ? `上传完成，仍有 ${pendingCount} 条等待下次同步。` : "上传完成，记录已同步。");
+      const failedCount = nextRecords.filter((record) => record.syncStatus === "failed").length;
+      setSyncMessage(
+        pendingCount > 0
+          ? `上传未全部完成，${failedCount > 0 ? `${failedCount} 条上传失败，` : ""}仍有 ${pendingCount} 条待同步。`
+          : "上传完成，记录已同步。"
+      );
     } finally {
       setSyncing(false);
       window.setTimeout(() => setSyncMessage(""), 3200);
@@ -173,12 +201,35 @@ function SyncBadge({ status }: { status: LocalBaziRecord["syncStatus"] }) {
     );
   }
 
+  if (status === "failed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-[#f8eee9] px-2 py-0.5 text-[11px] font-semibold text-[#b35d45]">
+        <CloudOff size={12} />
+        上传失败
+      </span>
+    );
+  }
+
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[11px] font-semibold text-[#a58024]">
       <CloudOff size={12} />
       待同步
     </span>
   );
+}
+
+async function checkSignedIn() {
+  try {
+    const response = await fetch("/api/auth/get-session", {
+      method: "GET",
+      credentials: "include"
+    });
+    const data = response.ok ? ((await response.json()) as SessionResponse | null) : null;
+
+    return Boolean(data?.session && data.user?.id);
+  } catch {
+    return false;
+  }
 }
 
 function waitForMinimumUploadAnimation() {

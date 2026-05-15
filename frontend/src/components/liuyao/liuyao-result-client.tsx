@@ -109,7 +109,7 @@ export function LiuyaoResultClient() {
           <span>姓　　名：<b className="font-semibold text-ink">{chart.profile.name}</b></span>
           <span>性　　别：<b className="font-semibold text-ink">{chart.profile.gender}</b></span>
         </div>
-        <p>出生时辰：<b className="font-semibold text-ink">{chart.profile.birthText}</b></p>
+        <p>出生时间：<b className="font-semibold text-ink">{chart.profile.birthText}</b></p>
         <p>起卦时间：<b className="font-semibold text-ink">{chart.profile.castingText}</b></p>
         <p>求测方向：<b className="font-semibold text-ink">{chart.profile.direction}</b></p>
         <p>求测问题：<b className="font-semibold text-ink">{chart.profile.question}</b></p>
