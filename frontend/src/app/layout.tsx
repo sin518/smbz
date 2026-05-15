@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { BaziRecordSyncProvider } from "@/components/bazi/bazi-record-sync-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { themeStorageKey } from "@/lib/theme";
 import "./globals.css";
@@ -43,7 +44,10 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <BaziRecordSyncProvider />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

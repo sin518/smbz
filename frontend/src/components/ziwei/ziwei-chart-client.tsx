@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, MoreHorizontal } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -108,9 +108,7 @@ export function ZiweiChartClient() {
           <ArrowLeft size={24} />
         </Link>
         <h1 className="text-[18px] font-medium">紫薇斗数</h1>
-        <button type="button" className="-mr-1 flex h-10 w-10 items-center justify-center" aria-label="更多">
-          <MoreHorizontal size={25} />
-        </button>
+        <span className="h-10 w-10" aria-hidden="true" />
       </header>
 
       <section className="mx-4 rounded-[18px] bg-white px-4 py-3 text-[13px] leading-[1.55] text-mutedInk shadow-soft">

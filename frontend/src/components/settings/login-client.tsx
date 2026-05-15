@@ -65,7 +65,7 @@ type UserProfileSettings = {
 };
 
 const DEFAULT_PASSWORD_MESSAGE = "账号密码仅在本地开发服务中保存";
-const AUTH_REQUEST_TIMEOUT_MS = 10000;
+const AUTH_REQUEST_TIMEOUT_MS = 25000;
 const HOME_HREF = "/";
 
 function getSafeNextHref(value: string | null) {

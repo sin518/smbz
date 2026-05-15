@@ -24,10 +24,13 @@ export type LocalBaziRecordInput = Pick<
 >;
 
 const LOCAL_BAZI_RECORDS_KEY = "sm1:bazi-records";
-const LOCAL_BAZI_LAST_SYNC_KEY = "sm1:bazi-records-last-sync-date";
+const LOCAL_BAZI_LAST_SYNC_KEY = "sm1:bazi-records-last-sync-at";
 const SHARED_PROFILE_CACHE_KEY = "sm1:shared-profiles";
-const DAILY_SYNC_HOUR = 3;
-const DAILY_SYNC_MINUTE = 30;
+const AUTO_SYNC_INTERVAL_MS = 10 * 60 * 1000;
+
+let autoSyncStarted = false;
+let autoSyncTimer: number | undefined;
+let syncInFlight = false;
 
 type SharedProfileValue = {
   id?: string;
@@ -41,6 +44,10 @@ type SharedProfileValue = {
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
 };
+
+function runScheduledSync() {
+  void syncPendingBaziRecords();
+}
 
 export function saveLocalBaziRecord(input: LocalBaziRecordInput) {
   const now = new Date().toISOString();
@@ -111,22 +118,40 @@ export function deleteUnifiedBaziRecord(id: string) {
   return getUnifiedBaziRecords().filter((record) => record.id !== id && record.serverId !== id);
 }
 
-export function scheduleDailyBaziRecordSync() {
-  if (typeof window === "undefined" || !shouldSyncToday()) {
+export function scheduleBaziRecordAutoSync() {
+  if (typeof window === "undefined") {
     return;
   }
 
   const idleWindow = window as IdleWindow;
-  const runSync = () => {
-    void syncPendingBaziRecords();
-  };
 
-  if (idleWindow.requestIdleCallback) {
-    idleWindow.requestIdleCallback(runSync, { timeout: 3000 });
+  if (shouldRunScheduledSync() && idleWindow.requestIdleCallback) {
+    idleWindow.requestIdleCallback(runScheduledSync, { timeout: 3000 });
+  } else if (shouldRunScheduledSync()) {
+    window.setTimeout(runScheduledSync, 1200);
+  }
+
+  if (autoSyncStarted) {
     return;
   }
 
-  window.setTimeout(runSync, 1200);
+  autoSyncStarted = true;
+  autoSyncTimer = window.setInterval(runScheduledSync, AUTO_SYNC_INTERVAL_MS);
+  window.addEventListener("online", runScheduledSync);
+}
+
+export function stopBaziRecordAutoSync() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (autoSyncTimer !== undefined) {
+    window.clearInterval(autoSyncTimer);
+    autoSyncTimer = undefined;
+  }
+
+  autoSyncStarted = false;
+  window.removeEventListener("online", runScheduledSync);
 }
 
 export async function syncPendingBaziRecords(force = false) {
@@ -134,81 +159,85 @@ export async function syncPendingBaziRecords(force = false) {
     return [];
   }
 
-  if (!force && !shouldSyncToday()) {
+  if (syncInFlight) {
     return getLocalBaziRecords();
   }
 
+  if (!force && !shouldRunScheduledSync()) {
+    return getLocalBaziRecords();
+  }
+
+  syncInFlight = true;
   const records = getLocalBaziRecords();
   const pendingRecords = records.filter((record) => record.syncStatus !== "synced");
 
   if (pendingRecords.length === 0) {
-    markSyncedToday();
+    markScheduledSyncChecked();
+    syncInFlight = false;
     return records;
   }
 
   let changed = false;
   const nextRecords = [...records];
 
-  for (const record of pendingRecords) {
-    try {
-      const response = await fetchWithTimeout("/api/bazi/charts", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          name: record.name,
-          gender: record.gender,
-          birthTime: record.birthTime,
-          calendar: record.calendar,
-          location: record.location,
-          useSolarTime: record.useSolarTime,
-          chartJson: record.chartJson
-        })
-      });
+  try {
+    for (const record of pendingRecords) {
+      try {
+        const response = await fetchWithTimeout("/api/bazi/charts", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            name: record.name,
+            gender: record.gender,
+            birthTime: record.birthTime,
+            calendar: record.calendar,
+            location: record.location,
+            useSolarTime: record.useSolarTime,
+            chartJson: record.chartJson
+          })
+        });
 
-      if (!response.ok) {
+        if (!response.ok) {
+          markRecordFailed(nextRecords, record.id);
+          changed = true;
+          continue;
+        }
+
+        const data = (await response.json()) as { chart?: { id?: string; updatedAt?: string } };
+        markRecordSynced(nextRecords, record.id, data.chart?.id, data.chart?.updatedAt);
+        changed = true;
+      } catch {
         markRecordFailed(nextRecords, record.id);
         changed = true;
-        continue;
       }
-
-      const data = (await response.json()) as { chart?: { id?: string; updatedAt?: string } };
-      markRecordSynced(nextRecords, record.id, data.chart?.id, data.chart?.updatedAt);
-      changed = true;
-    } catch {
-      markRecordFailed(nextRecords, record.id);
-      changed = true;
     }
-  }
 
-  if (changed) {
-    writeRecords(nextRecords);
-  }
+    if (changed) {
+      writeRecords(nextRecords);
+    }
 
-  markSyncedToday();
-  return getLocalBaziRecords();
+    markScheduledSyncChecked();
+    return getLocalBaziRecords();
+  } finally {
+    syncInFlight = false;
+  }
 }
 
-function shouldSyncToday() {
-  const now = new Date();
-  const today = toDateKey(now);
-  const lastSyncDate = window.localStorage.getItem(LOCAL_BAZI_LAST_SYNC_KEY);
+function shouldRunScheduledSync() {
+  const lastSyncAt = Number(window.localStorage.getItem(LOCAL_BAZI_LAST_SYNC_KEY) ?? "0");
 
-  if (lastSyncDate === today) {
-    return false;
+  if (!Number.isFinite(lastSyncAt) || lastSyncAt <= 0) {
+    return true;
   }
 
-  return now.getHours() > DAILY_SYNC_HOUR || (now.getHours() === DAILY_SYNC_HOUR && now.getMinutes() >= DAILY_SYNC_MINUTE);
+  return Date.now() - lastSyncAt >= AUTO_SYNC_INTERVAL_MS;
 }
 
-function markSyncedToday() {
-  window.localStorage.setItem(LOCAL_BAZI_LAST_SYNC_KEY, toDateKey(new Date()));
-}
-
-function toDateKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+function markScheduledSyncChecked() {
+  window.localStorage.setItem(LOCAL_BAZI_LAST_SYNC_KEY, String(Date.now()));
 }
 
 function writeRecords(records: LocalBaziRecord[]) {

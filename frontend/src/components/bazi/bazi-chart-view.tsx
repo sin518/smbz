@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, MoreHorizontal } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { LunarUtil } from "lunar-typescript";
 import { BaziProfileHero } from "@/components/bazi/bazi-profile-hero";
 import { ProfessionalDetail } from "@/components/bazi/professional-detail";
@@ -53,9 +53,7 @@ export function BaziChartView({
             <ChevronLeft size={30} strokeWidth={1.8} />
           </Link>
           <h1 className="text-[18px] font-semibold">赛博八字</h1>
-          <button className="flex h-10 w-10 items-center justify-center text-ink" aria-label="更多">
-            <MoreHorizontal size={24} strokeWidth={2} />
-          </button>
+          <span className="h-10 w-10" aria-hidden="true" />
         </div>
         <nav className="grid grid-cols-3 px-2 pb-2 text-center text-[14px] font-medium text-mutedInk">
           {tabs.map((tab) => (

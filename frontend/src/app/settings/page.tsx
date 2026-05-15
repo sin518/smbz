@@ -2,7 +2,6 @@
 
 import {
   ChevronRight,
-  CircleDotDashed,
   Settings,
   Smartphone,
   Sun,
@@ -35,12 +34,8 @@ type MenuItem = {
   right?: ReactNode;
 };
 
-const firstMenu: MenuItem[] = [
-  { label: "已读主题", icon: CircleDotDashed, href: "/records" }
-];
-
 const secondMenu: MenuItem[] = [
-  { label: "Android 版", icon: Smartphone, accent: true },
+  { label: "Android 版", icon: Smartphone, accent: true, right: <DevelopmentStatus /> },
   {
     label: "外观",
     icon: Sun,
@@ -124,8 +119,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <MenuSection className="mt-5" items={firstMenu} />
-      <MenuSection items={userMenu} />
+      <MenuSection className="mt-5" items={userMenu} />
 
       <AppBottomNav active="settings" />
     </main>
@@ -190,6 +184,15 @@ function MenuRow({ item, last }: { item: MenuItem; last: boolean }) {
     <button type="button" className="block w-full text-left">
       {content}
     </button>
+  );
+}
+
+function DevelopmentStatus() {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="shrink-0 text-[14px] font-semibold text-[#d93025]">正在开发中</span>
+      <ChevronRight className="text-[#a9a59d]" size={32} strokeWidth={1.5} />
+    </div>
   );
 }
 

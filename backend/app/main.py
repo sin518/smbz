@@ -9,12 +9,15 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.db import close_db, connect_db
+from app.redis import close_redis, connect_redis
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_db()
+    await connect_redis()
     yield
+    await close_redis()
     await close_db()
 
 

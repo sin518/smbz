@@ -7,6 +7,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     database_url: Optional[str] = None
+    redis_url: Optional[str] = None
     sms_provider: str = "development"
     environment: str = "development"
     frontend_origins: str = "http://127.0.0.1:3000,http://localhost:3000"

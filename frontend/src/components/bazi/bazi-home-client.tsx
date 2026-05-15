@@ -15,7 +15,7 @@ import {
   saveSharedProfile
 } from "@/components/shared/divination-profile-card";
 import { calculateBaziChart } from "@/lib/bazi/calculate";
-import { saveLocalBaziRecord, scheduleDailyBaziRecordSync } from "@/lib/bazi/local-records";
+import { saveLocalBaziRecord, scheduleBaziRecordAutoSync } from "@/lib/bazi/local-records";
 import { chinaLocationOptions } from "@/lib/locations/china";
 import { cn } from "@/lib/utils";
 
@@ -152,7 +152,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
         useSolarTime: values.useSolarTime,
         chartJson
       });
-      scheduleDailyBaziRecordSync();
+      scheduleBaziRecordAutoSync();
       router.push(`/bazi/local/${localRecord.id}`);
       return;
     }

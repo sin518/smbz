@@ -7,7 +7,7 @@ import { AppBottomNav } from "@/components/app-bottom-nav";
 import {
   deleteUnifiedBaziRecord,
   getUnifiedBaziRecords,
-  scheduleDailyBaziRecordSync,
+  scheduleBaziRecordAutoSync,
   syncPendingBaziRecords,
   type LocalBaziRecord
 } from "@/lib/bazi/local-records";
@@ -19,7 +19,7 @@ export default function RecordsPage() {
 
   useEffect(() => {
     setRecords(getUnifiedBaziRecords());
-    scheduleDailyBaziRecordSync();
+    scheduleBaziRecordAutoSync();
   }, []);
 
   async function handleManualSync() {
@@ -79,7 +79,7 @@ export default function RecordsPage() {
               {syncing ? "上传中" : "手动上传"}
             </button>
           </div>
-          <p className="mt-2 text-[14px] leading-6 text-mutedInk">打开记录页只读取本机数据；每天 03:30 后浏览器空闲时自动尝试同步到云端。</p>
+          <p className="mt-2 text-[14px] leading-6 text-mutedInk">打开应用后会检查本机数据；浏览器在线时每 10 分钟自动尝试同步到云端。</p>
           {syncing || syncMessage ? (
             <div className="mt-4 overflow-hidden rounded-2xl bg-[#f6f0e2] px-4 py-3">
               <div className="flex items-center gap-3">

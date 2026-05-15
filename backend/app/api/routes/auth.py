@@ -21,6 +21,7 @@ from app.services.auth import (
     clear_auth_cookies,
     create_user_session,
     delete_account,
+    delete_user_session,
     get_user_by_session_token,
     login_with_password,
     register_with_password,
@@ -84,7 +85,12 @@ async def login_password(
 
 
 @router.post("/logout", response_model=SuccessResponse)
-async def logout(response: Response) -> dict[str, bool]:
+async def logout(
+    request: Request,
+    response: Response,
+    connection: asyncpg.Connection = Depends(get_connection),
+) -> dict[str, bool]:
+    await delete_user_session(connection, request.cookies.get("sm1_session"))
     clear_auth_cookies(response)
     return {"success": True}
 
@@ -101,6 +107,7 @@ async def delete_current_account(
     if not isinstance(user, dict) or not user.get("id"):
         raise HTTPException(status_code=401, detail="请先登录后再注销账号")
 
+    await delete_user_session(connection, request.cookies.get("sm1_session"))
     await delete_account(connection, str(user["id"]), user.get("email") if isinstance(user.get("email"), str) else None)
     clear_auth_cookies(response)
     return {"success": True}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, MoreHorizontal } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { calculateQimenChart, type DunType, type QimenChart, type QimenPlateType } from "@/lib/qimen";
@@ -64,9 +64,7 @@ export function QimenChartResult() {
           </Link>
         </div>
         <h1 className="text-[18px] font-medium">奇门排盘</h1>
-        <button type="button" className="-mr-1 flex h-10 w-10 items-center justify-center" aria-label="更多">
-          <MoreHorizontal size={25} />
-        </button>
+        <span className="h-10 w-10" aria-hidden="true" />
       </header>
 
       {result ? (

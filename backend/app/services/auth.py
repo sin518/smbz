@@ -1,5 +1,7 @@
+import asyncio
 import hashlib
 import hmac
+import json
 import re
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -7,12 +9,16 @@ from uuid import uuid4
 import asyncpg
 from fastapi import HTTPException, Response
 
+from app.redis import optional_redis
 from app.schemas.auth import AuthUser
 from app.services.verification_code import mask_phone, normalize_china_phone
 
 
 SESSION_COOKIE = "sm1_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+SESSION_REDIS_PREFIX = "session:"
+_auth_tables_ready = False
+_auth_tables_lock = asyncio.Lock()
 
 
 def set_session_cookie(response: Response, token: str) -> None:
@@ -132,6 +138,7 @@ async def create_user_session(connection: asyncpg.Connection, user_id: str) -> s
         expires_at,
         now,
     )
+    await cache_session_token(connection, token)
     return token
 
 
@@ -139,35 +146,41 @@ async def get_user_by_session_token(connection: asyncpg.Connection, token: str |
     if not token:
         return None
 
-    await ensure_password_auth_tables(connection)
-    row = await connection.fetchrow(
-        '''
-        SELECT s.id as "sessionId", s.token, s."expiresAt", u.id, u.phone, u.email, u.name, u.image
-        FROM "Session" s
-        INNER JOIN "User" u ON u.id = s."userId"
-        WHERE s.token = $1 AND s."expiresAt" > NOW()
-        LIMIT 1
-        ''',
-        token,
-    )
+    cached = await get_cached_session(token)
+    if cached:
+        return cached
 
-    if not row:
+    session = await get_user_by_session_token_from_database(connection, token)
+    if not session:
         return None
 
-    return {
-        "session": {
-            "id": row["sessionId"],
-            "token": row["token"],
-            "expiresAt": row["expiresAt"].isoformat(),
-        },
-        "user": AuthUser(
-            id=row["id"],
-            phone=mask_phone(row["phone"]) if row["phone"] else None,
-            email=row["email"],
-            name=row["name"],
-            image=row["image"],
-        ).model_dump(),
-    }
+    await set_cached_session(token, session)
+    return session
+
+
+async def delete_session_token(token: str | None) -> None:
+    if not token:
+        return
+
+    async with optional_redis() as redis:
+        if redis is None:
+            return
+        try:
+            await redis.delete(redis_session_key(token))
+        except Exception as error:
+            print(f"[redis] delete session failed: {type(error).__name__}: {error}")
+
+
+async def delete_user_session(connection: asyncpg.Connection, token: str | None) -> None:
+    if not token:
+        return
+
+    await delete_session_token(token)
+    try:
+        await ensure_password_auth_tables(connection)
+        await connection.execute('DELETE FROM "Session" WHERE token = $1', token)
+    except asyncpg.PostgresError as error:
+        print(f"[database] delete session failed: {error}")
 
 
 async def delete_account(connection: asyncpg.Connection, user_id: str, email: str | None) -> None:
@@ -198,6 +211,19 @@ async def delete_account(connection: asyncpg.Connection, user_id: str, email: st
 
 
 async def ensure_password_auth_tables(connection: asyncpg.Connection) -> None:
+    global _auth_tables_ready
+    if _auth_tables_ready:
+        return
+
+    async with _auth_tables_lock:
+        if _auth_tables_ready:
+            return
+
+        await ensure_password_auth_tables_uncached(connection)
+        _auth_tables_ready = True
+
+
+async def ensure_password_auth_tables_uncached(connection: asyncpg.Connection) -> None:
     await connection.execute(
         '''
         CREATE TABLE IF NOT EXISTS "User" (
@@ -277,3 +303,82 @@ def mask_email(email: str) -> str:
     visible = name[: min(3, len(name))]
     suffix = "***" if len(name) > 3 else "*"
     return f"{visible}{suffix}@{domain}"
+
+
+async def cache_session_token(connection: asyncpg.Connection, token: str) -> None:
+    session = await get_user_by_session_token_from_database(connection, token)
+    if session:
+        await set_cached_session(token, session)
+
+
+async def get_user_by_session_token_from_database(connection: asyncpg.Connection, token: str) -> dict[str, object] | None:
+    await ensure_password_auth_tables(connection)
+    row = await connection.fetchrow(
+        '''
+        SELECT s.id as "sessionId", s.token, s."expiresAt", u.id, u.phone, u.email, u.name, u.image
+        FROM "Session" s
+        INNER JOIN "User" u ON u.id = s."userId"
+        WHERE s.token = $1 AND s."expiresAt" > NOW()
+        LIMIT 1
+        ''',
+        token,
+    )
+
+    if not row:
+        return None
+
+    return {
+        "session": {
+            "id": row["sessionId"],
+            "token": row["token"],
+            "expiresAt": row["expiresAt"].isoformat(),
+        },
+        "user": AuthUser(
+            id=row["id"],
+            phone=mask_phone(row["phone"]) if row["phone"] else None,
+            email=row["email"],
+            name=row["name"],
+            image=row["image"],
+        ).model_dump(),
+    }
+
+
+async def get_cached_session(token: str) -> dict[str, object] | None:
+    async with optional_redis() as redis:
+        if redis is None:
+            return None
+
+        try:
+            raw = await redis.get(redis_session_key(token))
+        except Exception as error:
+            print(f"[redis] read session failed: {type(error).__name__}: {error}")
+            return None
+
+    if not raw:
+        return None
+
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+    return value if isinstance(value, dict) else None
+
+
+async def set_cached_session(token: str, session: dict[str, object]) -> None:
+    async with optional_redis() as redis:
+        if redis is None:
+            return
+
+        try:
+            await redis.setex(
+                redis_session_key(token),
+                SESSION_MAX_AGE_SECONDS,
+                json.dumps(session, ensure_ascii=False),
+            )
+        except Exception as error:
+            print(f"[redis] write session failed: {type(error).__name__}: {error}")
+
+
+def redis_session_key(token: str) -> str:
+    return f"{SESSION_REDIS_PREFIX}{token}"
