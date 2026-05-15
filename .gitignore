@@ -22,7 +22,6 @@ node_modules
 /主页/
 
 # Home and Liuyao feature folders should stay local.
-/frontend/src/components/home/
-/frontend/src/app/liuyao/
-/frontend/src/components/liuyao/
-/frontend/public/liuyao/
+
+
+
