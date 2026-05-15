@@ -58,7 +58,7 @@ export function MetaphysicsHomeClient() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[92px] sm:px-8 sm:pb-[116px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
+        <section className="grid grid-cols-1 gap-3 sm:gap-5">
           {homeCards.map((card) => (
             <HomeFeatureCard key={card.title} card={card} />
           ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CalendarClock, ChevronDown, ChevronRight, Compass, Hash, MessageSquareText, Save, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, ChevronDown, ChevronRight, Compass, Hash, MessageSquareText, UserRound, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -190,7 +190,7 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
 
   return (
     <Shell className={cn("light-surface-text-scope app-responsive-shell text-ink", embedded ? "bg-transparent pb-0 shadow-none" : "min-h-screen bg-[#F8F7EE] pb-8 shadow-soft")}>
-      {!embedded ? <header className="px-5 pb-2 pt-8">
+      {!embedded ? <header className="mx-auto w-full max-w-[430px] px-5 pb-2 pt-8">
         <div className="flex items-center justify-between">
           <Link href="/" className="-ml-2 flex h-10 w-10 items-center justify-center" aria-label="返回首页">
             <ArrowLeft size={24} />
@@ -200,7 +200,7 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
         </div>
       </header> : null}
 
-      <div className={cn("space-y-4", embedded ? "px-0 pt-0" : "px-4 pt-4")}>
+      <div className={cn("mx-auto w-full max-w-[430px] space-y-4", embedded ? "px-0 pt-0" : "px-4 pt-4")}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Controller
             name="gender"
@@ -304,27 +304,6 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
             </select>
             <Controller name="method" control={control} render={({ field }) => <input type="hidden" value={field.value} readOnly />} />
           </div>
-
-          <Controller
-            name="save"
-            control={control}
-            render={({ field }) => (
-              <button
-                type="button"
-                onClick={() => field.onChange(!field.value)}
-                className="flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 text-[16px] shadow-soft"
-                aria-pressed={field.value}
-              >
-                <span className="flex items-center gap-2 font-medium">
-                  <Save size={19} className="text-[#a58024]" />
-                  保存起局参数
-                </span>
-                <span className={cn("relative h-7 w-12 rounded-full transition-colors", field.value ? "bg-black" : "bg-[#d7d7d7]")}>
-                  <span className={cn("absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform", field.value && "translate-x-5")} />
-                </span>
-              </button>
-            )}
-          />
 
           <button
             type="submit"
