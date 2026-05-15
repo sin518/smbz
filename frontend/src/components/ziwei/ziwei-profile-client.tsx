@@ -111,7 +111,7 @@ export function ZiweiProfileClient() {
   }
 
   return (
-    <main className="light-surface-text-scope mx-auto min-h-screen max-w-[430px] bg-[#F8F7EE] pb-8 text-ink shadow-soft">
+    <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-[#F8F7EE] pb-8 text-ink shadow-soft">
       <header className="px-5 pb-2 pt-8">
         <div className="flex items-center justify-between">
           <Link href="/" className="-ml-2 flex h-10 w-10 items-center justify-center" aria-label="返回首页">

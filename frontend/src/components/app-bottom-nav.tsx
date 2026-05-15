@@ -17,7 +17,7 @@ const navItems: Array<{
 
 export function AppBottomNav({ active }: { active: NavKey }) {
   return (
-    <nav className="fixed bottom-0 left-1/2 z-30 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-3 border-t border-[var(--color-row-border)] bg-[var(--color-surface)] pb-4 pt-2">
+    <nav className="app-responsive-nav fixed bottom-0 left-1/2 z-30 grid -translate-x-1/2 grid-cols-3 border-t border-[var(--color-row-border)] bg-[var(--color-surface)] pb-4 pt-2  sm:rounded-t-[18px] sm:px-8">
       {navItems.map((item) => (
         <Link
           key={item.key}

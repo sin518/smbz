@@ -71,7 +71,7 @@ export function ZiweiChartClient() {
   }, []);
 
   if (!chart) {
-    return <main className="light-surface-text-scope mx-auto min-h-dvh max-w-[430px] bg-[#F8F7EE] shadow-soft" />;
+    return <main className="light-surface-text-scope app-responsive-shell min-h-dvh bg-[#F8F7EE] shadow-soft" />;
   }
 
   async function openAiCommand() {
@@ -102,7 +102,7 @@ export function ZiweiChartClient() {
   }
 
   return (
-    <main className="light-surface-text-scope mx-auto min-h-dvh max-w-[430px] bg-[#F8F7EE] pb-3 text-ink shadow-soft [font-family:'PingFang_SC','Microsoft_YaHei',sans-serif]">
+    <main className="light-surface-text-scope app-responsive-shell min-h-dvh bg-[#F8F7EE] pb-3 text-ink shadow-soft [font-family:'PingFang_SC','Microsoft_YaHei',sans-serif]">
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between bg-[#F8F7EE] px-[15px] pb-1 pt-4">
         <Link href="/ziwei/profile" className="-ml-1 flex h-10 w-10 items-center justify-center" aria-label="返回资料页">
           <ArrowLeft size={24} />

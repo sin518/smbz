@@ -50,7 +50,7 @@ export default function RecordsPage() {
   }
 
   return (
-    <main className="light-surface-text-scope mx-auto min-h-screen max-w-[430px] bg-paper pb-28 text-ink shadow-soft">
+    <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-paper pb-28 text-ink shadow-soft">
       <header className="sticky top-0 z-20 bg-[#F8F7EE] px-5 pb-5 pt-14">
         <div className="flex items-center justify-between">
           <h1 className="text-[30px] font-semibold">排盘记录</h1>

@@ -52,13 +52,13 @@ const homeCards: HomeCard[] = [
 
 export function MetaphysicsHomeClient() {
   return (
-    <main className="light-surface-text-scope mx-auto flex h-dvh max-w-[430px] flex-col overflow-hidden bg-[#F8F7EE] text-ink shadow-soft">
-      <header className="shrink-0 px-5 pb-5 pt-10">
-        <h1 className="text-center text-[30px] font-semibold tracking-normal text-black">赛博排盘</h1>
+    <main className="light-surface-text-scope app-responsive-shell flex h-dvh flex-col overflow-hidden bg-[#F8F7EE] text-ink shadow-soft">
+      <header className="shrink-0 px-5 pb-5 pt-10 sm:px-8 sm:pb-7 sm:pt-12">
+        <h1 className="text-center text-[30px] font-semibold tracking-normal text-black sm:text-[38px]">赛博排盘</h1>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[92px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <section className="grid grid-cols-1 gap-3">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[92px] sm:px-8 sm:pb-[116px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
           {homeCards.map((card) => (
             <HomeFeatureCard key={card.title} card={card} />
           ))}
@@ -73,7 +73,7 @@ export function MetaphysicsHomeClient() {
 function HomeFeatureCard({ card }: { card: HomeCard }) {
   const Icon = card.icon;
   const content = (
-    <div className="relative min-h-[124px] overflow-hidden border border-[#e5decb] bg-[#fffdf5] px-5 py-5 shadow-[0_10px_24px_rgba(54,45,24,0.05)]">
+    <div className="relative min-h-[124px] overflow-hidden border border-[#e5decb] bg-[#fffdf5] px-5 py-5 shadow-[0_10px_24px_rgba(54,45,24,0.05)] sm:min-h-[190px] md:px-7 sm:py-7">
       <Corner className="left-2 top-2 rotate-180" />
       <Corner className="right-2 top-2 -rotate-90" />
       <Corner className="bottom-2 left-2 rotate-90" />
@@ -81,7 +81,7 @@ function HomeFeatureCard({ card }: { card: HomeCard }) {
 
       <div className="relative z-10 flex h-full flex-col justify-between gap-5">
         <div className="relative min-h-[52px] pr-[66px]">
-          <h2 className="text-[28px] font-semibold leading-tight text-[#34322f]">{card.title}</h2>
+          <h2 className="text-[28px] font-semibold leading-tight text-[#34322f] sm:text-[34px]">{card.title}</h2>
           <span
             className={cn(
               "absolute right-0 top-0 flex h-[54px] w-[54px] items-center justify-center rounded-full border-2",
@@ -96,9 +96,9 @@ function HomeFeatureCard({ card }: { card: HomeCard }) {
         </div>
 
         <div className="flex items-end justify-between gap-3">
-          <p className="text-[19px] font-semibold leading-snug text-[#74716a]">{card.subtitle}</p>
+          <p className="text-[19px] font-semibold leading-snug text-[#74716a] sm:text-[22px]">{card.subtitle}</p>
           {card.suitable ? (
-            <div className="shrink-0 text-right text-[11px] font-semibold leading-[1.45] text-[#9b9383]">
+            <div className="shrink-0 text-right text-[11px] font-semibold leading-[1.45] text-[#9b9383] sm:text-[13px]">
               {card.suitable.map((line) => (
                 <p key={line}>{line}</p>
               ))}

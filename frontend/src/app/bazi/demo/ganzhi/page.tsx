@@ -9,7 +9,7 @@ export default async function GanzhiPage({ searchParams }: GanzhiPageProps) {
   const params = (await searchParams) ?? {};
 
   return (
-    <main className="light-surface-text-scope mx-auto min-h-screen max-w-[430px] bg-paper text-ink shadow-soft">
+    <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-paper text-ink shadow-soft">
       <header className="sticky top-0 z-20 bg-[#F8F7EE] px-5 pt-12">
         <div className="flex h-16 items-center">
           <Link href={buildBackHref(params)} className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d9d9d9]" aria-label="返回">

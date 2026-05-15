@@ -163,7 +163,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
   return (
     <Shell
       className={cn(
-        "light-surface-text-scope mx-auto max-w-[430px] bg-[#F8F7EE] text-ink",
+        "light-surface-text-scope app-responsive-shell bg-[#F8F7EE] text-ink",
         embedded ? "min-h-0 bg-transparent shadow-none" : "min-h-screen pb-8 shadow-soft"
       )}
     >

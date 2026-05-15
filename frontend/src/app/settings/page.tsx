@@ -103,7 +103,7 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <main className="relative mx-auto min-h-screen max-w-[430px] overflow-hidden bg-paper pb-[108px] text-ink shadow-soft">
+    <main className="relative app-responsive-shell min-h-screen overflow-hidden bg-paper pb-[108px] text-ink shadow-soft">
       <header className="sticky top-0 z-20 bg-[var(--color-header)] px-5 pb-5 pt-14">
         <h1 className="text-[30px] font-semibold">设置</h1>
       </header>

@@ -46,7 +46,7 @@ export function BaziChartView({
   };
 
   return (
-    <main className="light-surface-text-scope mx-auto min-h-screen max-w-[430px] bg-paper pb-5 text-ink shadow-soft [font-family:'PingFang_SC','Microsoft_YaHei',sans-serif]">
+    <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-paper pb-5 text-ink shadow-soft [font-family:'PingFang_SC','Microsoft_YaHei',sans-serif]">
       <header className="sticky top-0 z-30 bg-[#F8F7EE] pt-4">
         <div className="flex h-12 items-center justify-between px-4">
           <Link href={backHref} className="flex h-10 w-10 items-center justify-center" aria-label="返回">

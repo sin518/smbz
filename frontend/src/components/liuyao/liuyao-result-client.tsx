@@ -66,7 +66,7 @@ export function LiuyaoResultClient() {
 
   if (missingCasting) {
     return (
-      <main className="light-surface-text-scope mx-auto flex min-h-screen max-w-[430px] flex-col items-center justify-center bg-paper px-8 text-center shadow-soft">
+      <main className="light-surface-text-scope app-responsive-shell flex min-h-screen flex-col items-center justify-center bg-paper px-8 text-center shadow-soft">
         <p className="text-[20px] font-semibold leading-relaxed text-[#403d38]">还没有完整的 6 个卦爻，请先完成摇卦。</p>
         <Link href="/liuyao/shake" className="mt-6 flex h-12 w-[62%] items-center justify-center rounded-full bg-black text-[18px] font-semibold text-[#e8d4a7]">
           开始摇卦
@@ -76,7 +76,7 @@ export function LiuyaoResultClient() {
   }
 
   if (!chart) {
-    return <main className="light-surface-text-scope mx-auto min-h-screen max-w-[430px] bg-paper" />;
+    return <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-paper" />;
   }
 
   const isSignedIn = authStatus === "signed-in";
@@ -93,7 +93,7 @@ export function LiuyaoResultClient() {
   }
 
   return (
-    <main className="light-surface-text-scope mx-auto min-h-screen max-w-[430px] bg-paper pb-5 text-ink shadow-soft [font-family:'PingFang_SC','Microsoft_YaHei',sans-serif]">
+    <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-paper pb-5 text-ink shadow-soft [font-family:'PingFang_SC','Microsoft_YaHei',sans-serif]">
       <header className="sticky top-0 z-20 flex h-20 items-center justify-between bg-[#F8F7EE] px-[15px] pb-2 pt-6">
         <div className="flex items-center justify-between">
           <Link href="/liuyao" className="-ml-1 flex h-10 w-10 items-center justify-center" aria-label="返回六爻首页">

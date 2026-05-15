@@ -329,7 +329,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
 
   if (sessionStatus === "loading") {
     return (
-      <main className="light-surface-text-scope mx-auto flex min-h-screen max-w-[430px] flex-col items-center justify-center bg-paper text-ink shadow-soft">
+      <main className="light-surface-text-scope app-responsive-shell flex min-h-screen flex-col items-center justify-center bg-paper text-ink shadow-soft">
         <Loader2 className="animate-spin text-[#a58024]" size={30} />
         <p className="mt-4 text-[15px] font-semibold text-mutedInk">正在确认登录状态</p>
       </main>
@@ -342,7 +342,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
     }
 
     return (
-      <main className="light-surface-text-scope mx-auto flex min-h-screen max-w-[430px] flex-col items-center justify-center bg-paper text-ink shadow-soft">
+      <main className="light-surface-text-scope app-responsive-shell flex min-h-screen flex-col items-center justify-center bg-paper text-ink shadow-soft">
         <Loader2 className="animate-spin text-[#a58024]" size={30} />
         <p className="mt-4 text-[15px] font-semibold text-mutedInk">正在进入首页</p>
       </main>
@@ -352,7 +352,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   const showInlineMessage = message !== DEFAULT_PASSWORD_MESSAGE;
 
   return (
-    <main className="light-surface-text-scope relative mx-auto min-h-screen max-w-[430px] overflow-hidden bg-paper pb-10 text-ink shadow-soft">
+    <main className="light-surface-text-scope relative app-responsive-shell min-h-screen overflow-hidden bg-paper pb-10 text-ink shadow-soft">
       <header className="sticky top-0 z-20 bg-[#F8F7EE] px-5 pb-5 pt-14">
         <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center">
           <Link href={backHref} className="-ml-2 flex h-10 w-10 items-center justify-center text-ink" aria-label={backHref === "/settings" ? "返回设置" : "返回八字"}>
@@ -548,7 +548,7 @@ function UserSettingsPage({
   }
 
   return (
-    <main className="light-surface-text-scope mx-auto min-h-dvh max-w-[430px] bg-[#f7f7f7] text-ink shadow-soft">
+    <main className="light-surface-text-scope app-responsive-shell min-h-dvh bg-[#f7f7f7] text-ink shadow-soft">
       <header className="grid h-[108px] grid-cols-[44px_minmax(0,1fr)_44px] items-center border-b border-[#f1f1f1] bg-white px-[22px] pt-[38px]">
         <Link href="/settings" className="-ml-2 flex h-10 w-10 items-center justify-center text-[#222]" aria-label="返回设置">
           <ChevronLeft size={34} strokeWidth={1.8} />

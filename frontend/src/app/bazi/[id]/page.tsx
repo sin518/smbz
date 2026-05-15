@@ -26,7 +26,7 @@ export default async function SavedBaziPage({ params, searchParams }: SavedBaziP
 
   if (!chart) {
     return (
-      <main className="light-surface-text-scope mx-auto flex min-h-screen max-w-[430px] items-center justify-center bg-paper px-5 text-ink shadow-soft">
+      <main className="light-surface-text-scope app-responsive-shell flex min-h-screen items-center justify-center bg-paper px-5 text-ink shadow-soft">
         <section className="rounded-[22px] bg-white p-6 text-center shadow-soft">
           <h1 className="text-[24px] font-semibold">未找到排盘记录</h1>
           <p className="mt-3 text-[15px] leading-7 text-mutedInk">这条记录可能不存在，或当前账号没有访问权限。</p>

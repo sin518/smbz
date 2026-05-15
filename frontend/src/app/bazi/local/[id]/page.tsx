@@ -19,12 +19,12 @@ export default function LocalBaziPage() {
   }, [id]);
 
   if (!ready) {
-    return <main className="mx-auto min-h-screen max-w-[430px] bg-paper shadow-soft" />;
+    return <main className="app-responsive-shell min-h-screen bg-paper shadow-soft" />;
   }
 
   if (!record) {
     return (
-      <main className="light-surface-text-scope mx-auto flex min-h-screen max-w-[430px] items-center justify-center bg-paper px-5 text-ink shadow-soft">
+      <main className="light-surface-text-scope app-responsive-shell flex min-h-screen items-center justify-center bg-paper px-5 text-ink shadow-soft">
         <section className="rounded-[22px] bg-white p-6 text-center shadow-soft">
           <h1 className="text-[24px] font-semibold">本机记录不存在</h1>
           <p className="mt-3 text-[15px] leading-7 text-mutedInk">这条记录可能已被清理，或不在当前浏览器里。</p>

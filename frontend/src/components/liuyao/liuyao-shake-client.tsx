@@ -134,7 +134,7 @@ export function LiuyaoShakeClient() {
   }, [castNextLine, canCast, motionEnabled]);
 
   return (
-    <main className="light-surface-text-scope mx-auto min-h-screen max-w-[430px] bg-paper pb-8 text-ink shadow-soft">
+    <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-paper pb-8 text-ink shadow-soft">
       <header className="sticky top-0 z-20 flex h-20 items-center justify-between bg-[#F8F7EE] px-[15px] pb-2 pt-6">
         <div className="flex items-center justify-between">
           <Link

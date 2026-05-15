@@ -189,7 +189,7 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
   }
 
   return (
-    <Shell className={cn("light-surface-text-scope mx-auto max-w-[430px] text-ink", embedded ? "bg-transparent pb-0 shadow-none" : "min-h-screen bg-[#F8F7EE] pb-8 shadow-soft")}>
+    <Shell className={cn("light-surface-text-scope app-responsive-shell text-ink", embedded ? "bg-transparent pb-0 shadow-none" : "min-h-screen bg-[#F8F7EE] pb-8 shadow-soft")}>
       {!embedded ? <header className="px-5 pb-2 pt-8">
         <div className="flex items-center justify-between">
           <Link href="/" className="-ml-2 flex h-10 w-10 items-center justify-center" aria-label="返回首页">

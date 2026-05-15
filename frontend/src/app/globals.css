@@ -68,6 +68,27 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+@layer components {
+  .app-responsive-shell {
+    width: 100%;
+    max-width: min(100%, 1180px);
+    margin-inline: auto;
+  }
+
+  .app-responsive-nav {
+    width: 100%;
+    max-width: min(100%, 1180px);
+    margin-inline: auto;
+  }
+
+  @media (max-width: 639px) {
+    .app-responsive-shell,
+    .app-responsive-nav {
+      max-width: 430px;
+    }
+  }
+}
+
 @keyframes agreement-shake {
   0%,
   100% {
