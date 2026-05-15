@@ -22,7 +22,7 @@ export function AppBottomNav({ active }: { active: NavKey }) {
         <Link
           key={item.key}
           href={item.href}
-          className={cn("flex flex-col items-center gap-1 text-[#77777b]", item.key === active && "text-[#a58024]")}
+          className={cn("flex flex-col items-center gap-1 text-[var(--color-nav-text)]", item.key === active && "text-[var(--color-icon)]")}
         >
           <item.icon size={22} strokeWidth={1.8} />
           <span className="text-[13px] font-medium">{item.label}</span>

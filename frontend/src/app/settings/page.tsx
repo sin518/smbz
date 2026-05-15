@@ -161,10 +161,10 @@ function MenuRow({ item, last }: { item: MenuItem; last: boolean }) {
   const content = (
     <div className={cn("ml-[61px] flex h-16 items-center justify-between pr-[18px]", !last && "border-b border-[var(--color-row-border)]")}>
       <div className="-ml-[42px] flex items-center gap-[22px] text-[20px] font-bold text-ink">
-        <Icon className={cn("w-6 text-[#a58024]", item.accent && "text-[#a58024]")} size={27} strokeWidth={1.7} />
+        <Icon className="w-6 text-[var(--color-icon)]" size={27} strokeWidth={1.7} />
         <span>{item.label}</span>
       </div>
-      {item.right ?? <ChevronRight className="text-[#a9a59d]" size={32} strokeWidth={1.5} />}
+      {item.right ?? <ChevronRight className="text-[var(--color-chevron)]" size={32} strokeWidth={1.5} />}
     </div>
   );
 
@@ -190,8 +190,8 @@ function MenuRow({ item, last }: { item: MenuItem; last: boolean }) {
 function DevelopmentStatus() {
   return (
     <div className="flex items-center gap-2">
-      <span className="shrink-0 text-[14px] font-semibold text-[#d93025]">正在开发中</span>
-      <ChevronRight className="text-[#a9a59d]" size={32} strokeWidth={1.5} />
+      <span className="shrink-0 text-[14px] font-semibold text-[var(--color-danger)]">正在开发中</span>
+      <ChevronRight className="text-[var(--color-chevron)]" size={32} strokeWidth={1.5} />
     </div>
   );
 }
@@ -212,7 +212,7 @@ function AppearanceSwitch() {
   };
 
   return (
-    <div className="grid h-7 w-[218px] grid-cols-3 items-center rounded-[10px] bg-[var(--color-control)] p-0.5 text-[15px] font-bold text-[var(--color-secondary-text)]">
+    <div className="grid h-8 w-[224px] grid-cols-3 items-center rounded-[11px] bg-[var(--color-control)] p-0.5 text-[15px] font-bold text-[var(--color-secondary-text)] shadow-[inset_0_0_0_1px_var(--color-control-border)]">
       {appearanceOptions.map((option, index) => (
         <button
           key={option.value}
@@ -220,7 +220,7 @@ function AppearanceSwitch() {
           aria-pressed={mode === option.value}
           onClick={() => updateMode(option.value)}
           className={cn(
-            "h-6 min-w-0 rounded-lg text-center leading-6 transition-colors",
+            "h-7 min-w-0 rounded-[9px] text-center leading-7 transition-colors",
             index > 0 && mode !== option.value && "border-l border-[var(--color-control-border)]",
             mode === option.value ? "bg-[var(--color-primary)] text-[var(--color-primary-text)]" : "text-[var(--color-secondary-text)]"
           )}
