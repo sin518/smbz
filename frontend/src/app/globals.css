@@ -25,23 +25,23 @@
 }
 
 :root[data-theme="dark"] {
-  --color-ink: #f7edd8;
-  --color-muted-ink: #c4b89f;
-  --color-gold: #e1bd67;
-  --color-paper: #100f0b;
-  --color-surface: #242119;
-  --color-header: #100f0b;
-  --color-row-border: #3e3628;
-  --color-control: #17150f;
-  --color-control-border: #4c4332;
-  --color-primary: #ead29b;
-  --color-primary-text: #1a150d;
-  --color-secondary-text: #d7ccb5;
-  --color-icon: #d5aa42;
-  --color-chevron: #b7ad9d;
-  --color-nav-text: #aaa293;
-  --color-danger: #ff655a;
-  --shadow-soft: 0 18px 46px rgba(0, 0, 0, 0.36);
+  --color-ink: #e8eef5;
+  --color-muted-ink: #b7c3cf;
+  --color-gold: #d5b85b;
+  --color-paper: #142a40;
+  --color-surface: #2a3b4e;
+  --color-header: #142a40;
+  --color-row-border: #425265;
+  --color-control: #203548;
+  --color-control-border: #4a5a6b;
+  --color-primary: #d5d0b5;
+  --color-primary-text: #183048;
+  --color-secondary-text: #d7dee6;
+  --color-icon: #cfb24a;
+  --color-chevron: #b7c2cc;
+  --color-nav-text: #a9b4bf;
+  --color-danger: #ff6972;
+  --shadow-soft: 0 18px 46px rgba(0, 0, 0, 0.26);
 }
 
 * {
@@ -65,6 +65,101 @@ body {
   --color-muted-ink: #898783;
   --color-gold: #b79a5b;
   --color-secondary-text: #8b8985;
+}
+
+:root[data-theme="dark"] .light-surface-text-scope {
+  --color-ink: #e8eef5;
+  --color-muted-ink: #b7c3cf;
+  --color-gold: #d5b85b;
+  --color-secondary-text: #d7dee6;
+}
+
+:root[data-theme="dark"] .app-responsive-shell {
+  background-color: var(--color-paper);
+}
+
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#F8F7EE]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f7f7f7]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f8f7ee]"] {
+  background-color: var(--color-paper);
+}
+
+:root[data-theme="dark"] .app-responsive-shell [class~="bg-white"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#fffdf5]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#fffef7]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#fffef9]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#fffdf8]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#fffdf7]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#fdfbf4]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#fbfbfb]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#faf9f3]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#fbfaf4]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f8f8f8]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f7f6f3]"] {
+  background-color: var(--color-surface);
+}
+
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f2f2f0]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f2f0e8]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f4f4f3]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f6f0e2]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f6f0d8]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f8f3e7]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f4efe2]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f4f1ed]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f3f3f2]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f0efea]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#e2ded2]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#eeeeee]"] {
+  background-color: var(--color-control);
+}
+
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#eaded2]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#e8e0ca]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#e5decb]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#eee8dc]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#eee4d2]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#e8e1cf]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#e6dfd0]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#d8c8a6]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#cfc8bd]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#f1f1f1]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#f3ead6]"] {
+  border-color: var(--color-row-border);
+}
+
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#2f2d2a]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#33312e]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#34322f]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#4a4036]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#4a4a4a]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#444]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#555]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#55514a]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#554f47]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#666]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#74716a]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#767676]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#77736b]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#8a8a8a]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#8b8985]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#9b9383]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#9d9b98]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#aaa8a1]"],
+:root[data-theme="dark"] .app-responsive-shell .text-black,
+:root[data-theme="dark"] .app-responsive-shell [class*="text-[#222]"] {
+  color: var(--color-ink);
+}
+
+:root[data-theme="dark"] .app-responsive-shell input,
+:root[data-theme="dark"] .app-responsive-shell textarea,
+:root[data-theme="dark"] .app-responsive-shell select {
+  color: var(--color-ink);
+}
+
+:root[data-theme="dark"] .app-responsive-shell input::placeholder,
+:root[data-theme="dark"] .app-responsive-shell textarea::placeholder {
+  color: var(--color-nav-text);
 }
 
 button,
