@@ -114,6 +114,20 @@ body {
   background-color: var(--color-control);
 }
 
+:root[data-theme="dark"] .app-responsive-shell .rounded-full[class~="bg-black"],
+:root[data-theme="dark"] .app-responsive-shell .rounded-full[class~="bg-white"],
+:root[data-theme="dark"] .app-responsive-shell .rounded-full[class*="bg-[#ad9255]"],
+:root[data-theme="dark"] .app-responsive-shell .rounded-full[class*="bg-[#a58024]"] {
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+:root[data-theme="dark"] .app-responsive-shell .rounded-full[class*="bg-black"] *,
+:root[data-theme="dark"] .app-responsive-shell .rounded-full[class*="bg-[#ad9255]"] *,
+:root[data-theme="dark"] .app-responsive-shell .rounded-full[class*="bg-[#a58024]"] * {
+  color: var(--color-primary-text);
+}
+
 :root[data-theme="dark"] .app-responsive-shell [class*="border-[#eaded2]"],
 :root[data-theme="dark"] .app-responsive-shell [class*="border-[#e8e0ca]"],
 :root[data-theme="dark"] .app-responsive-shell [class*="border-[#e5decb]"],
