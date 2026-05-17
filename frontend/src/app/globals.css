@@ -25,23 +25,23 @@
 }
 
 :root[data-theme="dark"] {
-  --color-ink: #e8eef5;
-  --color-muted-ink: #b7c3cf;
-  --color-gold: #d5b85b;
-  --color-paper: #142a40;
-  --color-surface: #2a3b4e;
-  --color-header: #142a40;
-  --color-row-border: #425265;
-  --color-control: #203548;
-  --color-control-border: #4a5a6b;
-  --color-primary: #d5d0b5;
-  --color-primary-text: #183048;
-  --color-secondary-text: #d7dee6;
-  --color-icon: #cfb24a;
-  --color-chevron: #b7c2cc;
-  --color-nav-text: #a9b4bf;
-  --color-danger: #ff6972;
-  --shadow-soft: 0 18px 46px rgba(0, 0, 0, 0.26);
+  --color-ink: #f4f4f5;
+  --color-muted-ink: #b8b8bd;
+  --color-gold: #f4f4f5;
+  --color-paper: #0d0d0f;
+  --color-surface: #1f2024;
+  --color-header: #0d0d0f;
+  --color-row-border: #3a3b40;
+  --color-control: #15161a;
+  --color-control-border: #4b4c52;
+  --color-primary: #f4f4f5;
+  --color-primary-text: #111114;
+  --color-secondary-text: #d8d8dc;
+  --color-icon: #f4f4f5;
+  --color-chevron: #c4c4c8;
+  --color-nav-text: #a7a7ad;
+  --color-danger: #ff6b6b;
+  --shadow-soft: 0 18px 46px rgba(0, 0, 0, 0.38);
 }
 
 * {
@@ -68,10 +68,10 @@ body {
 }
 
 :root[data-theme="dark"] .light-surface-text-scope {
-  --color-ink: #e8eef5;
-  --color-muted-ink: #b7c3cf;
-  --color-gold: #d5b85b;
-  --color-secondary-text: #d7dee6;
+  --color-ink: #f4f4f5;
+  --color-muted-ink: #b8b8bd;
+  --color-gold: #f4f4f5;
+  --color-secondary-text: #d8d8dc;
 }
 
 :root[data-theme="dark"] .app-responsive-shell {
