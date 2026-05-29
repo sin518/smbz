@@ -20,13 +20,6 @@ type SessionResponse = {
   user?: unknown;
 };
 
-const defaultProfile: Required<StoredZiweiProfile> = {
-  name: "",
-  gender: "male",
-  birthTime: "1980-09-07T07:40",
-  location: "北京市 北京市 东城区"
-};
-
 const palaceLayout: Record<string, string> = {
   巳: "col-start-1 row-start-1",
   午: "col-start-2 row-start-1",
@@ -53,22 +46,22 @@ export function ZiweiChartClient() {
   useEffect(() => {
     const raw = window.localStorage.getItem("sm1:current-ziwei-profile") ?? window.localStorage.getItem("sm1:last-ziwei-profile");
     if (!raw) {
-      setChart(calculateZiweiChart(defaultProfile));
+      router.replace("/ziwei/profile");
       return;
     }
 
     try {
       const profile = JSON.parse(raw) as StoredZiweiProfile;
-      setChart(calculateZiweiChart({
-        ...defaultProfile,
-        ...profile,
-        gender: profile.gender ?? defaultProfile.gender,
-        birthTime: profile.birthTime ?? defaultProfile.birthTime
-      }));
+      if (!isStoredZiweiProfile(profile)) {
+        router.replace("/ziwei/profile");
+        return;
+      }
+
+      setChart(calculateZiweiChart(profile));
     } catch {
-      setChart(calculateZiweiChart(defaultProfile));
+      router.replace("/ziwei/profile");
     }
-  }, []);
+  }, [router]);
 
   if (!chart) {
     return <main className="light-surface-text-scope app-responsive-shell min-h-dvh bg-[#F8F7EE] shadow-soft" />;
@@ -169,6 +162,14 @@ export function ZiweiChartClient() {
 
       {isAiCommandOpen ? <ZiweiAiCommandModal chart={chart} onClose={() => setIsAiCommandOpen(false)} /> : null}
     </main>
+  );
+}
+
+function isStoredZiweiProfile(value: StoredZiweiProfile): value is Required<Pick<StoredZiweiProfile, "gender" | "birthTime">> & StoredZiweiProfile {
+  return (
+    (value.gender === "male" || value.gender === "female") &&
+    typeof value.birthTime === "string" &&
+    value.birthTime.length > 0
   );
 }
 

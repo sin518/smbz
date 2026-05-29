@@ -12,6 +12,9 @@ type ProfessionalDetailProps = {
   columns: ChartColumn[];
   luckCycles: LuckColumn[];
   commander: string;
+  luckStartText?: string;
+  luckTransferText?: string;
+  currentAgeText?: string;
 };
 
 type DetailColumn = {
@@ -28,7 +31,14 @@ type DetailColumn = {
   shensha: string[];
 };
 
-export function ProfessionalDetail({ columns, luckCycles, commander }: ProfessionalDetailProps) {
+export function ProfessionalDetail({
+  columns,
+  luckCycles,
+  commander,
+  luckStartText,
+  luckTransferText,
+  currentAgeText
+}: ProfessionalDetailProps) {
   const initialLuckIndex = Math.max(0, luckCycles.findIndex((item) => item.active));
   const [selectedLuckIndex, setSelectedLuckIndex] = useState(initialLuckIndex);
   const selectedLuck = luckCycles[selectedLuckIndex] ?? luckCycles[0];
@@ -60,11 +70,11 @@ export function ProfessionalDetail({ columns, luckCycles, commander }: Professio
       <div className="px-4 py-4">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[22px] bg-white px-4 py-4 text-[15px] leading-7 text-[#444] shadow-soft">
           <div>
-            <p>起运：出生后4年10月17天10时起运</p>
-            <p>交运：逢壬、丁年清明后2天交大运</p>
+            <p>起运：{luckStartText ?? "—"}</p>
+            <p>交运：{luckTransferText ?? "—"}</p>
           </div>
           <div className="text-right">
-            <p className="text-[18px]">40岁</p>
+            <p className="text-[18px]">{currentAgeText ?? "—"}</p>
             <p>
               司令：<span className={getStemColorClass(getCommanderStem(commander))}>{getCommanderStem(commander)}</span>
             </p>
@@ -195,12 +205,12 @@ function getDetailRowClass(rowIndex: number, large?: boolean, stack?: boolean) {
 }
 
 function LuckScroller({ title, items, selectedIndex, onSelect }: { title: string; items: LuckColumn[]; selectedIndex: number; onSelect: (index: number) => void }) {
-  const visibleItems = items.slice(0, 10);
+  const visibleItems = items.slice(0, title === "流月" ? 12 : 10);
 
   return (
     <div className="mx-4 mt-4 grid grid-cols-[52px_1fr] overflow-hidden rounded-[22px] bg-white shadow-soft">
       <div className="flex items-center justify-center border-r border-[#ebe7dd] text-[24px] font-semibold text-mutedInk [writing-mode:vertical-rl]">{title}</div>
-      <div className="grid grid-cols-10 overflow-hidden">
+      <div className="grid overflow-hidden" style={{ gridTemplateColumns: `repeat(${visibleItems.length}, minmax(0, 1fr))` }}>
         {visibleItems.map((item, index) => (
           <button
             key={`${title}-${item.year}-${index}`}
@@ -212,10 +222,9 @@ function LuckScroller({ title, items, selectedIndex, onSelect }: { title: string
             )}
           >
             <p className="truncate">{item.year}</p>
-            {item.age ? <p className="truncate text-[9px]">{formatDenseAge(item.age)}</p> : null}
+            {item.age ? <p className="truncate text-[9px]">{title === "大运" ? formatLuckStartAge(item.age) : formatDenseAge(item.age)}</p> : null}
             <p className={cn("mt-1 text-[20px] leading-tight", getStemColorClass(item.stem))}>{item.stem}</p>
             <p className={cn("text-[20px] leading-tight", getStemColorClass(item.branch))}>{item.branch}</p>
-            <p className="mt-0.5 truncate text-[9px] text-[#b00020]">{item.tags.join(" ")}</p>
           </button>
         ))}
       </div>
@@ -292,32 +301,58 @@ function buildYearsForLuck(luck: LuckColumn) {
 }
 
 function buildMonthsForYear(year: number): LuckColumn[] {
-  const terms = [
-    ["立春", 2, 5],
-    ["惊蛰", 3, 6],
-    ["清明", 4, 6],
-    ["立夏", 5, 6],
-    ["芒种", 6, 6],
-    ["小暑", 7, 8],
-    ["立秋", 8, 8],
-    ["白露", 9, 8],
-    ["寒露", 10, 9],
-    ["立冬", 11, 8]
-  ] as const;
+  const termNames = ["立春", "惊蛰", "清明", "立夏", "芒种", "小暑", "立秋", "白露", "寒露", "立冬", "大雪", "小寒"] as const;
+  const terms = termNames.map((term) => ({
+    term,
+    solar: getMonthlyJieSolar(year, term)
+  }));
   const today = new Date();
 
-  return terms.map(([term, month, day], index) => {
-    const ganZhi = Solar.fromYmd(year, month, day).getLunar().getMonthInGanZhiExact();
+  return terms.map(({ term, solar }, index) => {
+    const nextSolar = terms[index + 1]?.solar;
+    const ganZhi = solar.getLunar().getMonthInGanZhiExact();
 
     return {
       year: term,
-      age: `${month}/${day - 1}`,
+      age: formatMonthTermTime(solar),
       stem: ganZhi.slice(0, 1),
       branch: ganZhi.slice(1, 2),
       tags: [],
-      active: today.getFullYear() === year ? today.getMonth() + 1 === month : index === 0
+      active: isDateInSolarRange(today, solar, nextSolar)
     };
   });
+}
+
+function getMonthlyJieSolar(year: number, term: string) {
+  const tableYear = term === "小寒" ? year + 1 : year;
+  const table = Solar.fromYmd(tableYear, 6, 1).getLunar().getJieQiTable();
+  const solar = table[term];
+
+  if (!solar) {
+    throw new Error(`Missing solar term: ${term}`);
+  }
+
+  return solar;
+}
+
+function formatMonthTermTime(solar: ReturnType<typeof Solar.fromYmd>) {
+  return `${solar.getMonth()}/${solar.getDay()}`;
+}
+
+function isDateInSolarRange(date: Date, start: ReturnType<typeof Solar.fromYmd>, end?: ReturnType<typeof Solar.fromYmd>) {
+  const currentTime = date.getTime();
+  const startTime = solarToDate(start).getTime();
+  const endTime = end ? solarToDate(end).getTime() : Number.POSITIVE_INFINITY;
+
+  return currentTime >= startTime && currentTime < endTime;
+}
+
+function solarToDate(solar: ReturnType<typeof Solar.fromYmd>) {
+  return new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay(), solar.getHour(), solar.getMinute());
+}
+
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
 }
 
 function getHiddenStemsForBranch(branch: EarthlyBranch) {
@@ -400,6 +435,12 @@ function controls(element: Element) {
 
 function formatDenseAge(age: string) {
   return age.replace(/~.*岁$/, "岁");
+}
+
+function formatLuckStartAge(age: string) {
+  const match = age.match(/^(\d+)/);
+
+  return match ? `${match[1]}岁` : formatDenseAge(age);
 }
 
 function getStemColorClass(value: string) {

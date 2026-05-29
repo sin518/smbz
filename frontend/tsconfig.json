@@ -37,6 +37,8 @@
   ],
   "exclude": [
     "node_modules",
+    "packages/core/src",
+    "packages/core/tests",
     "tsconfig.tsbuildinfo"
   ]
 }

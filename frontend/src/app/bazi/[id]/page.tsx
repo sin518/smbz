@@ -15,6 +15,8 @@ type SavedBaziChart = {
   birthTime: string;
   calendar: "solar" | "lunar" | "pillars";
   location?: string | null;
+  longitude?: number | null;
+  latitude?: number | null;
   useSolarTime: boolean;
   chartJson: DemoBaziChart;
 };
@@ -37,21 +39,22 @@ export default async function SavedBaziPage({ params, searchParams }: SavedBaziP
       </main>
     );
   }
+  const displayChart = chart.chartJson;
 
   return (
     <BaziChartView
-      chart={chart.chartJson}
+      chart={displayChart}
       activeTab={toTab(getParam(query, "tab"))}
       backHref="/records"
       editHref={buildEditHref(chart)}
       getTabHref={(tab) => buildTabHref(chart.id, tab)}
       aiCommandHref={buildToolHref(chart, "/bazi/demo/ai-command")}
       profileOverride={{
-        name: chart.name || chart.chartJson.profile.name,
-        gender: chart.gender === "female" ? "女" : chart.chartJson.profile.gender,
-        solar: formatQueryBirthTime(chart.birthTime) || chart.chartJson.profile.solar,
-        solarTime: formatQueryBirthTime(chart.birthTime) || chart.chartJson.profile.solarTime,
-        location: chart.location ?? chart.chartJson.profile.location
+        name: chart.name || displayChart.profile.name,
+        gender: chart.gender === "female" ? "女" : displayChart.profile.gender,
+        solar: formatQueryBirthTime(chart.birthTime) || displayChart.profile.solar,
+        solarTime: displayChart.profile.solarTime,
+        location: chart.location ?? displayChart.profile.location
       }}
     />
   );
@@ -121,7 +124,7 @@ function buildToolHref(chart: SavedBaziChart, pathname: string) {
 }
 
 function buildChartParams(chart: SavedBaziChart) {
-  return new URLSearchParams({
+  const params = new URLSearchParams({
     name: chart.name || "未命名",
     gender: chart.gender,
     birthTime: chart.birthTime,
@@ -129,6 +132,16 @@ function buildChartParams(chart: SavedBaziChart) {
     calendar: chart.calendar,
     useSolarTime: chart.useSolarTime ? "true" : "false"
   });
+
+  if (chart.longitude !== undefined && chart.longitude !== null) {
+    params.set("longitude", String(chart.longitude));
+  }
+
+  if (chart.latitude !== undefined && chart.latitude !== null) {
+    params.set("latitude", String(chart.latitude));
+  }
+
+  return params;
 }
 
 function formatQueryBirthTime(value: string) {

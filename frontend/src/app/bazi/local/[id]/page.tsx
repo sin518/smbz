@@ -35,21 +35,22 @@ export default function LocalBaziPage() {
       </main>
     );
   }
+  const displayChart = record.chartJson;
 
   return (
     <BaziChartView
-      chart={record.chartJson}
+      chart={displayChart}
       activeTab={toTab(searchParams.get("tab") ?? "")}
       backHref="/records"
       editHref={buildEditHref(record)}
       getTabHref={(tab) => buildTabHref(record.id, tab)}
       aiCommandHref={buildToolHref(record, "/bazi/demo/ai-command")}
       profileOverride={{
-        name: record.name || record.chartJson.profile.name,
-        gender: record.gender === "female" ? "女" : record.chartJson.profile.gender,
-        solar: formatQueryBirthTime(record.birthTime) || record.chartJson.profile.solar,
-        solarTime: formatQueryBirthTime(record.birthTime) || record.chartJson.profile.solarTime,
-        location: record.location ?? record.chartJson.profile.location
+        name: record.name || displayChart.profile.name,
+        gender: record.gender === "female" ? "女" : displayChart.profile.gender,
+        solar: formatQueryBirthTime(record.birthTime) || displayChart.profile.solar,
+        solarTime: displayChart.profile.solarTime,
+        location: record.location ?? displayChart.profile.location
       }}
     />
   );
@@ -84,7 +85,7 @@ function buildToolHref(record: LocalBaziRecord, pathname: string) {
 }
 
 function buildChartParams(record: LocalBaziRecord) {
-  return new URLSearchParams({
+  const params = new URLSearchParams({
     name: record.name || "未命名",
     gender: record.gender,
     birthTime: record.birthTime,
@@ -92,6 +93,16 @@ function buildChartParams(record: LocalBaziRecord) {
     calendar: record.calendar,
     useSolarTime: record.useSolarTime ? "true" : "false"
   });
+
+  if (record.longitude !== undefined && record.longitude !== null) {
+    params.set("longitude", String(record.longitude));
+  }
+
+  if (record.latitude !== undefined && record.latitude !== null) {
+    params.set("latitude", String(record.latitude));
+  }
+
+  return params;
 }
 
 function formatQueryBirthTime(value: string) {

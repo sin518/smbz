@@ -1,6 +1,6 @@
+import { redirect } from "next/navigation";
 import { AiCommandModal } from "@/components/bazi/ai-command-modal";
-import { calculateBaziChart } from "@/lib/bazi/calculate";
-import { demoBaziChart } from "@/lib/bazi/demo";
+import { calculateBaziChartOnBackend } from "@/lib/bazi/api";
 
 type AiCommandPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -8,7 +8,7 @@ type AiCommandPageProps = {
 
 export default async function AiCommandPage({ searchParams }: AiCommandPageProps) {
   const params = (await searchParams) ?? {};
-  const chart = buildChart(params);
+  const chart = await buildChart(params);
 
   return (
     <main className="min-h-screen bg-[#666]">
@@ -17,19 +17,22 @@ export default async function AiCommandPage({ searchParams }: AiCommandPageProps
   );
 }
 
-function buildChart(params: Record<string, string | string[] | undefined>) {
-  const hasInput = Boolean(getParam(params, "birthTime"));
+async function buildChart(params: Record<string, string | string[] | undefined>) {
+  const birthTime = getParam(params, "birthTime");
 
-  if (!hasInput) {
-    return demoBaziChart;
+  if (!birthTime) {
+    redirect("/bazi");
   }
 
-  return calculateBaziChart({
+  return calculateBaziChartOnBackend({
     name: getParam(params, "name"),
     gender: getParam(params, "gender") === "female" ? "female" : "male",
-    birthTime: getParam(params, "birthTime"),
+    birthTime,
     location: getParam(params, "location"),
-    calendar: toCalendar(getParam(params, "calendar"))
+    calendar: toCalendar(getParam(params, "calendar")),
+    useSolarTime: getParam(params, "useSolarTime") === "true",
+    longitude: toNumberParam(getParam(params, "longitude")),
+    latitude: toNumberParam(getParam(params, "latitude"))
   });
 }
 
@@ -40,6 +43,16 @@ function getParam(params: Record<string, string | string[] | undefined>, key: st
   }
 
   return value ?? "";
+}
+
+function toNumberParam(value: string) {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  return Number.isFinite(numberValue) ? numberValue : null;
 }
 
 function toCalendar(value: string) {

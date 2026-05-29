@@ -33,7 +33,7 @@ type ZiweiProfileValues = z.infer<typeof ziweiProfileSchema>;
 const defaultValues: ZiweiProfileValues = {
   name: "",
   gender: "male",
-  birthTime: "1980-09-07T07:40",
+  birthTime: "",
   province: "北京市",
   city: "北京市",
   district: "东城区",

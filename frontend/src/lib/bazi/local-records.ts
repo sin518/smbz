@@ -1,4 +1,3 @@
-import { calculateBaziChart } from "@/lib/bazi/calculate";
 import type { DemoBaziChart } from "@/lib/bazi/demo";
 
 export type LocalBaziRecord = {
@@ -9,6 +8,8 @@ export type LocalBaziRecord = {
   birthTime: string;
   calendar: "solar" | "lunar" | "pillars";
   location?: string | null;
+  longitude?: number | null;
+  latitude?: number | null;
   useSolarTime: boolean;
   pillars: string;
   chartJson: DemoBaziChart;
@@ -20,7 +21,7 @@ export type LocalBaziRecord = {
 
 export type LocalBaziRecordInput = Pick<
   LocalBaziRecord,
-  "name" | "gender" | "birthTime" | "calendar" | "location" | "useSolarTime" | "chartJson"
+  "name" | "gender" | "birthTime" | "calendar" | "location" | "longitude" | "latitude" | "useSolarTime" | "chartJson"
 >;
 
 const LOCAL_BAZI_RECORDS_KEY = "sm1:bazi-records";
@@ -58,6 +59,8 @@ export function saveLocalBaziRecord(input: LocalBaziRecordInput) {
     birthTime: input.birthTime,
     calendar: input.calendar,
     location: input.location,
+    longitude: input.longitude,
+    latitude: input.latitude,
     useSolarTime: input.useSolarTime,
     chartJson: input.chartJson,
     pillars: extractPillars(input.chartJson),
@@ -103,12 +106,8 @@ export function deleteLocalBaziRecord(id: string) {
 
 export function getUnifiedBaziRecords() {
   const localRecords = getLocalBaziRecords();
-  const localKeys = new Set(localRecords.map(getRecordIdentityKey));
-  const profileRecords = getSharedProfileRecords()
-    .filter((record) => !localKeys.has(getRecordIdentityKey(record)))
-    .filter((record) => record.chartJson);
 
-  return [...localRecords, ...profileRecords].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+  return localRecords.sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
 }
 
 export function deleteUnifiedBaziRecord(id: string) {
@@ -195,6 +194,8 @@ export async function syncPendingBaziRecords(force = false) {
             birthTime: record.birthTime,
             calendar: record.calendar,
             location: record.location,
+            longitude: record.longitude,
+            latitude: record.latitude,
             useSolarTime: record.useSolarTime,
             chartJson: record.chartJson
           })
@@ -277,52 +278,6 @@ function markRecordFailed(records: LocalBaziRecord[], id: string) {
 
 function extractPillars(chart: DemoBaziChart) {
   return chart.columns.map((column) => `${column.pillar.stem}${column.pillar.branch}`).join(" ");
-}
-
-function getSharedProfileRecords(): LocalBaziRecord[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(SHARED_PROFILE_CACHE_KEY);
-    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter(isSharedProfileValue).map(profileToBaziRecord);
-  } catch {
-    return [];
-  }
-}
-
-function profileToBaziRecord(profile: SharedProfileValue): LocalBaziRecord {
-  const chartJson = calculateBaziChart({
-    name: profile.name,
-    gender: profile.gender,
-    birthTime: profile.dateTime,
-    location: profile.location,
-    calendar: "solar"
-  });
-  const createdAt = new Date(0).toISOString();
-
-  return {
-    id: profile.id || `profile-${profile.name}-${profile.gender}-${profile.dateTime}`,
-    name: profile.name || "未命名",
-    gender: profile.gender,
-    birthTime: profile.dateTime,
-    calendar: "solar",
-    location: profile.location,
-    useSolarTime: false,
-    chartJson,
-    pillars: extractPillars(chartJson),
-    createdAt,
-    updatedAt: createdAt,
-    syncStatus: profile.id && !profile.id.startsWith("local-") ? "synced" : "pending",
-    origin: "profile"
-  };
 }
 
 function deleteSharedProfileByRecordId(id: string, localRecord?: LocalBaziRecord) {

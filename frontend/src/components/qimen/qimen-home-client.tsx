@@ -57,7 +57,7 @@ const defaultValues: QimenFormValues = {
   gender: "male",
   method: "time",
   divinationType: "wealth",
-  dateTime: "2026-05-05T08:00",
+  dateTime: "",
   question: "",
   plateType: "zhuan",
   juMode: "auto",
@@ -80,8 +80,7 @@ const divinationTypeOptions = [
 ] as const;
 
 const plateTypeOptions = [
-  { label: "转盘", value: "zhuan" },
-  { label: "飞盘", value: "fei" }
+  { label: "转盘", value: "zhuan" }
 ] as const;
 
 const juOptions = [

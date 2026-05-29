@@ -87,7 +87,7 @@ async def list_bazi_charts(connection: asyncpg.Connection, user_id: str) -> list
     rows = await connection.fetch(
         '''
         SELECT c.id, c."profileId", c."chartJson", c."createdAt", c."updatedAt",
-               p.name, p.gender, p."birthTime", p.calendar, p.location, p."useSolarTime"
+               p.name, p.gender, p."birthTime", p.calendar, p.location, p.longitude, p.latitude, p."useSolarTime"
         FROM "BaziChart" c
         INNER JOIN "BaziProfile" p ON p.id = c."profileId"
         WHERE p."userId" = $1
@@ -104,7 +104,7 @@ async def get_bazi_chart(connection: asyncpg.Connection, user_id: str, chart_id:
     row = await connection.fetchrow(
         '''
         SELECT c.id, c."profileId", c."chartJson", c."createdAt", c."updatedAt",
-               p.name, p.gender, p."birthTime", p.calendar, p.location, p."useSolarTime"
+               p.name, p.gender, p."birthTime", p.calendar, p.location, p.longitude, p.latitude, p."useSolarTime"
         FROM "BaziChart" c
         INNER JOIN "BaziProfile" p ON p.id = c."profileId"
         WHERE c.id = $1 AND p."userId" = $2
@@ -126,6 +126,8 @@ def chart_detail_from_parts(row: asyncpg.Record, body: BaziChartInput, profile_i
         birthTime=body.birthTime,
         calendar=body.calendar,
         location=body.location,
+        longitude=body.longitude,
+        latitude=body.latitude,
         useSolarTime=body.useSolarTime,
         pillars=extract_pillars(body.chartJson),
         chartJson=body.chartJson,
@@ -145,6 +147,8 @@ def chart_summary_from_row(row: asyncpg.Record) -> BaziChartSummary:
         birthTime=row["birthTime"],
         calendar=row["calendar"],
         location=row["location"],
+        longitude=row["longitude"],
+        latitude=row["latitude"],
         useSolarTime=row["useSolarTime"],
         pillars=extract_pillars(chart_json),
         createdAt=row["createdAt"].isoformat(),

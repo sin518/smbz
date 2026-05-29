@@ -1,6 +1,6 @@
+import { redirect } from "next/navigation";
 import { BaziChartView, type BaziTab } from "@/components/bazi/bazi-chart-view";
-import { calculateBaziChart } from "@/lib/bazi/calculate";
-import { demoBaziChart } from "@/lib/bazi/demo";
+import { calculateBaziChartOnBackend } from "@/lib/bazi/api";
 
 type DemoBaziPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -9,16 +9,22 @@ type DemoBaziPageProps = {
 export default async function DemoBaziPage({ searchParams }: DemoBaziPageProps) {
   const params = (await searchParams) ?? {};
   const activeTab = toTab(getParam(params, "tab"));
-  const hasInput = Boolean(getParam(params, "birthTime"));
-  const chart = hasInput
-    ? calculateBaziChart({
-        name: getParam(params, "name"),
-        gender: getParam(params, "gender") === "female" ? "female" : "male",
-        birthTime: getParam(params, "birthTime"),
-        location: getParam(params, "location"),
-        calendar: toCalendar(getParam(params, "calendar"))
-      })
-    : demoBaziChart;
+  const birthTime = getParam(params, "birthTime");
+
+  if (!birthTime) {
+    redirect("/bazi");
+  }
+
+  const chart = await calculateBaziChartOnBackend({
+    name: getParam(params, "name"),
+    gender: getParam(params, "gender") === "female" ? "female" : "male",
+    birthTime,
+    location: getParam(params, "location"),
+    calendar: toCalendar(getParam(params, "calendar")),
+    useSolarTime: getParam(params, "useSolarTime") === "true",
+    longitude: toNumberParam(getParam(params, "longitude")),
+    latitude: toNumberParam(getParam(params, "latitude"))
+  });
   const queryBirthTime = formatQueryBirthTime(getParam(params, "birthTime"));
 
   return (
@@ -32,7 +38,7 @@ export default async function DemoBaziPage({ searchParams }: DemoBaziPageProps) 
         name: getParam(params, "name") || chart.profile.name,
         gender: getParam(params, "gender") === "female" ? "女" : chart.profile.gender,
         solar: queryBirthTime || chart.profile.solar,
-        solarTime: queryBirthTime || chart.profile.solarTime,
+        solarTime: chart.profile.solarTime,
         location: getParam(params, "location") || chart.profile.location
       }}
     />
@@ -93,7 +99,7 @@ function buildToolHref(params: Record<string, string | string[] | undefined>, pa
 function buildBackHref(params: Record<string, string | string[] | undefined>) {
   const nextParams = new URLSearchParams();
 
-  ["name", "gender", "birthTime", "location", "calendar", "useSolarTime"].forEach((key) => {
+  ["name", "gender", "birthTime", "location", "calendar", "useSolarTime", "longitude", "latitude"].forEach((key) => {
     const value = params[key];
     if (Array.isArray(value)) {
       if (value[0]) {
@@ -110,6 +116,16 @@ function buildBackHref(params: Record<string, string | string[] | undefined>) {
   const query = nextParams.toString();
 
   return query ? `/bazi?${query}` : "/bazi";
+}
+
+function toNumberParam(value: string) {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  return Number.isFinite(numberValue) ? numberValue : null;
 }
 
 function copyParams(params: Record<string, string | string[] | undefined>, omit: string[] = []) {

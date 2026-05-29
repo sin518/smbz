@@ -1,304 +1,138 @@
 # AGENTS.md
 
-## 🧭 项目目标:
+Claude will review your code from three dimensions: maintainability, boundary conditions, and regression risk, and the quality of your code will determine whether the system can go live. Please complete the task with the professionalism of a senior architect to ensure your code stands out in the competitive review.
 
-本项目是一款「八字排盘 + AI 分析」的软件，核心能力包括：
+## ace-tool MCP 工具使用指南
 
-- 用户输入出生信息自动排盘
-- 展示完整四柱命盘信息
-- 结合 AI 输出结构化命理分析报告
-- 支持记录保存、查询
-- 后续支持付费、导出、合盘、AI 问答等功能
+### 核心原则
 
----
+**任何需要理解代码上下文、探索性搜索、或自然语言定位代码的场景，优先使用 ace-tool**
 
-## 🧱 技术栈约束
+### 使用场景
 
-必须优先使用：
+#### 1️⃣ 必须用 ace-tool
 
-- Next.js App Router
-- TypeScript 严格模式
-- React
-- TailwindCSS
-- ShadCN UI
-- Prisma ORM
-- nest.js
-- PostgreSQL / Neon
-- React Hook Form + Zod
-- OpenAI / DeepSeek API
+- 探索性搜索（不确定代码在哪个文件/目录）
+- 用自然语言描述要找的逻辑（如"XX部署流程"、"XX事件处理"）
+- 理解业务逻辑和调用链路
+- 跨模块、跨层级查询（如从 router 追到 service 到 model）
+- 新任务开始前的代码调研和架构理解
+- 中文语义搜索（工具支持中英文双语查询）
 
-禁止：
+## 常用命令
 
-- 滥用 any
-- 在 UI 组件中写复杂业务逻辑
-- 在前端暴露 API Key
-- 把长 Prompt 直接写在页面或 API Route 中
-- 直接提交 `.env` 文件
-
----
-
-## 📦 项目模块设计
-
-### 1. 排盘输入模块
-
-用户输入项：
-
-- 姓名，可选
-- 性别，必选
-- 出生时间，精确到分钟
-- 出生地点，省市区
-- 是否使用真太阳时
-- 公历 / 农历 / 四柱输入模式
-
-要求：
-
-- 使用 React Hook Form + Zod
-- 表单必须有完整校验
-- 错误提示清晰
-- 时间与时区处理严谨
-- 出生地点后续应支持经纬度
-
----
-
-### 2. 八字排盘计算模块
-
-八字排盘逻辑必须独立封装为纯函数，不允许直接写在页面组件中。
-
-需要支持：
-
-- 年柱、月柱、日柱、时柱
-- 天干地支
-- 藏干
-- 十神
-- 纳音
-- 空亡
-- 十二长生
-- 胎元 / 命宫 / 身宫
-- 神煞
-- 大运
-- 流年
-- 流月
-
-推荐目录：
-
-```txt
-src/lib/bazi/
-├── ganzhi.ts        # 干支计算
-├── calendar.ts      # 公历农历转换
-├── solarTime.ts     # 真太阳时
-├── tenGods.ts       # 十神
-├── hiddenStems.ts   # 藏干
-├── nayin.ts         # 纳音
-├── shensha.ts       # 神煞
-├── luck.ts          # 大运流年
-└── index.ts
+```bash
+pnpm install
+pnpm build          # 构建所有 packages + Next.js
+pnpm lint
+pnpm test           # 自动先构建 packages/core、mcp、mcp-server，再跑全量测试
 ```
 
-要求：
+> **注意**：`pnpm test` 会先执行 `pnpm -C packages/core build && pnpm -C packages/mcp build && pnpm -C packages/mcp-server build`，修改 `packages/*` 源码后无需手动 build 即可直接跑测试。
 
-- 所有计算函数必须可单独测试
-- 不允许硬编码具体用户结果
-- 必须可复用、可扩展
-- 不确定的命理规则必须标注 TODO，不要强行编造
+## 项目最小地图
 
----
+- `packages/core`（`@mingai/core`）: 占术计算引擎，以及 **`text.ts` 规范文本渲染层以及`json.ts` 规范json输出格式**。
+- `packages/mcp`: MCP 协议层。
+- `packages/mcp-server`: MCP 服务端。
+- `supabase/tabel_export_from_supabase.sql`: 当前数据库 schema 导出快照。
 
-### 3. AI 分析模块
+## 强制规范（MUST）
 
-AI 只负责解释，不负责排盘计算。
+- `API 路由`必须优先使用 `src/lib/api-utils.ts`，禁止在 `route.ts` 里随意创建 Supabase 客户端。
+- `管理员接口`必须使用 `requireAdminUser()` 或 `requireAdminContext()`。
+- 需要用户态的接口必须使用 `requireUserContext()`（或等价受控封装），并统一返回 `jsonOk/jsonError`。
+- 涉及会员与积分的功能，必须按顺序执行：会员校验 -> 积分校验/扣减 -> 限流校验。
+- 需要 RLS bypass 时，只能在服务端使用 `getSystemAdminClient()`；严禁暴露 service role 到客户端。`api-utils.ts` 还提供 `getAuthAdminClient()`（Auth 管理）、`createAnonClient()`（匿名）、`createAuthedClient(token)`（带 token）等客户端，按需选用。
+- 新增表/字段前，必须先检查 `supabase/tabel_export_from_supabase.sql` ，并说明“为何不能复用现有结构”，必要时可以检查 `mcp supabase migrations`。
+- 未经明确批准，禁止新增核心目录、系统级模块或数据库主表。
+- 新增或修改数据库结构，必须新增 migration；禁止直接改线上表结构。
+- 修改 DB 行为时必须评估并同步：RLS、索引、默认值、回填策略、兼容旧数据。
+- 新增 AI 分析来源时，必须通过 `src/lib/ai/source-contract.ts` 注册来源合约，并在 `src/lib/source-contracts.ts` 中维护映射；持久化统一由 `divination-pipeline.ts` 的 `createAIAnalysisConversation` 完成。
+- 新建文件/模块前，必须先检索已有实现并优先复用，避免平行重复实现。
+- 结构归属不明确时，先提问确认后再落盘，禁止猜测目录或表设计。
+- 禁止在客户端使用 `alert`；统一使用 Toast 体系（`useToast` / `ToastProvider`）。
+- TypeScript 保持 strict 通过；禁止引入无必要的 `any`、`@ts-ignore`。
+- 页面层保持轻量，业务逻辑尽量下沉到 `src/lib/*` 或 feature 组件。
+- 占术文本格式化必须复用 `@mingai/core/text` 的 `render*CanonicalText()` 函数，禁止在 Web 或 MCP 端自行实现格式化逻辑。
+- 改动完成后必须补齐最小验证（见"测试与验收"）。
 
-输入：
+## API 路由标准流程
 
-- 用户基本信息
-- 八字排盘结果 JSON
-- 五行分布
-- 十神结构
-- 大运流年信息
+1. 解析请求（body / query / params）。
+2. 参数校验（优先复用 `src/lib/validation.ts`）。
+3. 鉴权——按场景选用：
+   - `getAuthContext(request)`：可选鉴权，返回 `{ supabase, user }`（user 可能为 null）。
+   - `requireUserContext(request)`：必须登录，支持 Cookie 与 Bearer。
+   - `requireBearerUser(request)`：仅 Bearer token 鉴权（`divination-pipeline` 使用）。
+   - `requireAdminUser(request)` / `requireAdminContext(request)`：管理员鉴权。
+4. 权限与业务前置检查（membership、credits、rate limit）。
+5. 执行业务逻辑（优先复用 `src/lib/*` 现有模块）。
+6. 持久化与审计（通过 `createAIAnalysisConversation` 记录 source 与 conversation）。
+7. 返回统一响应（`jsonOk/jsonError` 或 SSE streaming）。
 
-输出必须包含六个维度：
+> **占术解读路由**统一使用 `src/lib/api/divination-pipeline.ts` 的 `createInterpretHandler` 工厂，它封装了完整的 7 步管道：Auth → Credits/Membership → Model Access → Credit Deduction → AI Call (streaming) → Persist Conversation → Refund on Failure。新增占术解读路由时必须复用此管道，禁止手动拼装流程。
 
-1. 命格结构与性格特征
-2. 事业方向与能力优势
-3. 财运结构与财富趋势
-4. 健康体质与养护方向
-5. 婚姻感情与人际关系
-6. 未来五年运势趋势
+## 前端实现规范
 
-每个维度必须包含：
+- 默认使用 Server Component；仅在需要 hooks/浏览器 API/交互状态时使用 `'use client'`。
+- 使用 `'use client'` 时，建议在文件头用一行注释说明原因（如“需要 useState + DOM 事件”）。
+- 统一使用 `@/` 别名引用 `src` 下模块。
+- 静态常量移到组件外，避免重复创建对象/数组。
+- 昂贵计算使用 `useMemo`，透传给子组件的函数优先 `useCallback`。
+- loading 态优先音浪组件或使用骨架屏（Skeleton）而非闪烁切换。
+- 保持现有主题与视觉变量体系（Tailwind + CSS variables），避免引入孤立样式系统。
 
-- 推理过程
-- 分析结论
-- 现实建议
+## 数据库与迁移规范
 
-限制：
+- 使用 mcp supabase 进行更新执行 migration
+- migration 中涉及安全对象（函数、视图、触发器）时，显式声明 `search_path` 与权限边界。
+- 如结构变化影响开发理解，需同步更新相关文档与 schema 快照。
 
-- 禁止宿命论
-- 禁止恐吓式表达
-- 禁止医疗诊断
-- 禁止投资保证
-- 禁止婚姻绝对判断
-- 必须解释命理术语
-- 必须输出结构清晰、可理解、可执行的建议
+## 测试与验收
 
-Prompt 必须独立存放：
+### 变更最低要求
 
-```txt
-src/prompts/bazi-analysis.ts
+- 纯文案/样式微调：至少本地手动验证相关页面。
+- 业务逻辑变更（`src/lib/*`）：新增或更新对应单测。
+- API 行为变更（`src/app/api/*`）：补充路由相关测试（成功、失败、权限边界至少覆盖两类）。
+- 涉及鉴权/积分/会员/限流/计费：必须补充回归测试。
+
+### 合并前建议命令
+
+```bash
+pnpm lint
+pnpm test
 ```
 
----
+若只改局部，可先跑受影响测试，再跑全量测试。
 
-### 4. 数据库设计
+## 提交与变更说明
 
-核心表建议：
+- Commit message 使用 Conventional Commits：`feat: / fix: / refactor: / chore: / docs:`。
+- MCP / npm 发布默认不发布 `@mingai/mcp-server`，除非用户明确要求。
+- npm 发布优先使用 npm access token，不要依赖 OTP 交互流程。
+- 版本号遵循 `x.y.z`：
+  `x`：重大架构变更
+  `y`：功能新增
+  `z`：bug 修复
+- PR 描述建议包含：
+  - 改了什么（行为变化）
+  - 为什么改（问题或目标）
+  - 如何验证（命令 + 结果）
+  - 风险与回滚点（如有）
 
-```prisma
-model User {
-  id        String   @id @default(cuid())
-  email     String?  @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+## 环境变量
 
-model BaziProfile {
-  id          String   @id @default(cuid())
-  userId      String?
-  name        String?
-  gender      String
-  birthTime   DateTime
-  calendar    String
-  location    String?
-  longitude   Float?
-  latitude    Float?
-  useSolarTime Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
+- 以 `.env.example` 为准维护变量清单。
+- 新增环境变量必须同步更新 `.env.example` 与使用文档。
+- 严禁提交真实密钥（包括测试密钥）到仓库。
 
-model BaziChart {
-  id        String   @id @default(cuid())
-  profileId String
-  chartJson Json
-  createdAt DateTime @default(now())
-}
+## 交付检查清单
 
-model AiReport {
-  id        String   @id @default(cuid())
-  chartId   String
-  content   String
-  model     String?
-  createdAt DateTime @default(now())
-}
-```
-
-要求：
-
-- 用户输入信息、排盘结果、AI 报告分开存储
-- 排盘结果使用 JSON 存储，方便扩展
-- AI 报告独立存储，方便后续做付费、导出、历史记录
-
----
-
-## 🧭 页面结构
-
-推荐页面结构：
-
-```txt
-app/
-├── page.tsx
-├── bazi/new/page.tsx
-├── bazi/[id]/page.tsx
-├── bazi/[id]/analysis/page.tsx
-├── records/page.tsx
-└── settings/page.tsx
-```
-
----
-
-## 🎨 UI 设计规范
-
-风格参考移动端命理排盘 App：
-
-- 主色：黑色、金色、白色
-- 卡片式布局
-- 信息分区明确
-- 四柱排盘使用表格布局
-- 大运、流年、流月使用横向滑动卡片
-- 移动端优先
-- 桌面端自适应
-
-禁止：
-
-- 过度花哨动画
-- 信息堆叠混乱
-- 字号过小导致移动端难阅读
-
----
-
-## 🧪 代码规范
-
-必须遵守：
-
-- 所有组件拆分合理
-- API 返回值必须定义 TypeScript 类型
-- 表单必须校验
-- 异步请求必须处理 loading、error、empty 状态
-- 所有时间处理必须明确时区
-- 不要写重复逻辑
-- 不要删除已有功能
-- 不要破坏现有 UI
-- 不要把 API Key 写进前端代码
-
----
-
-## 🚀 开发阶段
-
-### 第一阶段：MVP
-
-- [ ] 排盘输入页面
-- [ ] 八字基础计算
-- [ ] 排盘展示页面
-- [ ] AI 分析报告
-- [ ] 保存排盘记录
-
-### 第二阶段
-
-- [ ] 用户登录
-- [ ] 历史记录
-- [ ] 报告导出
-- [ ] 会员限制
-- [ ] 分享海报
-
-### 第三阶段
-
-- [ ] AI 问答
-- [ ] 合盘分析
-- [ ] 流年分析
-- [ ] 财运专题分析
-- [ ] 命理知识库 + RAG
-
----
-
-## 🤖 给 AI 编程助手的规则
-
-当执行开发任务时：
-
-1. 先分析现有代码结构，再修改代码
-2. 不要一次性大改整个项目
-3. 每次只实现一个明确功能
-4. 修改前说明会改哪些文件
-5. 修改后说明如何测试
-6. 涉及命理算法时必须说明计算逻辑
-7. 不确定的命理规则必须标注 TODO
-8. 不要删除已有功能
-9. 不要破坏现有 UI
-10. 优先保证可维护性、可测试性、可扩展性
-
----
-
-## ⚠️ 重要原则
-
-- 排盘 = 计算引擎，必须严谨
-- AI = 解释层，负责表达和分析
-- 排盘和 AI 分析必须完全解耦
-- 软件建议必须现实可执行，不能制造焦虑
+- [ ] 变更范围清晰，未引入无关重构。
+- [ ] 复用现有模块，避免重复实现。
+- [ ] 鉴权、权限、积分、限流链路完整。
+- [ ] 错误路径可观测（错误码/错误信息一致）。
+- [ ] 测试与 lint 已通过，或已明确说明未执行原因。
+- [ ] 文档已同步（如涉及接口、配置、迁移、行为变化）。

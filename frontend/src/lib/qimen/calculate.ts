@@ -161,6 +161,9 @@ export function calculateQimenChart(input: QimenCalculationInput): QimenChart {
   const dunType = input.manualDunType ?? automaticDunType;
   const ju = normalizeJu(input.manualJu) ?? getJu(solarTermName, yuan);
   const plateType = input.plateType ?? "zhuan";
+  if (plateType === "fei") {
+    throw new Error("飞盘奇门排盘规则尚未实现");
+  }
   const hourPillar = toPillar(eightChar.getTimeGan(), eightChar.getTimeZhi());
   const hourXun = getHourXun(`${hourPillar.stem}${hourPillar.branch}`);
   const earthPlate = buildEarthPlate(dunType, ju);
@@ -218,9 +221,7 @@ export function calculateQimenChart(input: QimenCalculationInput): QimenChart {
       input.manualJu
         ? `采用专业选局：手动指定${dunType === "yang" ? "阳遁" : "阴遁"}${ju}局。`
         : "采用时家奇门拆补法：以当前节气定阴阳遁，以节气三元取局数。",
-      plateType === "fei"
-        ? "TODO: 当前九宫盘仍按转盘排法展示，飞盘奇门的九星、八门飞布规则后续需独立实现。"
-        : "当前九宫盘按转盘奇门排法展示。",
+      "当前九宫盘按转盘奇门排法展示。",
       "值符与值使按参考盘式随时干落宫，八神随值符按阴阳顺逆布列。",
       "TODO: 置闰法、超接置闰与值使随时宫存在流派差异，后续可增加配置开关。"
     ]

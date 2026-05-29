@@ -23,6 +23,8 @@ class BaziChartSummary(BaseModel):
     birthTime: str
     calendar: Literal["solar", "lunar", "pillars"]
     location: str | None = None
+    longitude: float | None = None
+    latitude: float | None = None
     useSolarTime: bool
     pillars: str
     createdAt: str

@@ -1,3 +1,4 @@
+import { calculateLiuyao, toLiuyaoCanonicalText, type LiuQinType, type LiuyaoInput, type LiuyaoOutput } from "taibu-core/liuyao";
 import { Solar } from "lunar-typescript";
 import { type LiuyaoLine } from "@/lib/liuyao/casting";
 
@@ -7,6 +8,15 @@ export type LiuyaoInputSnapshot = {
   dateTime?: string;
   castingTime?: string;
   castingMethod?: string;
+  castingCalendar?: "solar" | "lunar";
+  numberMode?: "two" | "three";
+  numberFirst?: string;
+  numberSecond?: string;
+  numberThird?: string;
+  textMode?: "two" | "three";
+  textFirst?: string;
+  textSecond?: string;
+  textThird?: string;
   divinationDirection?: string;
   directionTopic?: string;
   question?: string;
@@ -66,6 +76,13 @@ export type LiuyaoChart = {
   };
   lineRelations: string[];
   lines: LiuyaoChartLine[];
+  taibu: LiuyaoOutput;
+  canonicalText: string;
+  skillWorkflow: {
+    yongShenTargets: LiuQinType[];
+    timeRecommendations: string[];
+    warnings: string[];
+  };
   interpretation: {
     title: string;
     body?: string;
@@ -88,6 +105,30 @@ type TrigramName = "乾" | "兑" | "离" | "震" | "巽" | "坎" | "艮" | "坤"
 type FiveElement = "木" | "火" | "土" | "金" | "水";
 type EarthlyBranch = "子" | "丑" | "寅" | "卯" | "辰" | "巳" | "午" | "未" | "申" | "酉" | "戌" | "亥";
 type LineMarker = "世" | "应";
+
+type RuntimeFullYaoInfo = LiuyaoOutput["fullYaos"][number] & {
+  isChanging: boolean;
+  changedYao: {
+    liuQin: string;
+    naJia: string;
+    wuXing: string;
+    relation: string;
+  } | null;
+  fuShen?: {
+    liuQin: string;
+    naJia: string;
+    wuXing: string;
+  };
+  influence?: {
+    description?: string;
+  };
+  kongWangState?: string;
+  strength?: {
+    wangShuai?: string;
+    isStrong?: boolean;
+    evidence?: string[];
+  };
+};
 
 type PalaceInfo = {
   palace: TrigramName;
@@ -292,84 +333,36 @@ const directionLabels: Record<string, string> = {
   risk: "风险问题"
 };
 
-export function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | undefined, storedLines: LiuyaoLine[]): LiuyaoChart {
-  const lines = storedLines;
-  const key = lines
-    .map((line) => (line.kind === "young-yang" || line.kind === "old-yang" ? "1" : "0"))
-    .join("");
-  const lowerKey = key.slice(0, 3);
-  const upperKey = key.slice(3, 6);
-  const hexagramName = hexagramNames[`${upperKey}${lowerKey}`] ?? `${trigramNames[upperKey] ?? "本"}${trigramNames[lowerKey] ?? "卦"}`;
-  const changedKey = lines
-    .map((line) => {
-      const isYang = line.kind === "young-yang" || line.kind === "old-yang";
-      return line.changing ? (isYang ? "0" : "1") : isYang ? "1" : "0";
-    })
-    .join("");
-  const changedLowerKey = changedKey.slice(0, 3);
-  const changedUpperKey = changedKey.slice(3, 6);
-  const changedHexagramName =
-    hexagramNames[`${changedUpperKey}${changedLowerKey}`] ?? `${trigramNames[changedUpperKey] ?? "变"}${trigramNames[changedLowerKey] ?? "卦"}`;
-  const changingCount = lines.filter((line) => line.changing).length;
-  const lowerTrigram = getTrigramName(lowerKey);
-  const upperTrigram = getTrigramName(upperKey);
-  const changedLowerTrigram = getTrigramName(changedLowerKey);
-  const changedUpperTrigram = getTrigramName(changedUpperKey);
-  const palaceInfo = getPalaceInfo(`${upperKey}${lowerKey}`) ?? {
-    palace: lowerTrigram,
-    palaceElement: trigramElements[lowerTrigram],
-    place: "本宫",
-    shiPosition: 6,
-    yingPosition: 3
-  };
-  const direction = formatDirection(inputSnapshot);
+export async function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | undefined, storedLines: LiuyaoLine[]): Promise<LiuyaoChart> {
   const question = inputSnapshot?.question?.trim() || "未填写";
-  const usefulGodRelation = getUsefulGodRelation(inputSnapshot?.divinationDirection, inputSnapshot?.gender, question);
-  const castingDate = parseDate(inputSnapshot?.castingTime ?? inputSnapshot?.dateTime) ?? new Date();
-  const pillars = buildTimePillars(castingDate);
-  const dayVoid = pillars.dayVoid;
-
-  const chartLines = lines.map<LiuyaoChartLine>((line, index) => {
-    const branch = getLineBranch(index, lowerTrigram, upperTrigram);
-    const element = branchElements[branch];
-    const relation = getSixRelation(palaceInfo.palaceElement, element);
-    const changedBranch = getLineBranch(index, changedLowerTrigram, changedUpperTrigram);
-    const changedElement = branchElements[changedBranch];
-    const changedRelation = getSixRelation(palaceInfo.palaceElement, changedElement);
-    const marker = getLineMarker(index + 1, palaceInfo);
-    const monthRelation = describeBuildRelation("月建", pillars.month.branch, branch);
-    const dayRelation = describeBuildRelation("日建", pillars.day.branch, branch);
-    const strengthScore = getStrengthScore(branch, pillars.month.branch, pillars.day.branch, line.changing);
-
-    return {
-      ...line,
-      label: line.kind === "old-yang" || line.kind === "young-yang" ? "阳爻" : "阴爻",
-      symbol: line.kind === "old-yang" || line.kind === "young-yang" ? "yang" : "yin",
-      changedSymbol: line.changing
-        ? line.kind === "old-yang" || line.kind === "young-yang"
-          ? "yin"
-          : "yang"
-        : line.kind === "old-yang" || line.kind === "young-yang"
-          ? "yang"
-          : "yin",
-      spirit: spirits[index],
-      relation,
-      branch,
-      element,
-      changedRelation,
-      changedBranch,
-      changedElement,
-      marker,
-      hiddenStem: undefined,
-      monthRelation,
-      dayRelation,
-      strength: formatStrength(strengthScore),
-      isUsefulGod:
-        relation === usefulGodRelation ||
-        (usefulGodRelation === "世爻" && marker === "世") ||
-        (usefulGodRelation === "应爻" && marker === "应")
-    };
+  const direction = formatDirection(inputSnapshot);
+  const castingDateText = normalizeTaibuDate(inputSnapshot?.castingTime ?? inputSnapshot?.dateTime);
+  const castingDate = parseDate(castingDateText) ?? new Date();
+  const yongShenTargets = inferYongShenTargets(inputSnapshot);
+  const taibuInput = buildTaibuLiuyaoInput(inputSnapshot, storedLines, {
+    question,
+    date: castingDateText,
+    yongShenTargets
   });
+  const taibu = await calculateLiuyao(taibuInput);
+  const fullYaos = taibu.fullYaos as RuntimeFullYaoInfo[];
+  const canonicalText = toLiuyaoCanonicalText(taibu);
+  const baseCode = fullYaos
+    .sort((first, second) => first.position - second.position)
+    .map((yao) => String(yao.type))
+    .join("");
+  const changedLines = fullYaos.filter((yao) => yao.isChanging);
+  const changedCode = fullYaos
+    .sort((first, second) => first.position - second.position)
+    .map((yao) => (yao.isChanging ? (yao.type === 1 ? "0" : "1") : String(yao.type)))
+    .join("");
+  const upperKey = baseCode.slice(3, 6);
+  const lowerKey = baseCode.slice(0, 3);
+  const changedUpperKey = changedCode.slice(3, 6);
+  const changedLowerKey = changedCode.slice(0, 3);
+  const chartLines = fullYaos
+    .sort((first, second) => first.position - second.position)
+    .map((yao) => toChartLine(yao));
 
   return {
     profile: {
@@ -380,35 +373,31 @@ export function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | undefined,
       direction,
       question
     },
-    ganzhiText: `${pillars.year.text}年 ${pillars.month.text}月 ${pillars.day.text}日 ${pillars.hour.text}时（日空${dayVoid}）`,
+    ganzhiText: formatTaibuGanZhiText(taibu),
     hexagram: {
-      name: hexagramName,
+      name: taibu.hexagramName,
       upper: trigramNames[upperKey] ?? "上卦",
       lower: trigramNames[lowerKey] ?? "下卦",
-      changingCount,
+      changingCount: changedLines.length,
       changed:
-        changingCount > 0
+        taibu.changedHexagramName && changedLines.length > 0
           ? {
-              name: changedHexagramName,
+              name: taibu.changedHexagramName,
               upper: trigramNames[changedUpperKey] ?? "上卦",
               lower: trigramNames[changedLowerKey] ?? "下卦"
             }
           : undefined
     },
-    lineRelations: buildLineRelations(chartLines, pillars.month.branch, pillars.day.branch),
+    lineRelations: buildTaibuLineRelations(taibu),
     lines: chartLines,
-    interpretation: buildInterpretation({
-      hexagramName,
-      changedHexagramName: changingCount > 0 ? changedHexagramName : undefined,
-      direction,
-      question,
-      inputSnapshot,
-      castingDate,
-      lines: chartLines,
-      palaceInfo,
-      pillars,
-      usefulGodRelation
-    })
+    taibu,
+    canonicalText,
+    skillWorkflow: {
+      yongShenTargets,
+      timeRecommendations: formatTimeRecommendations(taibu),
+      warnings: taibu.warnings ?? []
+    },
+    interpretation: buildTaibuInterpretation(taibu, question, direction, inputSnapshot, castingDate, fullYaos)
   };
 }
 
@@ -454,6 +443,265 @@ function buildLineRelations(lines: LiuyaoChartLine[], monthBranch: EarthlyBranch
 function formatDirection(inputSnapshot: LiuyaoInputSnapshot | undefined) {
   const direction = directionLabels[inputSnapshot?.divinationDirection ?? ""] ?? "通用决策";
   return inputSnapshot?.directionTopic ? `${direction}-${inputSnapshot.directionTopic}` : direction;
+}
+
+function buildTaibuLiuyaoInput(
+  inputSnapshot: LiuyaoInputSnapshot | undefined,
+  storedLines: LiuyaoLine[],
+  defaults: Pick<LiuyaoInput, "question" | "date" | "yongShenTargets">
+): LiuyaoInput {
+  if (inputSnapshot?.castingMethod === "time") {
+    return { ...defaults, method: "time" };
+  }
+
+  if (inputSnapshot?.castingMethod === "number") {
+    return { ...defaults, method: "number", numbers: getNumberCastingValues(inputSnapshot) };
+  }
+
+  if (inputSnapshot?.castingMethod === "text") {
+    return { ...defaults, method: "number", numbers: getTextCastingValues(inputSnapshot) };
+  }
+
+  if (storedLines.length === 6) {
+    const hexagramName = getLineCode(storedLines, false);
+    const changedHexagramName = storedLines.some((line) => line.changing) ? getLineCode(storedLines, true) : undefined;
+    return {
+      ...defaults,
+      method: "select",
+      hexagramName,
+      changedHexagramName
+    };
+  }
+
+  return {
+    ...defaults,
+    method: "auto",
+    seedScope: "sm1-liuyao"
+  };
+}
+
+function inferYongShenTargets(inputSnapshot: LiuyaoInputSnapshot | undefined): LiuQinType[] {
+  const question = inputSnapshot?.question ?? "";
+
+  if (inputSnapshot?.divinationDirection === "wealth" || /财|钱|收入|投资|生意|资源/.test(question)) return ["妻财"];
+  if (inputSnapshot?.divinationDirection === "career" || /工作|事业|考试|升学|offer|录用|晋升|官司|规则|疾病|病/.test(question)) {
+    return /考试|升学|证|文书|合同|房|车/.test(question) ? ["父母"] : ["官鬼"];
+  }
+  if (inputSnapshot?.divinationDirection === "relationship" || /感情|婚|恋|对象|复合|伴侣/.test(question)) {
+    return inputSnapshot?.gender === "female" ? ["官鬼"] : ["妻财"];
+  }
+  if (inputSnapshot?.divinationDirection === "health" || /健康|病|治疗|医药|恢复/.test(question)) return ["子孙", "官鬼"];
+  if (inputSnapshot?.divinationDirection === "cooperation" || inputSnapshot?.divinationDirection === "interpersonal" || /合作|朋友|同事|竞争|小人|关系/.test(question)) {
+    return ["兄弟"];
+  }
+
+  return ["官鬼"];
+}
+
+function getNumberCastingValues(inputSnapshot: LiuyaoInputSnapshot): number[] {
+  const values = [inputSnapshot.numberFirst, inputSnapshot.numberSecond, inputSnapshot.numberMode === "three" ? inputSnapshot.numberThird : undefined]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .map((value) => Number(value));
+
+  return values.length >= 2 ? values : [1, 1];
+}
+
+function getTextCastingValues(inputSnapshot: LiuyaoInputSnapshot): number[] {
+  const values = [inputSnapshot.textFirst, inputSnapshot.textSecond, inputSnapshot.textMode === "three" ? inputSnapshot.textThird : undefined]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .map((value) => Array.from(value.trim()).reduce((sum, char) => sum + (char.codePointAt(0) ?? 0), 0));
+
+  return values.length >= 2 ? values : [1, 1];
+}
+
+function getLineCode(lines: LiuyaoLine[], changed: boolean) {
+  return [...lines]
+    .sort((first, second) => first.position - second.position)
+    .map((line) => {
+      const isYang = line.kind === "young-yang" || line.kind === "old-yang";
+      const finalYang = changed && line.changing ? !isYang : isYang;
+      return finalYang ? "1" : "0";
+    })
+    .join("");
+}
+
+function normalizeTaibuDate(value: string | undefined) {
+  if (!value) return formatDateTimeInput(new Date());
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) || /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(value)) return value;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? formatDateTimeInput(new Date()) : formatDateTimeInput(date);
+}
+
+function formatDateTimeInput(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function toChartLine(yao: RuntimeFullYaoInfo): LiuyaoChartLine {
+  const changing = yao.isChanging;
+  const symbol = yao.type === 1 ? "yang" : "yin";
+  const changedYao = yao.changedYao;
+  const changedSymbol = changing ? (symbol === "yang" ? "yin" : "yang") : symbol;
+  const kind = symbol === "yang" ? (changing ? "old-yang" : "young-yang") : changing ? "old-yin" : "young-yin";
+  const total = symbol === "yang" ? (changing ? 9 : 7) : changing ? 6 : 8;
+  const branch = normalizeBranch(yao.naJia);
+  const changedBranch = normalizeBranch(changedYao?.naJia ?? yao.naJia);
+  const marker = yao.isShiYao ? "世" : yao.isYingYao ? "应" : undefined;
+
+  return {
+    position: yao.position,
+    coins: (symbol === "yang" ? [1, 1, changing ? 1 : 0] : [0, 0, changing ? 0 : 1]) as [0 | 1, 0 | 1, 0 | 1],
+    total,
+    kind,
+    changing,
+    label: symbol === "yang" ? "阳爻" : "阴爻",
+    symbol,
+    changedSymbol,
+    spirit: yao.liuShen,
+    relation: yao.liuQin,
+    branch,
+    element: normalizeElement(yao.wuXing),
+    changedRelation: changedYao?.liuQin ?? yao.liuQin,
+    changedBranch,
+    changedElement: normalizeElement(changedYao?.wuXing ?? yao.wuXing),
+    marker,
+    hiddenStem: yao.fuShen ? `伏${yao.fuShen.liuQin}${yao.fuShen.naJia}${yao.fuShen.wuXing}` : undefined,
+    monthRelation: yao.influence?.description ?? "日月作用以太卜结果为准",
+    dayRelation: yao.kongWangState ? `空亡状态：${formatKongWangState(yao.kongWangState)}` : "未入空亡",
+    strength: formatTaibuStrength(yao),
+    isUsefulGod: false
+  };
+}
+
+function normalizeBranch(value: string): EarthlyBranch {
+  return value.replace(/[金木水火土]$/, "") as EarthlyBranch;
+}
+
+function normalizeElement(value: string): FiveElement {
+  return value.replace(/.*([金木水火土])$/, "$1") as FiveElement;
+}
+
+function formatTaibuStrength(yao: RuntimeFullYaoInfo) {
+  const labelMap: Record<string, string> = {
+    wang: "旺",
+    xiang: "相",
+    xiu: "休",
+    qiu: "囚",
+    si: "死"
+  };
+  const wangShuai = labelMap[yao.strength?.wangShuai ?? ""] ?? yao.strength?.wangShuai ?? "未定";
+  const evidence = yao.strength?.evidence?.length ? `：${yao.strength.evidence.join("、")}` : "";
+  return `${wangShuai}${yao.strength?.isStrong ? "，偏强" : "，偏弱"}${evidence}`;
+}
+
+function formatKongWangState(value: string) {
+  const labels: Record<string, string> = {
+    not_kong: "不空",
+    kong_static: "静空",
+    kong_changing: "动空",
+    kong_ri_chong: "日冲出空",
+    kong_yue_jian: "月建填实"
+  };
+
+  return labels[value] ?? value;
+}
+
+function formatTaibuGanZhiText(result: LiuyaoOutput) {
+  const { year, month, day, hour } = result.ganZhiTime;
+  return `${year.gan}${year.zhi}年 ${month.gan}${month.zhi}月 ${day.gan}${day.zhi}日 ${hour.gan}${hour.zhi}时（日空${result.kongWang.kongDizhi.join("")}）`;
+}
+
+function buildTaibuLineRelations(result: LiuyaoOutput) {
+  return [
+    result.liuChongGuaInfo?.description,
+    result.liuHeGuaInfo?.description,
+    result.chongHeTransition?.description,
+    result.guaFanFuYin?.description,
+    result.sanHeAnalysis?.fullSanHe?.description,
+    ...(result.sanHeAnalysis?.banHe?.map((item) => `${item.branches.join("")}半合${item.result}`) ?? []),
+    ...(result.globalShenSha.length ? [`全局神煞：${result.globalShenSha.join("、")}`] : [])
+  ].filter((item): item is string => Boolean(item));
+}
+
+function formatTimeRecommendations(result: LiuyaoOutput) {
+  return (result.timeRecommendations ?? []).map((item) => `${item.type}｜${item.trigger}｜${item.description}`);
+}
+
+function buildTaibuInterpretation(
+  result: LiuyaoOutput,
+  question: string,
+  direction: string,
+  inputSnapshot: LiuyaoInputSnapshot | undefined,
+  castingDate: Date,
+  fullYaos: RuntimeFullYaoInfo[]
+) {
+  const shiLine = fullYaos.find((line) => line.isShiYao);
+  const yingLine = fullYaos.find((line) => line.isYingYao);
+  const yongShenText = result.yongShen
+    .map((group) => {
+      const selected = group.selected;
+      return `${group.targetLiuQin}：${group.selectionNote}${selected ? ` 主用神${formatTaibuYaoPosition(selected.position)}${selected.naJia ?? selected.changedNaJia ?? ""}${selected.element}，${selected.strengthLabel}` : ""}`;
+    })
+    .join("；");
+  const movingText = fullYaos
+    .filter((line) => line.isChanging)
+    .map((line) => `${formatTaibuYaoPosition(line.position)}${line.liuQin}${line.naJia}${line.wuXing}动，${line.changedYao ? `变${line.changedYao.liuQin}${line.changedYao.naJia}${line.changedYao.wuXing}（${line.changedYao.relation}）` : "无变爻详情"}`)
+    .join("；");
+  const timeText = formatTimeRecommendations(result).join("；") || "暂无明确时间建议，按用神、世应、动爻优先判断。";
+
+  return [
+    {
+      title: "基本信息",
+      points: [
+        `求测事项：${question}`,
+        `求测时间（公历/农历）：${formatDateTime(castingDate)} / ${formatLunarDateTime(castingDate)}`,
+        `四柱干支：${result.ganZhiTime.year.gan}${result.ganZhiTime.year.zhi}年 ${result.ganZhiTime.month.gan}${result.ganZhiTime.month.zhi}月 ${result.ganZhiTime.day.gan}${result.ganZhiTime.day.zhi}日 ${result.ganZhiTime.hour.gan}${result.ganZhiTime.hour.zhi}时`,
+        `月建：${result.ganZhiTime.month.zhi}；日辰：${result.ganZhiTime.day.zhi}`,
+        `起卦方式：${formatCastingMethod(inputSnapshot?.castingMethod)}`,
+        `本卦卦名：${result.hexagramName}`,
+        `变卦卦名：${result.changedHexagramName ?? "无"}`
+      ]
+    },
+    {
+      title: "核心信息标注",
+      points: [
+        `卦宫：${result.hexagramGong}宫${result.hexagramElement}`,
+        `世爻：${shiLine ? formatTaibuLineBrief(shiLine) : "未定位"}；应爻：${yingLine ? formatTaibuLineBrief(yingLine) : "未定位"}`,
+        `旬空：${result.kongWang.kongDizhi.join("")}`,
+        `核心用神：${yongShenText || "未定位"}`,
+        `辅助用神：${shiLine ? `世爻${formatTaibuLineBrief(shiLine)}代表求测人自身。` : "未定位世爻。"}`
+      ]
+    },
+    {
+      title: "旺衰与推理分析",
+      points: [
+        `用神旺衰判断：${yongShenText || "用神信息不足"}`,
+        `世应关系分析：世爻${shiLine ? formatTaibuLineBrief(shiLine) : "未定位"}；应爻${yingLine ? formatTaibuLineBrief(yingLine) : "未定位"}。`,
+        `动爻与变爻影响：${movingText || "本卦无动爻，先看世应用神及日月作用。"}`,
+        `合冲刑害特殊作用：${buildTaibuLineRelations(result).join("；") || "未见明确全局合冲提示。"}`
+      ]
+    },
+    {
+      title: "时机建议",
+      points: [`时间窗口：${timeText}`, ...(result.warnings ?? []).map((warning) => `风险提示：${warning}`)]
+    },
+    {
+      title: "最终参考结论",
+      points: [
+        `吉凶定性：请基于${direction}问题，按用神强弱、世应、动爻和时机窗口给出倾向，不作绝对断语。`,
+        `关键提示：核心看${result.yongShen.map((item) => item.targetLiuQin).join("、") || "用神"}是否得月建、日辰、动爻与卦中多爻生扶，同时标注旬空、冲合刑害与动变方向。`
+      ]
+    }
+  ];
+}
+
+function formatTaibuYaoPosition(position?: number) {
+  return ["", "初爻", "二爻", "三爻", "四爻", "五爻", "上爻"][position ?? 0] ?? `${position}爻`;
+}
+
+function formatTaibuLineBrief(line: RuntimeFullYaoInfo) {
+  const marker = line.isShiYao ? "世" : line.isYingYao ? "应" : "";
+  return `${formatTaibuYaoPosition(line.position)}${marker ? `（${marker}）` : ""}${line.liuQin}${line.naJia}${line.wuXing}，${formatTaibuStrength(line)}`;
 }
 
 function parseDate(value: string | undefined) {

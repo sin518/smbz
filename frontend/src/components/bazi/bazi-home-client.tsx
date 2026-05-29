@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CalendarDays, ChevronDown, Clock3, Folder, MapPin, Save } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock3, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ReadonlyURLSearchParams } from "next/navigation";
@@ -14,9 +14,12 @@ import {
   SharedFormCard,
   saveSharedProfile
 } from "@/components/shared/divination-profile-card";
-import { calculateBaziChart } from "@/lib/bazi/calculate";
+import { calculateBaziChart, type BaziCalculationRequest } from "@/lib/bazi/api";
+import type { DemoBaziChart } from "@/lib/bazi/demo";
 import { saveLocalBaziRecord, scheduleBaziRecordAutoSync } from "@/lib/bazi/local-records";
+import { calculateLongitudeSolarTime } from "@/lib/bazi/solarTime";
 import { chinaLocationOptions } from "@/lib/locations/china";
+import { getChinaLocationCoordinate, type LocationCoordinate } from "@/lib/locations/coordinates";
 import { cn } from "@/lib/utils";
 
 const baziFormSchema = z.object({
@@ -54,12 +57,11 @@ const baziFormSchema = z.object({
   province: z.string().min(1, "请选择省份"),
   city: z.string().min(1, "请选择城市"),
   district: z.string().min(1, "请选择区县"),
-  useSolarTime: z.boolean(),
-  group: z.string().min(1, "请选择分组"),
-  save: z.boolean()
+  useSolarTime: z.boolean()
 });
 
 type BaziFormValues = z.infer<typeof baziFormSchema>;
+type LocationLookupState = "idle" | "loading" | "ready" | "fallback" | "error";
 
 const defaultValues: BaziFormValues = {
   name: "",
@@ -69,9 +71,7 @@ const defaultValues: BaziFormValues = {
   province: "北京市",
   city: "北京市",
   district: "东城区",
-  useSolarTime: false,
-  group: "全部",
-  save: true
+  useSolarTime: false
 };
 
 export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?: boolean; backHref?: string } = {}) {
@@ -80,6 +80,8 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
   const searchParams = useSearchParams();
   const initialValues = useMemo(() => getInitialFormValues(searchParams), [searchParams]);
   const [birthPickerOpen, setBirthPickerOpen] = useState(false);
+  const [remoteLocationMeta, setRemoteLocationMeta] = useState<LocationCoordinate | null>(null);
+  const [locationLookupState, setLocationLookupState] = useState<LocationLookupState>("idle");
   const {
     control,
     register,
@@ -97,8 +99,14 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
   const district = useWatch({ control, name: "district" });
   const useSolarTime = useWatch({ control, name: "useSolarTime" });
   const location = `${province} ${city} ${district}`;
-  const locationMeta = getLocationMeta(location);
-  const solarTimeText = formatBirthTime(birthTime);
+  const localLocationMeta = useMemo(() => getLocationMeta(province, city, district), [city, district, province]);
+  const locationMeta = remoteLocationMeta ?? localLocationMeta;
+  const solarTimeCorrection = locationMeta ? calculateLongitudeSolarTime(birthTime, locationMeta.longitude) : null;
+  const solarTimeText = formatSolarTimeText({
+    birthTime,
+    correction: solarTimeCorrection,
+    lookupState: locationLookupState
+  });
   const cities = getCities(province);
   const districts = getDistricts(province, city);
 
@@ -116,48 +124,83 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
     }
   }, [district, districts, setValue]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    setRemoteLocationMeta(null);
+
+    if (!province || !city || !district) {
+      setLocationLookupState("idle");
+      return () => controller.abort();
+    }
+
+    setLocationLookupState(localLocationMeta?.precision === "district" ? "ready" : "loading");
+
+    fetchLocationCoordinate({ province, city, district, signal: controller.signal })
+      .then((coordinate) => {
+        if (coordinate) {
+          setRemoteLocationMeta(coordinate);
+          setLocationLookupState("ready");
+          return;
+        }
+
+        setLocationLookupState(localLocationMeta ? "fallback" : "error");
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        setLocationLookupState(localLocationMeta ? "fallback" : "error");
+      });
+
+    return () => controller.abort();
+  }, [city, district, localLocationMeta, province]);
+
   async function onSubmit(values: BaziFormValues) {
     const selectedLocation = formatLocation(values);
-    const chartQuery = buildChartQuery(values);
-    const chartJson = calculateBaziChart({
+    const selectedLocationMeta = await resolveLocationMeta(values);
+    const calculationInput = {
       name: values.name?.trim(),
       gender: values.gender,
       birthTime: values.birthTime,
       location: selectedLocation,
-      calendar: values.calendar
-    });
+      calendar: values.calendar,
+      useSolarTime: values.useSolarTime,
+      longitude: selectedLocationMeta?.longitude,
+      latitude: selectedLocationMeta?.latitude
+    };
+    const chartJson = calculateBaziChart(calculationInput);
 
-    if (values.save) {
-      window.localStorage.setItem(
-        "sm1:last-bazi-input",
-        JSON.stringify({
-          ...values,
-          location: selectedLocation,
-          savedAt: new Date().toISOString()
-        })
-      );
-      void saveSharedProfile({
-        source: "八字档案",
-        name: values.name?.trim() ?? "",
-        gender: values.gender,
-        dateTime: values.birthTime,
-        location: selectedLocation
-      });
-      const localRecord = saveLocalBaziRecord({
-        name: values.name?.trim() ?? "",
-        gender: values.gender,
-        birthTime: values.birthTime,
-        calendar: values.calendar,
+    window.localStorage.setItem(
+      "sm1:last-bazi-input",
+      JSON.stringify({
+        ...values,
         location: selectedLocation,
-        useSolarTime: values.useSolarTime,
-        chartJson
-      });
-      scheduleBaziRecordAutoSync();
-      router.push(`/bazi/local/${localRecord.id}`);
-      return;
-    }
-
-    router.push(`/bazi/demo?${chartQuery}`);
+        longitude: selectedLocationMeta?.longitude,
+        latitude: selectedLocationMeta?.latitude,
+        savedAt: new Date().toISOString()
+      })
+    );
+    void saveSharedProfile({
+      source: "八字档案",
+      name: values.name?.trim() ?? "",
+      gender: values.gender,
+      dateTime: values.birthTime,
+      location: selectedLocation
+    });
+    const localRecord = saveLocalBaziRecord({
+      name: values.name?.trim() ?? "",
+      gender: values.gender,
+      birthTime: values.birthTime,
+      calendar: values.calendar,
+      location: selectedLocation,
+      longitude: selectedLocationMeta?.longitude,
+      latitude: selectedLocationMeta?.latitude,
+      useSolarTime: values.useSolarTime,
+      chartJson
+    });
+    scheduleBaziRecordAutoSync();
+    router.push(`/bazi/local/${localRecord.id}`);
   }
 
   return (
@@ -240,15 +283,6 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
               </div>
             </SharedFieldRow>
 
-            <SharedFieldRow icon={Folder} label="分组" error={errors.group?.message} last>
-              <button type="button" className="flex w-full items-center justify-end gap-1 text-[18px] font-semibold text-[#55514a]">
-                全部
-                <ChevronDown size={20} strokeWidth={2.5} className="text-[#302f2c]" />
-              </button>
-            </SharedFieldRow>
-          </SharedFormCard>
-
-          <SharedFormCard>
             <Controller
               name="useSolarTime"
               control={control}
@@ -277,43 +311,11 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
                 </SharedFieldRow>
               )}
             />
-            <SharedFieldRow icon={Clock3} label="校正时间">
+            <SharedFieldRow icon={Clock3} label="校正时间" last>
               <span className={cn("block text-right text-[16px] font-semibold", useSolarTime ? "text-[#55514a]" : "text-[#aaa8a1]")}>
                 {useSolarTime ? solarTimeText : "未启用"}
               </span>
             </SharedFieldRow>
-            <SharedFieldRow icon={MapPin} label="经纬参考">
-              <span className="block text-right text-[15px] font-semibold text-[#aaa8a1]">
-                北纬{locationMeta.latitude.toFixed(2)} 东经{locationMeta.longitude.toFixed(2)}
-              </span>
-            </SharedFieldRow>
-            <Controller
-              name="save"
-              control={control}
-              render={({ field }) => (
-                <SharedFieldRow icon={Save} label="保存记录" last>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => field.onChange(!field.value)}
-                      className={cn(
-                        "relative h-8 w-14 overflow-hidden rounded-full transition-colors",
-                        field.value ? "bg-black" : "bg-[#d7d7d7]"
-                      )}
-                      aria-pressed={field.value}
-                      aria-label="是否保存"
-                    >
-                      <span
-                        className={cn(
-                          "absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-sm transition-transform",
-                          field.value ? "translate-x-6" : "translate-x-0"
-                        )}
-                      />
-                    </button>
-                  </div>
-                </SharedFieldRow>
-              )}
-            />
           </SharedFormCard>
 
           <button
@@ -321,7 +323,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
             disabled={isSubmitting}
             className="mx-auto mt-10 block h-14 w-[68%] rounded-full bg-black text-[22px] font-semibold text-[#e8d4a7] shadow-soft disabled:opacity-70"
           >
-            开始排盘
+            {isSubmitting ? "排盘中" : "开始排盘"}
           </button>
         </form>
       </div>
@@ -665,33 +667,86 @@ function getDistricts(province: string, city: string) {
   return getCities(province).find((item) => item.city === city)?.districts ?? getCities(province)[0]?.districts ?? [];
 }
 
-function getLocationMeta(location: string) {
-  const normalized = location.replace(/\s/g, "");
-  const knownLocations = [
-    { keyword: "佛山", latitude: 23.02, longitude: 113.12 },
-    { keyword: "南海", latitude: 23.04, longitude: 113.14 },
-    { keyword: "北京", latitude: 39.9, longitude: 116.4 },
-    { keyword: "上海", latitude: 31.23, longitude: 121.47 },
-    { keyword: "杭州", latitude: 30.25, longitude: 120.16 },
-    { keyword: "成都", latitude: 30.57, longitude: 104.07 }
-  ];
-  const matched = knownLocations.find((item) => normalized.includes(item.keyword));
-
-  // TODO: Replace this demo lookup with a geocoding service and true solar-time calculation.
-  return matched ?? { latitude: 39, longitude: 120 };
+function getLocationMeta(province: string, city: string, district: string) {
+  return getChinaLocationCoordinate(province, city, district);
 }
 
-function buildChartQuery(values: BaziFormValues) {
-  const params = new URLSearchParams({
-    name: values.name?.trim() || "未命名",
-    gender: values.gender,
-    birthTime: values.birthTime,
-    location: formatLocation(values),
-    calendar: values.calendar,
-    useSolarTime: values.useSolarTime ? "true" : "false"
+async function resolveLocationMeta(values: Pick<BaziFormValues, "province" | "city" | "district">) {
+  const remoteCoordinate = await fetchLocationCoordinate({
+    province: values.province,
+    city: values.city,
+    district: values.district
   });
 
-  return params.toString();
+  return remoteCoordinate ?? getLocationMeta(values.province, values.city, values.district);
+}
+
+async function fetchLocationCoordinate({
+  province,
+  city,
+  district,
+  signal
+}: {
+  province: string;
+  city: string;
+  district: string;
+  signal?: AbortSignal;
+}): Promise<LocationCoordinate | null> {
+  const params = new URLSearchParams({ province, city, district });
+  const response = await fetch(`/api/locations/geocode?${params.toString()}`, {
+    method: "GET",
+    signal
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = (await response.json()) as Partial<LocationCoordinate>;
+
+  if (typeof data.latitude !== "number" || typeof data.longitude !== "number") {
+    return null;
+  }
+
+  return {
+    latitude: data.latitude,
+    longitude: data.longitude,
+    precision: data.precision === "district" ? "district" : "city"
+  };
+}
+
+function formatSolarTimeCorrection(correctedBirthTime: string, offsetMinutes: number) {
+  const prefix = offsetMinutes > 0 ? "+" : "";
+
+  return `${formatBirthTime(correctedBirthTime)} (${prefix}${offsetMinutes}分)`;
+}
+
+function formatSolarTimeText({
+  birthTime,
+  correction,
+  lookupState
+}: {
+  birthTime: string;
+  correction: ReturnType<typeof calculateLongitudeSolarTime>;
+  lookupState: LocationLookupState;
+}) {
+  if (!birthTime) {
+    return lookupState === "loading" ? "定位中" : "请选择出生时间";
+  }
+
+  if (correction) {
+    return formatSolarTimeCorrection(correction.correctedBirthTime, correction.offsetMinutes);
+  }
+
+  if (lookupState === "loading") {
+    return "正在定位经纬度";
+  }
+
+  if (lookupState === "fallback") {
+    return "定位失败，暂按本地城市坐标";
+  }
+
+  return "缺少经纬度，暂按北京时间";
 }
 
 function formatLocation(values: Pick<BaziFormValues, "province" | "city" | "district">) {

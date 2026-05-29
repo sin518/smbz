@@ -76,7 +76,7 @@ type ManualLineValue = NonNullable<LiuyaoFormValues["manualLines"][number]>;
 const defaultValues: LiuyaoFormValues = {
   name: "",
   gender: "male",
-  dateTime: "2026-05-05T08:00",
+  dateTime: "",
   divinationDirection: "general",
   question: "",
   castingMethod: "shake",
@@ -90,7 +90,7 @@ const defaultValues: LiuyaoFormValues = {
   textThird: "",
   manualLines: [null, null, null, null, null, null],
   castingCalendar: "solar",
-  castingTime: "2026-05-05T08:00"
+  castingTime: ""
 };
 
 const directionOptions = [

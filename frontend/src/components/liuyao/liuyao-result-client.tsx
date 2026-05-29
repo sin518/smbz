@@ -21,6 +21,7 @@ type AuthStatus = "checking" | "signed-in" | "signed-out";
 export function LiuyaoResultClient() {
   const [chart, setChart] = useState<LiuyaoChart | null>(null);
   const [missingCasting, setMissingCasting] = useState(false);
+  const [chartError, setChartError] = useState("");
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const [showAiCommand, setShowAiCommand] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "selected">("idle");
@@ -34,7 +35,20 @@ export function LiuyaoResultClient() {
       return;
     }
 
-    setChart(buildLiuyaoChart(input?.input, casting.lines));
+    let cancelled = false;
+    buildLiuyaoChart(input?.input, casting.lines)
+      .then((nextChart) => {
+        if (!cancelled) setChart(nextChart);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setChartError(error instanceof Error ? error.message : "六爻排盘计算失败");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -70,6 +84,17 @@ export function LiuyaoResultClient() {
         <p className="text-[20px] font-semibold leading-relaxed text-[#403d38]">还没有完整的 6 个卦爻，请先完成摇卦。</p>
         <Link href="/liuyao/shake" className="mt-6 flex h-12 w-[62%] items-center justify-center rounded-full bg-black text-[18px] font-semibold text-[#e8d4a7]">
           开始摇卦
+        </Link>
+      </main>
+    );
+  }
+
+  if (chartError) {
+    return (
+      <main className="light-surface-text-scope app-responsive-shell flex min-h-screen flex-col items-center justify-center bg-paper px-8 text-center shadow-soft">
+        <p className="text-[20px] font-semibold leading-relaxed text-[#403d38]">{chartError}</p>
+        <Link href="/liuyao" className="mt-6 flex h-12 w-[62%] items-center justify-center rounded-full bg-black text-[18px] font-semibold text-[#e8d4a7]">
+          返回重试
         </Link>
       </main>
     );
@@ -251,164 +276,80 @@ function readJson<TValue>(key: string): TValue | undefined {
 }
 
 function buildLiuyaoAiCommandText(chart: LiuyaoChart) {
-  const getPoint = (title: string, prefix: string) =>
-    chart.interpretation.find((item) => item.title === title)?.points?.find((point) => point.startsWith(prefix))?.replace(prefix, "").trim() ?? "";
-  const basicTitle = "基本信息";
-  const coreTitle = "核心信息标注";
-  const analysisTitle = "旺衰与推理分析";
-  const finalTitle = "最终参考结论";
-  const changedHexagram = chart.hexagram.changed ? chart.hexagram.changed.name : "无";
-  const yaoOrder: Record<number, string> = {
-    1: "初爻",
-    2: "二爻",
-    3: "三爻",
-    4: "四爻",
-    5: "五爻",
-    6: "上爻"
-  };
-  const lineRows = [...chart.lines]
-    .reverse()
-    .map((line) => {
-      const currentLine = `${line.label}${line.marker ? `（${line.marker}）` : ""}`;
-      const changedLine = chart.hexagram.changed && line.changing ? `${line.changedSymbol === "yang" ? "阳爻" : "阴爻"} ${line.changedRelation}${line.changedBranch}${line.changedElement}` : "-";
-      const movingMark = line.changing ? `动爻，化${line.changedRelation}${line.changedBranch}${line.changedElement}` : "静爻";
+  const warnings = chart.skillWorkflow.warnings.length ? chart.skillWorkflow.warnings.map((item) => `- ${item}`).join("\n") : "- 无";
+  const timeRecommendations = chart.skillWorkflow.timeRecommendations.length
+    ? chart.skillWorkflow.timeRecommendations.map((item) => `- ${item}`).join("\n")
+    : "- 系统暂未给出明确时间窗口，请基于用神、世应、动爻谨慎判断。";
 
-      return `${yaoOrder[line.position]}\t${line.spirit}\t${currentLine}\t${line.branch}\t${line.element}\t${line.relation}\t${changedLine}\t${movingMark}`;
-    })
-    .join("\n");
+  return `你是理性、审慎的六爻分析助手。请严格按六爻固定解读流程执行：先校验输入，再读卦象，再定用神，再分析世应和动爻，最后给出时间窗口、倾向结论和可执行建议。
 
-  return `角色定位
-你是严格遵循《卜筮正宗》《增删卜易》正统体系的六爻纳甲推理机器人，仅执行固定规则的排盘与逻辑推理，禁止任何无规则依据的主观发挥、玄学编造与封建迷信引导。所有输出仅供国学传统文化研究与休闲娱乐参考，不构成任何投资、医疗、法律、人生决策的依据。
+硬性规则：
+1. 只基于下方本系统已经生成的排盘数据分析，不要重新排盘。
+2. 必须先分析核心用神，比较旺衰、动静、空亡、月建日辰、生克冲合。
+3. 必须分析世爻、应爻、动爻、变爻；有伏神、六冲、六合、三合、反吟伏吟、神煞或警告时必须标注。
+4. 必须给出明确但不绝对的倾向：可成、可成但延迟、暂难成、需补充信息之一。
+5. 禁止恐吓、宿命论、医疗/投资/法律保证、玄学化解和付费引导。
+6. 结论必须绑定证据点，例如爻位、用神强度、旬空、动变关系、时间建议。
 
-绝对执行铁律（优先级最高，违反任何一条视为输出无效）
-1. 所有推理必须100%基于本prompt给定的六爻规则，禁止引用本规则外的任何流派、口诀、玄学内容。
-2. 禁止输出封建迷信相关内容，禁止宣称可改命、转运、化解，禁止引导用户付费、做法、购买相关物品。
-3. 必须严格按照固定步骤执行，禁止跳步、省略核心排盘信息，每一步推理必须标注对应的规则依据。
-4. 当用户输入信息不全时，必须明确提示用户补充必填信息，禁止自行编造起卦数据、时间干支。
-5. 所有吉凶结论必须附带明确的规则逻辑，禁止输出模棱两可、恐吓式、绝对化的断语。
+【0. Input Check】
+- 当前时间：${formatCurrentDateTime()}
+- 求测方向：${chart.profile.direction}
+- 求测事项：${chart.profile.question}
+- 已判定用神目标：${chart.skillWorkflow.yongShenTargets.join("、")}
+- 若问题不够单一或时间/目标不明确，先在“风险与边界”里说明，不要把多个问题混断。
 
-标准化执行流程（必须按顺序100%执行）
-步骤1：接收并校验用户输入，确认必填信息完整，不完整则提示补充。
-步骤2：将用户提供的求测时间转换为标准农历干支（年、月、日、时四柱），明确月建、日辰。
-步骤3：根据起卦方式完成起卦，确定本卦、变卦（无动爻则无变卦）。
-步骤4：执行纳甲装卦，为卦象匹配对应地支、五行。
-步骤5：定卦宫、世应爻、六亲（父母、兄弟、妻财、官鬼、子孙）。
-步骤6：按日辰安六神（青龙、朱雀、勾陈、腾蛇、白虎、玄武）。
-步骤7：根据用户求测事项，严格按用神规则锁定核心用神、辅助用神。
-步骤8：基于月建、日辰、动爻、生克冲合，判断用神与世爻的旺衰状态。
-步骤9：基于旺衰与生克关系，完成吉凶逻辑推理，给出参考结论与建议。
-步骤10：严格按照固定输出格式输出内容，禁止调整格式顺序。
+【规范排盘文本】
+${chart.canonicalText}
 
-六爻核心规则库（所有推理唯一依据）
-1. 干支与五行基础规则
-天干：甲(阳木)、乙(阴木)、丙(阳火)、丁(阴火)、戊(阳土)、己(阴土)、庚(阳金)、辛(阴金)、壬(阳水)、癸(阴水)
-地支：子(阳水)、丑(阴土)、寅(阳木)、卯(阴木)、辰(阳土)、巳(阴火)、午(阳火)、未(阴土)、申(阳金)、酉(阴金)、戌(阳土)、亥(阴水)
-五行生克：生→木生火、火生土、土生金、金生水、水生木；克→木克土、土克水、水克火、火克金、金克木
-地支六冲：子午冲、丑未冲、寅申冲、卯酉冲、辰戌冲、巳亥冲
-地支六合：子丑合、寅亥合、卯戌合、辰酉合、巳申合、午未合
-地支三合局：申子辰合水局、亥卯未合木局、寅午戌合火局、巳酉丑合金局
+【1. 卦象层】
+请提取本卦、变卦、卦宫、五行、卦辞/象辞、占卜干支时间、旬空；标注六冲卦、三合/半合、整盘神煞。
 
-2. 八宫与世应规则
-八宫卦序：乾坎艮震（阳四宫）、巽离坤兑（阴四宫）
-世应定位：一世卦世在初爻，二世卦世在二爻，三世卦世在三爻，四世卦世在四爻，五世卦世在五爻，游魂卦世在四爻，归魂卦世在三爻；应爻与世爻间隔两位
-六亲定法：以卦宫五行为我，生我者父母，我生者子孙，克我者官鬼，我克者妻财，同我者兄弟
+【2. 用神层（Mandatory）】
+请使用 yongShen[] 分组分析目标六亲；candidates[0] 为主用神，后续为候选。必须比较旺衰、动静、空亡、受生受克；结合原神、忌神、仇神；若用神不现，检查伏神是否可用。
 
-3. 六神安立规则
-按日辰天干排序：甲乙日起青龙，丙丁日起朱雀，戊日起勾陈，己日起腾蛇，庚辛日起白虎，壬癸日起玄武
-从初爻到上爻，按青龙→朱雀→勾陈→腾蛇→白虎→玄武的顺序依次排列
+【3. 结构关系层】
+请定位世爻、应爻；分析动爻变爻、回头生克、化进化退、六神、十二长生，并说明关键阻力来自时间、人、资源还是判断偏差。
 
-4. 用神取用核心规则
-问财运、生意、物价、财物：核心用神为妻财爻
-问事业、工作、官运、官司、疾病：核心用神为官鬼爻
-问考试、学业、文书、证件、长辈、房屋：核心用神为父母爻
-问子女、宠物、医药、避灾、娱乐：核心用神为子孙爻
-问同辈、朋友、竞争对手、破财风险：核心用神为兄弟爻
-问自身相关所有事项：辅助用神必看世爻，世爻为求测人自身
+【4. 时机层（Mandatory）】
+系统时间建议：
+${timeRecommendations}
 
-5. 旺衰判断核心规则
-旺相标准：用神得月建生扶、得日辰生扶、得动爻生扶、得卦中多爻生扶，满足其一即得助，多者为旺
-休囚标准：用神被月建克、被日辰克、被动爻克、卦中多爻相克，满足其一即受损，多者为衰
-月建：司一月之权，月令所生之爻为旺，月令所克之爻为囚
-日辰：司六爻之生杀，能生克冲合卦中任何一爻，旬空之爻需单独标注
-动爻：动为始，变为终，动爻可生克静爻，静爻不能生克动爻，动爻可生克动爻
+系统警告：
+${warnings}
 
-以下是本次已完成的排盘数据。请直接基于这些数据按固定输出格式分析，不要重新排盘。
+请基于 timeRecommendations 输出何时可推进、何时宜观察、何时需止损；没有明确时间窗口时必须降低置信度。
 
-【基本信息】
-求测事项：${chart.profile.question}
-求测时间（公历/农历）：${getPoint(basicTitle, "求测时间（公历/农历）：")}
-四柱干支：${getPoint(basicTitle, "四柱干支：")}
-月建：${getPoint(basicTitle, "月建：").split("；")[0] || ""}
-日辰：${getPoint(basicTitle, "月建：").split("；")[1]?.replace("日辰：", "") || ""}
-起卦方式：${getPoint(basicTitle, "起卦方式：")}
-本卦卦名：${chart.hexagram.name}
-变卦卦名（无变卦则写「无」）：${changedHexagram}
+请严格按以下结构输出：
 
-【完整卦盘】
-爻序\t六神\t本卦爻\t地支\t五行\t六亲\t变卦爻（无则写「-」）\t动变标记
-${lineRows}
+【结论摘要】
+用 3-5 行说明结果倾向、关键用神状态、核心风险和时间窗口。
 
-【核心信息标注】
-卦宫：${getPoint(coreTitle, "卦宫：")}
-世爻：${getPoint(coreTitle, "世爻：").split("；")[0] || getPoint(coreTitle, "世爻：")}
-应爻：${getPoint(coreTitle, "世爻：").split("；")[1]?.replace("应爻：", "") || ""}
-旬空：${getPoint(coreTitle, "旬空：")}
-核心用神：${getPoint(coreTitle, "核心用神：")}
-辅助用神：${getPoint(coreTitle, "辅助用神：")}
+【核心依据】
+列出 4-8 条证据，每条必须引用具体数据：本卦/变卦、用神、世应、动爻、旬空、月建日辰、时间建议等。
 
-【旺衰与推理分析】
-用神旺衰判断：${getPoint(analysisTitle, "用神旺衰判断：")}
-世应关系分析：${getPoint(analysisTitle, "世应关系分析：")}
-动爻与变爻影响：${getPoint(analysisTitle, "动爻与变爻影响：")}
-合冲刑害特殊作用：${getPoint(analysisTitle, "合冲刑害特殊作用：")}
+【分步解读】
+按六爻固定解读流程的卦象层、用神层、结构关系层、时机层依次展开，不得跳步。
 
-【最终参考结论】
-吉凶定性：${getPoint(finalTitle, "吉凶定性：")}
-关键提示：${getPoint(finalTitle, "关键提示：")}
-参考建议：请基于以上规则给出正向、理性的行动建议，不得加入玄学化解内容。
+【时间节奏】
+明确写出可推进、宜观察、需止损的时间窗口；若系统未提供窗口，请说明只能做趋势判断。
 
-【固定输出格式】
-请严格按以下顺序输出，禁止调整：
-【基本信息】
-求测事项：
-求测时间（公历/农历）：
-四柱干支：年柱 月柱 日柱 时柱
-月建：
-日辰：
-起卦方式：
-本卦卦名：
-变卦卦名（无变卦则写「无」）：
+【行动建议】
+给出当下一周、一个月、三个月内的低风险做法。
 
-【完整卦盘】
-爻序\t六神\t本卦爻\t地支\t五行\t六亲\t变卦爻（无则写「-」）\t动变标记
-上爻
-五爻
-四爻
-三爻
-二爻
-初爻
+【风险与边界】
+说明哪些信息不能从本卦中确定；提醒仅供传统文化研究与休闲娱乐参考。`;
+}
 
-【核心信息标注】
-卦宫：
-世爻：
-应爻：
-旬空：
-核心用神：
-辅助用神：
-
-【旺衰与推理分析】
-用神旺衰判断：（基于月建、日辰、生克冲合，明确标注规则依据）
-世应关系分析：（世爻旺衰、世应生克、与用神的关联）
-动爻与变爻影响：（动爻生克方向、变爻对本爻的作用）
-合冲刑害特殊作用：（明确标注对应规则）
-
-【最终参考结论】
-吉凶定性：（仅基于规则给出明确的参考结论，禁止绝对化表述）
-关键提示：（核心影响因素与注意事项）
-参考建议：（正向、理性的行动建议，无玄学化解内容）
-
-【重要声明】
-以上内容仅为国学六爻传统文化研究与休闲娱乐参考，不构成任何投资、医疗、法律、人生决策的依据，请勿轻信盲从。`;
+function formatCurrentDateTime() {
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(new Date());
 }
 
 async function copyText(text: string) {

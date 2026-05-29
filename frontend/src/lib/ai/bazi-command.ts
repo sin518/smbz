@@ -151,28 +151,40 @@ export function buildAiCommandText({ chart, focus, useSolarTime = false }: AiCom
   const dayColumn = columns.find((column) => column.title === "日柱") ?? columns[2];
   const luckText = formatLuckCycles(luckCycles);
   const usefulGod = buildUsefulGodAnalysis(columns, luckCycles);
+  const canonicalText = chart.canonicalText?.trim();
+  const generatedAt = formatCurrentDateTime();
 
   return [
-    "请你以理性、专业、诚实客观的命理分析师身份，基于以下资料进行八字分析。",
+    "请你以理性、专业、诚实客观的命理分析师身份，严格按八字固定解读流程进行分析。",
+    "你只负责解释本系统已经生成的排盘结果，不负责重新排盘；如信息不足，请明确标注不确定性。",
     "",
-    "【出生信息】",
+    "【0. Input Check】",
+    `当前时间：${generatedAt}`,
     `姓名：${profile.name || "未填写"}`,
     `性别：${profile.gender}`,
     `出生时间：${profile.solar}`,
     `出生地：${profile.location}`,
     `是否使用真太阳时：${useSolarTime ? "是" : "否"}`,
     `真太阳时：${profile.solarTime}`,
+    "必要输入已由前端排盘流程提供；若你发现字段缺失，只能说明缺失对判断的影响，不要编造数据。",
     "",
-    "【八字信息】",
+    "【规范排盘文本】",
+    canonicalText || "未生成规范排盘文本，请仅基于下方结构化摘要谨慎分析。",
+    "",
+    "【1. 盘面基础层】",
     `四柱：${pillarText}`,
     `日主：${dayColumn?.pillar.stem ?? "待补充"}`,
     `天干十神：${formatStemTenGods(columns)}`,
     `地支藏干十神：${formatBranchTenGods(columns)}`,
-    "",
-    "【命局信息】",
     `五行分布：${usefulGod.elementDistribution}`,
+    "请提取四柱、藏干、十神、神煞、空亡、月令背景；必须先说明季节/月令环境。",
+    "",
+    "【2. 身强/身弱判定层（Mandatory）】",
     `日主强弱：${usefulGod.strength}`,
     `地支分析：${usefulGod.branchAnalysis}`,
+    "请依据月令、通根、透干、帮扶、克泄耗、十二长生综合判断，结论限定为身强、身弱、中和偏强、中和偏弱、从格等，并给出3条以内关键证据。",
+    "",
+    "【3. 喜用神判定层（Mandatory）】",
     `格局初判：${usefulGod.pattern}`,
     `调候判断：${usefulGod.climate}`,
     `通关逻辑：${usefulGod.passage}`,
@@ -180,12 +192,17 @@ export function buildAiCommandText({ chart, focus, useSolarTime = false }: AiCom
     `喜神：${usefulGod.favorableGod}`,
     `条件用神：${usefulGod.conditionalGod}`,
     `忌神：${usefulGod.unfavorableGod}`,
-    `大运复核：${usefulGod.luckReview}`,
     `规则来源与优先级：${usefulGod.ruleSource}`,
+    "请先定格局平衡目标，再定用神，最后给喜神/忌神；不可只凭单一五行数量下结论。",
     "",
-    "【大运信息】",
+    "【4. 人生主题层】",
+    "请从十神组合与地支刑冲合害提炼事业、财务、关系、健康、学习/表达；每个主题都按“趋势 + 原因 + 行动点”输出。",
+    "",
+    "【5. 大运流年层（Mandatory）】",
     luckText,
-    "说明：大运年份为简化区间，实际交运需以具体起运时间为准。",
+    `大运复核：${usefulGod.luckReview}`,
+    "说明：大运年份为前端排盘参考区间，实际交运需以规范排盘文本和具体起运信息为准。",
+    "请根据当前年份定位当前大运步；先看大运十年基调，再看流年年度触发，再看流月短期波动；输出近3年守/攻/调整建议。",
     "",
     "【人生节点】",
     "工作、婚姻、生子、迁居、疾病、破财、发财等年份：暂无用户补充。请在分析中提示用户可补充已发生年份，用于反推与交叉验证。",
@@ -193,24 +210,36 @@ export function buildAiCommandText({ chart, focus, useSolarTime = false }: AiCom
     "【分析重点】",
     focusDescriptions[focus],
     "",
-    "【分析原则】",
-    "依据传统命理，结合盲派方法，进行交叉验证，诚实客观表达。",
-    "AI只负责解释排盘结果，不负责重新排盘；如信息不足，请明确说明不确定性。",
+    "【6. 结论表达层】",
+    "依据传统命理进行交叉验证，必须用盘面数据作为证据。",
+    "结论避免宿命绝对化，使用“若A持续，则B概率上升”等条件表达。",
     "禁止宿命论、恐吓式表达、医疗诊断、投资保证和婚姻绝对判断。",
     "使用命理术语时请解释含义，并给出现实、可执行的建议。",
     "",
     "【输出结构】",
-    "1. 命格结构与性格特征：推理过程、分析结论、现实建议",
-    "2. 事业方向与能力优势：推理过程、分析结论、现实建议",
-    "3. 财运结构与财富趋势：推理过程、分析结论、现实建议",
-    "4. 健康体质与养护方向：推理过程、分析结论、现实建议",
-    "5. 婚姻感情与人际关系：推理过程、分析结论、现实建议",
-    "6. 未来五年运势趋势：推理过程、分析结论、现实建议"
+    "1. 结论摘要：3-5行，包含身强弱、喜用神、当前运势和本次分析重点。",
+    "2. 核心依据：列出3-6个盘面证据，必须引用四柱、月令、藏干、十神、刑冲合害、空亡/神煞或大运数据。",
+    "3. 分步解读：按八字固定解读流程的盘面基础层、身强/身弱层、喜用神层、人生主题层、大运流年层依次展开，不得跳步。",
+    "4. 时间节奏：区分近3年、中期大运、长期结构；说明守/攻/调整窗口。",
+    "5. 行动建议：给出具体、低风险、可执行的现实建议。",
+    "6. 风险与边界：说明哪些结论不能仅凭命盘确定，提醒仅供传统文化研究与自我观察参考。"
   ].join("\n");
 }
 
 export function getAiCommandFocusDescription(focus: AiCommandFocus) {
   return focusDescriptions[focus];
+}
+
+function formatCurrentDateTime() {
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(new Date());
 }
 
 function formatLuckCycles(luckCycles: LuckColumn[]) {
@@ -225,7 +254,7 @@ function formatLuckCycles(luckCycles: LuckColumn[]) {
     .join("\n");
 }
 
-function buildUsefulGodAnalysis(columns: ChartColumn[], luckCycles: LuckColumn[]) {
+export function buildUsefulGodAnalysis(columns: ChartColumn[], luckCycles: LuckColumn[]) {
   const dayColumn = columns.find((column) => column.title === "日柱") ?? columns[2];
   const monthColumn = columns.find((column) => column.title === "月柱") ?? columns[1];
   const dayElement = stemElements[dayColumn?.pillar.stem ?? ""];

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, UserRound } from "lucide-react";
 import { LunarUtil } from "lunar-typescript";
+import { BaziDeterministicInsightCard } from "@/components/bazi/bazi-deterministic-insight-card";
 import { BaziProfileHero } from "@/components/bazi/bazi-profile-hero";
 import { ProfessionalDetail } from "@/components/bazi/professional-detail";
 import { ProtectedAiCommandLink } from "@/components/bazi/protected-ai-command-link";
 import { getSelfSeatStage } from "@/lib/bazi/changsheng";
-import { demoBaziChart, type ChartColumn, type DemoBaziChart, type DemoProfile, type LuckColumn } from "@/lib/bazi/demo";
+import type { ChartColumn, DemoBaziChart, DemoProfile, LuckColumn } from "@/lib/bazi/demo";
 import { calculateShenshaForPillar, type ShenshaContext } from "@/lib/bazi/shensha";
 import type { EarthlyBranch, HeavenlyStem } from "@/lib/bazi";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const tabs = [
 export type BaziTab = (typeof tabs)[number]["key"];
 
 type BaziProfileOverride = Partial<Pick<DemoProfile, "name" | "gender" | "solar" | "solarTime" | "location">>;
+type FiveElement = "木" | "火" | "土" | "金" | "水";
 
 type BaziChartViewProps = {
   chart: DemoBaziChart;
@@ -80,19 +82,22 @@ export function BaziChartView({
             <InfoRow left={`阳历： ${profileView.solar}`} />
             <InfoRow left={`真太阳时： ${profileView.solarTime}`} muted />
             <InfoRow left={`出生地区： ${profileView.location}`} />
-            <InfoRow left={`人元司令分野： ${profileView.commander}`} muted />
-            <InfoRow left={`出生节气： ${profileView.birthSolarTerm}`} />
-            <div className="grid grid-cols-2 border-b border-[#f3ead6] text-[14px]">
-              {profile.solarTerms.map((term) => (
-                <div key={term.label} className="truncate py-2">
-                  <span className="text-mutedInk">{term.label}：</span>
-                  {term.value}
-                </div>
-              ))}
-            </div>
-            <InfoRow left={`星座： ${profileView.constellation}`} right={`星宿： ${profileView.lunarMansion}`} />
-            <InfoRow left={`胎元： ${profileView.fetusOrigin}`} right={`空亡： ${profileView.voidBranch}`} muted />
-            <InfoRow left={`命宫： ${profileView.lifePalace}`} right={`身宫： ${profileView.bodyPalace}`} />
+            <DayMasterFeature columns={columns} />
+            <BaziDeterministicInsightCard
+              chart={chart}
+              type="wuxing"
+              title="AI 专业五行分析"
+              subtitle="深度洞察五行旺衰与调候建议"
+              actionText="查看确定性五行报告"
+            />
+            <BaziDeterministicInsightCard
+              chart={chart}
+              type="personality"
+              title="AI 性格特征分析"
+              subtitle="基于十神命局的深度性格画像"
+              actionText="查看确定性性格报告"
+              last
+            />
           </div>
         </section>
       ) : null}
@@ -157,7 +162,14 @@ export function BaziChartView({
       ) : null}
 
       {activeTab === "detail" ? (
-        <ProfessionalDetail columns={columns} luckCycles={luckCycles} commander={profile.commander} />
+        <ProfessionalDetail
+          columns={columns}
+          luckCycles={luckCycles}
+          commander={profile.commander}
+          luckStartText={profile.luckStartText}
+          luckTransferText={profile.luckTransferText}
+          currentAgeText={profile.currentAgeText}
+        />
       ) : null}
 
     </main>
@@ -171,6 +183,59 @@ function InfoRow({ left, right, muted }: { left: string; right?: string; muted?:
       {right ? <p className="max-w-[42%] shrink-0 truncate whitespace-nowrap text-right">{highlightInfoValue(right)}</p> : null}
     </div>
   );
+}
+
+function DayMasterFeature({ columns }: { columns: ChartColumn[] }) {
+  const dayColumn = columns.find((column) => column.title === "日柱") ?? columns[2];
+  const stem = dayColumn?.pillar.stem ?? "";
+  const feature = getDayMasterFeature(stem);
+
+  return (
+    <div className="border-b border-[#f3ead6] bg-[#fbfaf4] py-3">
+      <div className="mb-2 flex items-center gap-1.5 text-[13px] text-mutedInk">
+        <UserRound size={14} strokeWidth={1.8} />
+        <span>日主特征</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className={cn("flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[8px] text-[28px] font-semibold text-white", getDayMasterBadgeClass(feature.element))}>
+          {stem || "?"}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-semibold text-ink">{stem ? `日主「${stem}」，五行属${feature.element}` : "日主信息待补充"}</p>
+          <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-mutedInk">{feature.description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getDayMasterFeature(stem: string) {
+  const features: Record<string, { element: FiveElement; description: string }> = {
+    甲: { element: "木", description: "如参天大树，正直有原则，重成长与担当，适合稳步积累。" },
+    乙: { element: "木", description: "如花草藤蔓，柔韧细腻，善于协调，能在变化中寻找生机。" },
+    丙: { element: "火", description: "如太阳之火，热情明朗，行动力强，适合主动表达与带动他人。" },
+    丁: { element: "火", description: "如灯烛之火，敏锐细致，重感受与灵感，适合精细打磨。" },
+    戊: { element: "土", description: "如高山厚土，稳重可靠，承载力强，重秩序与长期规划。" },
+    己: { element: "土", description: "如田园沃土，包容务实，善于照料细节，重稳定与安全感。" },
+    庚: { element: "金", description: "如矿石刚金，果断直接，执行力强，适合在规则中打磨能力。" },
+    辛: { element: "金", description: "如珠玉精金，审美敏锐，重品质边界，适合精修专业与表达。" },
+    壬: { element: "水", description: "如江河大水，思路开阔，适应力强，适合流动、学习与整合资源。" },
+    癸: { element: "水", description: "如雨露甘霖，细腻敏感，善解人意，富有同情心。" }
+  };
+
+  return features[stem] ?? { element: "土", description: "日主信息不足，请结合完整排盘进一步判断。" };
+}
+
+function getDayMasterBadgeClass(element: FiveElement) {
+  const classes: Record<FiveElement, string> = {
+    木: "bg-[#4caf50]",
+    火: "bg-[#c40000]",
+    土: "bg-[#8b6f43]",
+    金: "bg-[#bf8d10]",
+    水: "bg-[#3f7edb]"
+  };
+
+  return classes[element];
 }
 
 function highlightInfoValue(text: string) {
@@ -422,7 +487,7 @@ function getRowClass(rowIndex: number, large?: boolean, stack?: boolean) {
   );
 }
 
-function LuckScroller({ title, items, dense }: { title: string; items: typeof demoBaziChart.luckCycles; dense?: boolean }) {
+function LuckScroller({ title, items, dense }: { title: string; items: LuckColumn[]; dense?: boolean }) {
   const visibleItems = dense ? items.slice(0, 10) : items;
 
   return (
