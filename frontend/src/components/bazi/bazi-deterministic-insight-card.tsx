@@ -30,18 +30,18 @@ export function BaziDeterministicInsightCard({
 
   return (
     <div className={cn("border-b border-[#f3ead6] py-4", last && "border-b-0")}>
-      <div className="rounded-[8px] border border-[#343434] bg-[#101010] px-4 py-4 text-white">
+      <div className="rounded-[12px] border border-[var(--color-row-border)] bg-[var(--color-surface)] px-4 py-4 text-[var(--color-ink)] shadow-[0_8px_24px_rgba(16,14,10,0.04)]">
         <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[4px] border border-[#2f2f2f] bg-[#0b0b0b]">
-            <Icon size={18} strokeWidth={1.9} className={type === "wuxing" ? "text-[#00b8ff]" : "text-[#9b6cff]"} />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-[var(--color-control-border)] bg-[var(--color-control)] text-[var(--color-icon)]">
+            <Icon size={18} strokeWidth={1.9} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold leading-5 text-white">{title}</p>
-            <p className="mt-1 text-[12px] leading-5 text-[#8f8f8f]">{subtitle}</p>
+            <p className="text-[15px] font-semibold leading-5 text-[var(--color-ink)]">{title}</p>
+            <p className="mt-1 text-[12px] leading-5 text-[var(--color-muted-ink)]">{subtitle}</p>
             <button
               type="button"
               onClick={() => setExpanded((value) => !value)}
-              className="mt-3 flex min-h-10 w-full items-center justify-center gap-1 rounded-[4px] border border-[#4c3f11] bg-[#f8f4e8] px-3 py-2 text-center text-[13px] font-semibold leading-5 text-[#1f2328] transition hover:bg-white"
+              className="mt-3 flex min-h-10 w-full items-center justify-center gap-1 rounded-full border border-[var(--color-control-border)] bg-[var(--color-control)] px-3 py-2 text-center text-[13px] font-semibold leading-5 text-[var(--color-icon)] transition hover:brightness-95"
             >
               <span>{expanded ? "收起确定性报告" : actionText}</span>
               <ToggleIcon size={15} strokeWidth={2} />
@@ -50,13 +50,13 @@ export function BaziDeterministicInsightCard({
         </div>
 
         {expanded ? (
-          <section className="mt-4 rounded-[8px] border border-[#2f3b48] bg-[#111820] p-3 text-[#d7e0ea]">
-            <p className="text-[12px] leading-5 text-[#a8b4c2]">{report.summary}</p>
+          <section className="mt-4 rounded-[12px] border border-[var(--color-row-border)] bg-[var(--color-surface)] p-3 text-[var(--color-ink)]">
+            <p className="text-[12px] leading-5 text-[var(--color-muted-ink)]">{report.summary}</p>
             <div className="mt-3 space-y-3">
               {report.sections.map((section) => (
-                <article key={section.title} className="rounded-[6px] bg-black/20 px-3 py-2">
-                  <h4 className="text-[13px] font-semibold leading-5 text-white">{section.title}</h4>
-                  <div className="mt-1 space-y-1 text-[12px] leading-5 text-[#bdc7d4]">
+                <article key={section.title} className="rounded-[8px] border border-[var(--color-row-border)] bg-[var(--color-control)] px-3 py-2">
+                  <h4 className="text-[13px] font-semibold leading-5 text-[var(--color-icon)]">{section.title}</h4>
+                  <div className="mt-1 space-y-1 text-[12px] leading-5 text-[var(--color-muted-ink)]">
                     {section.body.split("\n").map((line) => (
                       <p key={line}>{line}</p>
                     ))}
