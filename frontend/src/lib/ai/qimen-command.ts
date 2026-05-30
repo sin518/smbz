@@ -1,4 +1,6 @@
-import type { QimenChart } from "@/lib/qimen";
+import type { QimenOutput } from "taibu-core/qimen";
+
+type QimenChart = QimenOutput;
 
 type QimenAiCommandInput = {
   chart: QimenChart;
@@ -6,6 +8,7 @@ type QimenAiCommandInput = {
     name?: string;
     gender?: string;
     divinationType?: string;
+    location?: string;
   };
 };
 
@@ -129,9 +132,8 @@ function formatWeightTable(weights: Record<string, { nature: string; weight: num
 }
 
 function formatChartText(chart: QimenChart, profile: QimenAiCommandInput["profile"]) {
-  const plateType = chart.plateType === "zhuan" ? "转盘" : "飞盘";
   const dunText = chart.dunType === "yang" ? "阳遁" : "阴遁";
-  const pillars = `年${formatPillar(chart.pillars.year)} 月${formatPillar(chart.pillars.month)} 日${formatPillar(chart.pillars.day)} 时${formatPillar(chart.pillars.hour)}`;
+  const pillars = `年${chart.siZhu.year} 月${chart.siZhu.month} 日${chart.siZhu.day} 时${chart.siZhu.hour}`;
   const profileLines = [
     `姓名：${profile?.name?.trim() || "未填写"}`,
     `性别：${profile?.gender === "female" ? "女" : profile?.gender === "male" ? "男" : "未填写"}`,
@@ -141,32 +143,35 @@ function formatChartText(chart: QimenChart, profile: QimenAiCommandInput["profil
 
   return [
     profileLines.join("\n"),
-    `地点：${chart.location}`,
-    `起局时间：${chart.solarText}（${chart.lunarText}）`,
+    `地点：${profile?.location ?? "未填写"}`,
+    `起局时间：${chart.dateInfo.solarDate}（${chart.dateInfo.lunarDate}）`,
     `四柱：${pillars}`,
-    `节气：${chart.solarTerm.name}${chart.solarTerm.yuan}`,
-    `盘式：${plateType}，${dunText}${chart.ju}局`,
-    `旬首：${chart.hourXun.name}${chart.hourXun.leader}`,
+    `节气：${chart.dateInfo.solarTerm}${chart.yuan}`,
+    `盘式：${chart.panType}，${dunText}${chart.juNumber}局`,
+    `旬首：${chart.xunShou}`,
     `值符：${chart.zhiFu.star}落${chart.zhiFu.palace}宫`,
     `值使：${chart.zhiShi.gate}落${chart.zhiShi.palace}宫`,
+    `日空：${chart.kongWang.dayKong.branches.join("、") || "无"}；时空：${chart.kongWang.hourKong.branches.join("、") || "无"}`,
+    `驿马：${chart.yiMa.branch || "无"}${chart.yiMa.palace ? `，落${chart.yiMa.palace}宫` : ""}`,
     "",
     "九宫格文本盘（按巽四、离九、坤二 / 震三、中五、兑七 / 艮八、坎一、乾六排列）",
-    ...chart.palaces.map(formatPalace),
+    ...getDisplayPalaces(chart).map((palace) => formatPalace(chart, palace)),
     "",
-    "排盘说明",
-    ...chart.notes.map((note) => `- ${note}`)
+    "全局格局",
+    ...(chart.globalFormations.length ? chart.globalFormations.map((item) => `- ${item}`) : ["- 未见明确格局"])
   ].join("\n");
 }
 
-function formatPalace(palace: QimenChart["palaces"][number]) {
-  const star = STAR_WEIGHTS[palace.star];
+function formatPalace(chart: QimenChart, palace: QimenChart["palaces"][number]) {
+  const star = STAR_WEIGHTS[normalizeStarName(palace.star)];
   const gate = palace.gate ? GATE_WEIGHTS[palace.gate] : null;
   return [
-    `${palace.label}（${palace.direction}，${palace.number}宫）`,
+    `${palace.palaceName}${palace.palaceIndex}（${palace.direction}，${palace.palaceIndex}宫）`,
     `  天盘干：${palace.heavenStem}；地盘干：${palace.earthStem}`,
-    `  九星：${palace.star}（${star.nature}，权重${star.weight}）`,
+    `  九星：${palace.star}（${star?.nature ?? "未知"}，权重${star?.weight ?? "未知"}）`,
     `  八门：${palace.gate ? `${palace.gate}（${gate?.nature ?? "未知"}，权重${gate?.weight ?? "未知"}）` : "无"}`,
-    `  八神：${palace.god ?? "无"}${palace.isZhiFu ? "；此宫为值符落宫" : ""}${palace.isZhiShi ? "；此宫为值使落宫" : ""}`
+    `  八神：${palace.deity || "无"}${palace.palaceIndex === chart.zhiFu.palace ? "；此宫为值符落宫" : ""}${palace.palaceIndex === chart.zhiShi.palace ? "；此宫为值使落宫" : ""}`,
+    `  状态：${formatPalaceState(palace)}`
   ].join("\n");
 }
 
@@ -180,21 +185,38 @@ function getSuggestedUseGod(chart: QimenChart, divinationType: string | undefine
     return "财运类问题：建议核心用神为妻财（戊）。当前九宫盘未找到天盘干戊，需在输出中说明资料不足，不能自行指定落宫。";
   }
 
-  const star = STAR_WEIGHTS[palace.star];
+  const star = STAR_WEIGHTS[normalizeStarName(palace.star)];
   const gate = palace.gate ? GATE_WEIGHTS[palace.gate] : null;
 
   return [
     "财运类问题：建议核心用神为妻财（戊）。",
-    `用神落宫：${palace.label}（${palace.direction}，${palace.number}宫），依据：该宫天盘干为戊。`,
-    `后续用神宫分析必须使用${palace.label}，不得改分析其他宫位，也不得出现“修正：核心用神戊落于${palace.label}”这类自我修正句。`,
-    `该宫盘面：天盘干${palace.heavenStem}，地盘干${palace.earthStem}，九星${palace.star}（${star.nature}，权重${star.weight}），八门${palace.gate ? `${palace.gate}（${gate?.nature ?? "未知"}，权重${gate?.weight ?? "未知"}）` : "无"}，八神${palace.god ?? "无"}。`
+    `用神落宫：${palace.palaceName}${palace.palaceIndex}（${palace.direction}，${palace.palaceIndex}宫），依据：该宫天盘干为戊。`,
+    `后续用神宫分析必须使用${palace.palaceName}${palace.palaceIndex}，不得改分析其他宫位，也不得出现“修正：核心用神戊落于${palace.palaceName}${palace.palaceIndex}”这类自我修正句。`,
+    `该宫盘面：天盘干${palace.heavenStem}，地盘干${palace.earthStem}，九星${palace.star}（${star?.nature ?? "未知"}，权重${star?.weight ?? "未知"}），八门${palace.gate ? `${palace.gate}（${gate?.nature ?? "未知"}，权重${gate?.weight ?? "未知"}）` : "无"}，八神${palace.deity || "无"}。`
   ].join("\n");
-}
-
-function formatPillar(pillar: QimenChart["pillars"]["year"]) {
-  return `${pillar.stem}${pillar.branch}`;
 }
 
 function formatDivinationType(value: string | undefined) {
   return value ? DIVINATION_TYPE_LABELS[value] ?? "未选择" : "未选择";
+}
+
+const PALACE_DISPLAY_ORDER = [4, 9, 2, 3, 5, 7, 8, 1, 6];
+
+function getDisplayPalaces(chart: QimenChart) {
+  return PALACE_DISPLAY_ORDER.map((palaceIndex) => chart.palaces.find((palace) => palace.palaceIndex === palaceIndex)).filter((palace): palace is QimenChart["palaces"][number] => Boolean(palace));
+}
+
+function normalizeStarName(value: string) {
+  return value.endsWith("星") ? value.slice(0, -1) : value;
+}
+
+function formatPalaceState(palace: QimenChart["palaces"][number]) {
+  const states = [
+    palace.isKongWang ? "空亡" : "",
+    palace.isYiMa ? "驿马" : "",
+    palace.isRuMu ? "入墓" : "",
+    palace.formations.length ? palace.formations.join("、") : ""
+  ].filter(Boolean);
+
+  return states.length ? states.join("；") : "无特殊状态";
 }

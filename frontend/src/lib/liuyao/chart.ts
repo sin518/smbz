@@ -3,9 +3,6 @@ import { Solar } from "lunar-typescript";
 import { type LiuyaoLine } from "@/lib/liuyao/casting";
 
 export type LiuyaoInputSnapshot = {
-  name?: string;
-  gender?: string;
-  dateTime?: string;
   castingTime?: string;
   castingMethod?: string;
   castingCalendar?: "solar" | "lunar";
@@ -19,6 +16,7 @@ export type LiuyaoInputSnapshot = {
   textThird?: string;
   divinationDirection?: string;
   directionTopic?: string;
+  yongShenTargets?: LiuQinType[];
   question?: string;
 };
 
@@ -55,9 +53,6 @@ export type LiuyaoChartLine = LiuyaoLine & {
 
 export type LiuyaoChart = {
   profile: {
-    name: string;
-    gender: string;
-    birthText: string;
     castingText: string;
     direction: string;
     question: string;
@@ -336,7 +331,7 @@ const directionLabels: Record<string, string> = {
 export async function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | undefined, storedLines: LiuyaoLine[]): Promise<LiuyaoChart> {
   const question = inputSnapshot?.question?.trim() || "未填写";
   const direction = formatDirection(inputSnapshot);
-  const castingDateText = normalizeTaibuDate(inputSnapshot?.castingTime ?? inputSnapshot?.dateTime);
+  const castingDateText = normalizeTaibuDate(inputSnapshot?.castingTime);
   const castingDate = parseDate(castingDateText) ?? new Date();
   const yongShenTargets = inferYongShenTargets(inputSnapshot);
   const taibuInput = buildTaibuLiuyaoInput(inputSnapshot, storedLines, {
@@ -366,9 +361,6 @@ export async function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | unde
 
   return {
     profile: {
-      name: inputSnapshot?.name?.trim() || "未留名",
-      gender: inputSnapshot?.gender === "female" ? "女" : "男",
-      birthText: formatDate(castingDate),
       castingText: formatDateTime(castingDate),
       direction,
       question
@@ -441,6 +433,10 @@ function buildLineRelations(lines: LiuyaoChartLine[], monthBranch: EarthlyBranch
 }
 
 function formatDirection(inputSnapshot: LiuyaoInputSnapshot | undefined) {
+  if (inputSnapshot?.yongShenTargets?.length) {
+    return inputSnapshot.yongShenTargets.join("、");
+  }
+
   const direction = directionLabels[inputSnapshot?.divinationDirection ?? ""] ?? "通用决策";
   return inputSnapshot?.directionTopic ? `${direction}-${inputSnapshot.directionTopic}` : direction;
 }
@@ -482,13 +478,16 @@ function buildTaibuLiuyaoInput(
 
 function inferYongShenTargets(inputSnapshot: LiuyaoInputSnapshot | undefined): LiuQinType[] {
   const question = inputSnapshot?.question ?? "";
+  if (inputSnapshot?.yongShenTargets?.length) {
+    return inputSnapshot.yongShenTargets;
+  }
 
   if (inputSnapshot?.divinationDirection === "wealth" || /财|钱|收入|投资|生意|资源/.test(question)) return ["妻财"];
   if (inputSnapshot?.divinationDirection === "career" || /工作|事业|考试|升学|offer|录用|晋升|官司|规则|疾病|病/.test(question)) {
     return /考试|升学|证|文书|合同|房|车/.test(question) ? ["父母"] : ["官鬼"];
   }
   if (inputSnapshot?.divinationDirection === "relationship" || /感情|婚|恋|对象|复合|伴侣/.test(question)) {
-    return inputSnapshot?.gender === "female" ? ["官鬼"] : ["妻财"];
+    return ["官鬼", "妻财"];
   }
   if (inputSnapshot?.divinationDirection === "health" || /健康|病|治疗|医药|恢复/.test(question)) return ["子孙", "官鬼"];
   if (inputSnapshot?.divinationDirection === "cooperation" || inputSnapshot?.divinationDirection === "interpersonal" || /合作|朋友|同事|竞争|小人|关系/.test(question)) {
@@ -1089,13 +1088,13 @@ function getSixRelation(palaceElement: FiveElement, lineElement: FiveElement) {
   return "官鬼";
 }
 
-function getUsefulGodRelation(direction: string | undefined, gender: string | undefined, question = "") {
+function getUsefulGodRelation(direction: string | undefined, question = "") {
   if (/(财运|生意|物价|财物|投资|收入|钱|盈利|创业)/.test(question) || direction === "wealth") return "妻财";
   if (/(事业|工作|官运|官司|疾病|诉讼|风险)/.test(question) || direction === "career" || direction === "risk" || direction === "health") return "官鬼";
   if (/(考试|学业|文书|证件|长辈|房屋|合同|资料)/.test(question)) return "父母";
   if (/(子女|宠物|医药|避灾|娱乐|玩乐)/.test(question)) return "子孙";
   if (/(同辈|朋友|竞争对手|破财|小人|人际)/.test(question) || direction === "interpersonal") return "兄弟";
-  if (direction === "relationship") return gender === "female" ? "官鬼" : "妻财";
+  if (direction === "relationship") return "官鬼";
   if (direction === "cooperation") return "应爻";
   return "世爻";
 }

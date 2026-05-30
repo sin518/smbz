@@ -2,8 +2,10 @@
 
 import { Check, Copy, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import type { QimenOutput } from "taibu-core/qimen";
 import { buildQimenAiCommandText } from "@/lib/ai/qimen-command";
-import type { QimenChart } from "@/lib/qimen";
+
+type QimenChart = QimenOutput;
 
 type QimenAiCommandModalProps = {
   chart: QimenChart;
@@ -11,6 +13,7 @@ type QimenAiCommandModalProps = {
     name?: string;
     gender?: string;
     divinationType?: string;
+    location?: string;
   };
   onClose: () => void;
 };

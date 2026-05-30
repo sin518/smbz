@@ -130,11 +130,6 @@ export function LiuyaoResultClient() {
       </header>
 
       <section className="mx-4 rounded-[22px] bg-white px-4 py-4 text-[14px] font-normal leading-[1.8] text-mutedInk shadow-soft">
-        <div className="flex gap-10">
-          <span>姓　　名：<b className="font-semibold text-ink">{chart.profile.name}</b></span>
-          <span>性　　别：<b className="font-semibold text-ink">{chart.profile.gender}</b></span>
-        </div>
-        <p>出生时间：<b className="font-semibold text-ink">{chart.profile.birthText}</b></p>
         <p>起卦时间：<b className="font-semibold text-ink">{chart.profile.castingText}</b></p>
         <p>求测方向：<b className="font-semibold text-ink">{chart.profile.direction}</b></p>
         <p>求测问题：<b className="font-semibold text-ink">{chart.profile.question}</b></p>

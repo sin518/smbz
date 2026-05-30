@@ -311,7 +311,6 @@ export function DivinationTimePickerSheet({
   ariaLabel?: string;
 }) {
   const [draft, setDraft] = useState(() => parseDateTime(value));
-  const [quickInput, setQuickInput] = useState("");
   const years = useMemo(() => buildNumberRange(1920, 2050), []);
   const months = useMemo(() => buildNumberRange(1, 12), []);
   const hours = useMemo(() => buildNumberRange(0, 23), []);
@@ -321,7 +320,6 @@ export function DivinationTimePickerSheet({
   useEffect(() => {
     if (open) {
       setDraft(parseDateTime(value));
-      setQuickInput("");
     }
   }, [open, value]);
 
@@ -339,54 +337,13 @@ export function DivinationTimePickerSheet({
   const updateDraft = (key: keyof TimeParts, nextValue: number) => {
     setDraft((current) => ({ ...current, [key]: nextValue }));
   };
-  const applyQuickInput = () => {
-    const parsed = parseCompactDateTime(quickInput);
-    if (parsed) {
-      setDraft(parsed);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65">
       <button className="absolute inset-0 cursor-default" type="button" aria-label={ariaLabel} onClick={onClose} />
       <section className="relative w-full max-w-[430px] rounded-t-[28px] bg-white px-5 pb-8 pt-7 shadow-soft">
-        <div className="grid grid-cols-[1fr_48px_86px] items-center gap-4">
-          <div className="grid h-12 grid-cols-1 rounded-full bg-[#f4f4f3] p-1">
-            <span className="flex items-center justify-center rounded-full bg-white text-[18px] font-semibold text-ink shadow-sm">公历</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setDraft(parseDateTime(formatDateTimeLocal(new Date())))}
-            className="h-12 rounded-full bg-[#f4f4f3] text-[18px] font-semibold"
-          >
-            今
-          </button>
-          <button
-            type="button"
-            onClick={() => onConfirm(toDateTimeValue(draft))}
-            className="h-12 rounded-full bg-black text-[20px] font-semibold text-[#e8d4a7]"
-          >
-            确定
-          </button>
-        </div>
-
-        <div className="mt-5 grid h-14 grid-cols-[minmax(0,1fr)_72px] items-center gap-2 rounded-full bg-[#f4f4f3] p-1.5 text-[#c7c7c7]">
-          <input
-            value={quickInput}
-            onChange={(event) => setQuickInput(event.target.value.replace(/\D/g, "").slice(0, 12))}
-            inputMode="numeric"
-            placeholder="输入年月日时分，如202605050833"
-            className="min-w-0 bg-transparent px-4 text-[15px] font-semibold outline-none placeholder:text-[#cfcfce]"
-            aria-label="快速输入年月日时分"
-          />
-          <button
-            type="button"
-            onClick={applyQuickInput}
-            disabled={quickInput.length !== 12}
-            className="h-11 rounded-full bg-white text-[16px] font-semibold text-[#9d9b98] disabled:text-[#d4d4d4]"
-          >
-            查询
-          </button>
+        <div className="grid h-12 grid-cols-1 rounded-full bg-[#f4f4f3] p-1">
+          <span className="flex items-center justify-center rounded-full bg-white text-[18px] font-semibold text-ink shadow-sm">公历</span>
         </div>
 
         <div className="mt-6 border-t border-[#f0f0ef] pt-4">
@@ -405,6 +362,23 @@ export function DivinationTimePickerSheet({
             <PickerColumn values={hours} selected={draft.hour} onSelect={(nextValue) => updateDraft("hour", nextValue)} padValue />
             <PickerColumn values={minutes} selected={draft.minute} onSelect={(nextValue) => updateDraft("minute", nextValue)} padValue />
           </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-[1fr_1.35fr] items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onConfirm(formatDateTimeLocal(new Date()))}
+            className="h-12 rounded-full bg-[#f4f4f3] text-[18px] font-semibold text-ink"
+          >
+            今
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm(toDateTimeValue(draft))}
+            className="h-12 rounded-full bg-black text-[20px] font-semibold text-[#e8d4a7]"
+          >
+            确定
+          </button>
         </div>
       </section>
     </div>
@@ -718,31 +692,6 @@ function parseDateTime(value: string): TimeParts {
 
 function toDateTimeValue(value: TimeParts) {
   return `${value.year}-${pad(value.month)}-${pad(value.day)}T${pad(value.hour)}:${pad(value.minute)}`;
-}
-
-function parseCompactDateTime(value: string) {
-  if (!/^\d{12}$/.test(value)) {
-    return null;
-  }
-
-  const parsed = {
-    year: Number(value.slice(0, 4)),
-    month: Number(value.slice(4, 6)),
-    day: Number(value.slice(6, 8)),
-    hour: Number(value.slice(8, 10)),
-    minute: Number(value.slice(10, 12))
-  };
-  const maxDay = getDaysInMonth(parsed.year, parsed.month);
-
-  if (parsed.year < 1920 || parsed.year > 2050 || parsed.month < 1 || parsed.month > 12) {
-    return null;
-  }
-
-  if (parsed.day < 1 || parsed.day > maxDay || parsed.hour > 23 || parsed.minute > 59) {
-    return null;
-  }
-
-  return parsed;
 }
 
 function getDaysInMonth(year: number, month: number) {
