@@ -1,14 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CalendarClock, ChevronDown, ChevronRight, Compass, Hash, MessageSquareText, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, ChevronDown, Compass, MessageSquareText, UserRound, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { calculateQimenChart } from "@/lib/qimen";
 import { chinaLocationOptions } from "@/lib/locations/china";
+import { calculateQimenChart } from "@/lib/qimen-api";
 import { cn } from "@/lib/utils";
 import {
   DivinationProfileCard,
@@ -25,29 +25,10 @@ const qimenFormSchema = z.object({
   dateTime: z.string().min(1, "请选择起局时间"),
   question: z.string().trim().min(1, "请填写求测问题").max(80, "问题不能超过 80 个字"),
   plateType: z.enum(["zhuan", "fei"]),
-  juMode: z.enum(["auto", "manual"]),
-  manualDunType: z.enum(["yin", "yang"]).optional(),
-  manualJu: z.coerce.number().int().min(1, "请选择 1-9 局").max(9, "请选择 1-9 局").optional(),
   province: z.string().min(1, "请选择省份"),
   city: z.string().min(1, "请选择城市"),
   district: z.string().min(1, "请选择区县"),
   save: z.boolean()
-}).superRefine((values, context) => {
-  if (values.juMode === "manual" && !values.manualJu) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["manualJu"],
-      message: "请选择专业局数"
-    });
-  }
-
-  if (values.juMode === "manual" && !values.manualDunType) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["manualDunType"],
-      message: "请选择阴遁或阳遁"
-    });
-  }
 });
 
 type QimenFormValues = z.infer<typeof qimenFormSchema>;
@@ -60,9 +41,6 @@ const defaultValues: QimenFormValues = {
   dateTime: "",
   question: "",
   plateType: "zhuan",
-  juMode: "auto",
-  manualDunType: "yang",
-  manualJu: 1,
   province: "北京市",
   city: "北京市",
   district: "东城区",
@@ -83,34 +61,11 @@ const plateTypeOptions = [
   { label: "转盘", value: "zhuan" }
 ] as const;
 
-const juOptions = [
-  { label: "自动选局", value: "auto" },
-  { label: "阴遁一局", value: "yin-1" },
-  { label: "阴遁二局", value: "yin-2" },
-  { label: "阴遁三局", value: "yin-3" },
-  { label: "阴遁四局", value: "yin-4" },
-  { label: "阴遁五局", value: "yin-5" },
-  { label: "阴遁六局", value: "yin-6" },
-  { label: "阴遁七局", value: "yin-7" },
-  { label: "阴遁八局", value: "yin-8" },
-  { label: "阴遁九局", value: "yin-9" },
-  { label: "阳遁一局", value: "yang-1" },
-  { label: "阳遁二局", value: "yang-2" },
-  { label: "阳遁三局", value: "yang-3" },
-  { label: "阳遁四局", value: "yang-4" },
-  { label: "阳遁五局", value: "yang-5" },
-  { label: "阳遁六局", value: "yang-6" },
-  { label: "阳遁七局", value: "yang-7" },
-  { label: "阳遁八局", value: "yang-8" },
-  { label: "阳遁九局", value: "yang-9" }
-] as const;
-
 export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {}) {
   const Shell = embedded ? "section" : "main";
   const router = useRouter();
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [divinationTypeOpen, setDivinationTypeOpen] = useState(false);
-  const [juPickerOpen, setJuPickerOpen] = useState(false);
   const {
     control,
     register,
@@ -123,10 +78,6 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
   });
   const divinationType = useWatch({ control, name: "divinationType" });
   const dateTime = useWatch({ control, name: "dateTime" });
-  const plateType = useWatch({ control, name: "plateType" });
-  const juMode = useWatch({ control, name: "juMode" });
-  const manualDunType = useWatch({ control, name: "manualDunType" });
-  const manualJu = useWatch({ control, name: "manualJu" });
   const province = useWatch({ control, name: "province" });
   const city = useWatch({ control, name: "city" });
   const district = useWatch({ control, name: "district" });
@@ -156,14 +107,13 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
 
   async function onSubmit(values: QimenFormValues) {
     const location = formatLocation(values);
-    const nextChart = calculateQimenChart({
-      dateTime: values.dateTime,
-      location,
-      method: values.method,
+    const dateParts = parseDateTimeLocal(values.dateTime);
+    const nextChart = await calculateQimenChart({
+      ...dateParts,
+      timezone: "Asia/Shanghai",
       question: values.question,
-      plateType: values.plateType,
-      manualDunType: values.juMode === "manual" ? values.manualDunType : undefined,
-      manualJu: values.juMode === "manual" ? values.manualJu : undefined
+      panType: "zhuan",
+      juMethod: "chaibu"
     });
     const payload = {
       input: { ...values, location, question: values.question.trim() },
@@ -266,16 +216,8 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
               )}
             />
 
-            <FieldRow icon={Hash} label="局数" error={errors.manualJu?.message || errors.manualDunType?.message} last>
-              <button
-                type="button"
-                onClick={() => setJuPickerOpen(true)}
-                className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
-                aria-label="选择局数"
-              >
-                {formatJuLabel(juMode, manualDunType, manualJu)}
-                <ChevronRight size={18} strokeWidth={2.4} className="shrink-0 text-[#bfbfbf]" />
-              </button>
+            <FieldRow icon={Compass} label="局法" last>
+              <p className="text-right text-[18px] font-semibold text-[#55514a]">自动拆补法</p>
             </FieldRow>
           </FormCard>
 
@@ -331,25 +273,6 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
         onSelect={(value) => {
           setValue("divinationType", value, { shouldDirty: true, shouldValidate: true });
           setDivinationTypeOpen(false);
-        }}
-      />
-      <OptionSheet
-        open={juPickerOpen}
-        title="选择局数"
-        options={juOptions}
-        value={juMode === "manual" ? `${manualDunType ?? "yang"}-${manualJu ?? 1}` : "auto"}
-        onClose={() => setJuPickerOpen(false)}
-        onSelect={(value) => {
-          if (value === "auto") {
-            setValue("juMode", "auto", { shouldDirty: true, shouldValidate: true });
-          } else {
-            const [nextDunType, nextJuText] = value.split("-");
-            const nextJu = Number(nextJuText);
-            setValue("juMode", "manual", { shouldDirty: true, shouldValidate: true });
-            setValue("manualDunType", nextDunType === "yin" ? "yin" : "yang", { shouldDirty: true, shouldValidate: true });
-            setValue("manualJu", nextJu, { shouldDirty: true, shouldValidate: true });
-          }
-          setJuPickerOpen(false);
         }}
       />
     </Shell>
@@ -498,18 +421,6 @@ function getOptionLabel<TValue extends string>(options: ReadonlyArray<{ label: s
   return options.find((option) => option.value === value)?.label ?? "请选择";
 }
 
-function formatJuLabel(
-  mode: QimenFormValues["juMode"],
-  manualDunType: QimenFormValues["manualDunType"],
-  manualJu: QimenFormValues["manualJu"]
-) {
-  if (mode === "auto") {
-    return "自动选局";
-  }
-
-  return `${manualDunType === "yin" ? "阴遁" : "阳遁"}${manualJu ?? 1}局`;
-}
-
 function formatDateTimeLocal(date: Date) {
   const offset = date.getTimezoneOffset();
   const localDate = new Date(date.getTime() - offset * 60 * 1000);
@@ -537,6 +448,21 @@ function getDistricts(province: string, city: string) {
 
 function formatLocation(values: Pick<QimenFormValues, "province" | "city" | "district">) {
   return `${values.province} ${values.city} ${values.district}`;
+}
+
+function parseDateTimeLocal(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) {
+    throw new Error("起局时间格式无效");
+  }
+
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5])
+  };
 }
 
 type TimeParts = {

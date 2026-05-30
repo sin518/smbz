@@ -1,30 +1,19 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CalendarClock, ChevronDown, Compass, Hand, Hash, ListChecks, MessageSquareText, Type, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, Check, ChevronDown, Compass, Hand, Hash, ListChecks, MessageSquareText, Type, X } from "lucide-react";
 import { Lunar, Solar } from "lunar-typescript";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller, type UseFormRegisterReturn, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import {
-  DivinationProfileCard,
-  DivinationTimePickerSheet,
-  SharedFieldRow,
-  SharedFormCard,
-  SharedSegmentedPill,
-  formatDateTimeLocal,
-  saveSharedProfile
-} from "@/components/shared/divination-profile-card";
+import { DivinationTimePickerSheet, SharedFieldRow, SharedFormCard, SharedSegmentedPill, formatDateTimeLocal } from "@/components/shared/divination-profile-card";
 import { castLiuyaoLine, type LiuyaoLine } from "@/lib/liuyao/casting";
 import { cn } from "@/lib/utils";
 
 const liuyaoFormSchema = z.object({
-  name: z.string().trim().max(20, "姓名不能超过 20 个字").optional(),
-  gender: z.enum(["male", "female"]),
-  dateTime: z.string().min(1, "请选择出生时间"),
-  divinationDirection: z.enum(["general", "career", "wealth", "relationship", "health", "cooperation", "interpersonal", "risk"]),
+  yongShenTargets: z.array(z.enum(["妻财", "官鬼", "父母", "子孙", "兄弟"])).min(1, "请选择分析目标"),
   question: z.string().trim().min(1, "请填写求测问题").max(80, "问题不能超过 80 个字"),
   castingMethod: z.enum(["shake", "number", "manual", "time", "text"]),
   numberMode: z.enum(["two", "three"]),
@@ -69,15 +58,12 @@ const liuyaoFormSchema = z.object({
 });
 
 type LiuyaoFormValues = z.infer<typeof liuyaoFormSchema>;
-type DirectionValue = LiuyaoFormValues["divinationDirection"];
 type CastingMethodValue = LiuyaoFormValues["castingMethod"];
 type ManualLineValue = NonNullable<LiuyaoFormValues["manualLines"][number]>;
+type YongShenValue = LiuyaoFormValues["yongShenTargets"][number];
 
 const defaultValues: LiuyaoFormValues = {
-  name: "",
-  gender: "male",
-  dateTime: "",
-  divinationDirection: "general",
+  yongShenTargets: [],
   question: "",
   castingMethod: "shake",
   numberMode: "two",
@@ -93,16 +79,13 @@ const defaultValues: LiuyaoFormValues = {
   castingTime: ""
 };
 
-const directionOptions = [
-  { label: "感情婚姻", value: "relationship" },
-  { label: "人际关系", value: "interpersonal" },
-  { label: "事业学业", value: "career" },
-  { label: "财运投资", value: "wealth" },
-  { label: "合作事务", value: "cooperation" },
-  { label: "风险问题", value: "risk" },
-  { label: "健康状态", value: "health" },
-  { label: "通用决策", value: "general" }
-] as const;
+const yongShenOptions: ReadonlyArray<{ label: YongShenValue; title: string; description: string }> = [
+  { label: "妻财", title: "钱和资源", description: "钱财/交易/资源/经营；婚恋多见于男问对象或以财为线索时" },
+  { label: "官鬼", title: "工作与压力", description: "功名求官/工作事业/规则/压力/风险/疾病；婚恋多见于女问对象或以官为线索时" },
+  { label: "父母", title: "学业与文书", description: "合同文书/证件/学业/房屋车辆/长辈" },
+  { label: "子孙", title: "进展与结果", description: "子女后辈/医药" },
+  { label: "兄弟", title: "人际与竞争", description: "同辈/合作/竞争" }
+];
 
 const castingMethodOptions: ReadonlyArray<{ label: string; value: CastingMethodValue }> = [
   { label: "摇卦", value: "shake" },
@@ -162,67 +145,12 @@ const manualLineOptions: ReadonlyArray<{ label: string; value: ManualLineValue; 
 
 const manualLineLabels = ["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"] as const;
 
-const directionTopics: Record<DirectionValue, Array<{ title: string; description: string }>> = {
-  relationship: [
-    { title: "单身姻缘", description: "是否有缘分 · 何时出现对象" },
-    { title: "暧昧发展", description: "能否在一起 · 关系会如何发展" },
-    { title: "恋人关系", description: "感情状态如何 · 是否稳定长久" },
-    { title: "前任复合", description: "是否还有机会 · 能否重新在一起" },
-    { title: "婚姻状态", description: "婚姻是否稳定 · 是否存在问题" },
-    { title: "分手/离婚判断", description: "是否应该分开 · 分开是否更好" }
-  ],
-  interpersonal: [
-    { title: "关系好坏", description: "对方怎么看你 · 关系真实状态" },
-    { title: "是否有小人", description: "是否被针对 · 是否有人暗中影响" },
-    { title: "冲突结果", description: "矛盾会如何发展 · 结果会怎样" },
-    { title: "人际信任判断", description: "对方是否可信 · 是否值得交往" }
-  ],
-  career: [
-    { title: "是否能入职", description: "是否有机会录用 · 能否顺利入职" },
-    { title: "Offer选择", description: "哪个更合适 · 如何做出选择" },
-    { title: "工作发展", description: "前景如何 · 是否有发展空间" },
-    { title: "升职判断", description: "是否有机会晋升 · 能否提升职位" },
-    { title: "是否换工作", description: "是否适合跳槽 · 现在是否应改变" },
-    { title: "考试结果", description: "是否能通过 · 结果是否理想" },
-    { title: "升学选择", description: "选哪个更好 · 是否适合这个方向" }
-  ],
-  wealth: [
-    { title: "财运走势", description: "最近财运如何 · 收入变化趋势" },
-    { title: "投资判断", description: "是否适合投入 · 风险与机会如何" },
-    { title: "项目盈利", description: "能否赚钱 · 收益情况如何" },
-    { title: "创业判断", description: "是否适合创业 · 成功概率如何" }
-  ],
-  cooperation: [
-    { title: "是否合作", description: "是否适合合作 · 是否值得推进" },
-    { title: "合作能否成功", description: "能否谈成 · 合作是否顺利" },
-    { title: "合作结果", description: "合作后发展如何 · 结果是好是坏" }
-  ],
-  risk: [
-    { title: "是否有风险", description: "是否存在隐患 · 是否需要谨慎" },
-    { title: "官司诉讼", description: "是否有利 · 结果走向如何" },
-    { title: "是否被骗", description: "是否存在欺骗 · 是否会受损" },
-    { title: "事情发展结果", description: "最终会如何发展 · 结果是好是坏" }
-  ],
-  health: [
-    { title: "健康状况", description: "当前身体情况 · 是否存在问题" },
-    { title: "疾病发展", description: "是否会加重 · 后续变化如何" }
-  ],
-  general: [
-    { title: "是否可行", description: "这件事能不能做 · 成功可能性如何" },
-    { title: "是否继续", description: "是否应该坚持 · 是否值得继续" },
-    { title: "是否选择", description: "哪个更合适 · 如何做出选择" },
-    { title: "今天天气", description: "是否适合出行" }
-  ]
-};
-
 export function LiuyaoHomeClient() {
   const router = useRouter();
-  const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [castingTimePickerOpen, setCastingTimePickerOpen] = useState(false);
   const [directionPickerOpen, setDirectionPickerOpen] = useState(false);
   const [castingMethodPickerOpen, setCastingMethodPickerOpen] = useState(false);
   const [manualLinePickerIndex, setManualLinePickerIndex] = useState<number | null>(null);
-  const [selectedTopicTitle, setSelectedTopicTitle] = useState("");
   const {
     control,
     register,
@@ -233,8 +161,7 @@ export function LiuyaoHomeClient() {
     resolver: zodResolver(liuyaoFormSchema),
     defaultValues
   });
-  const dateTime = useWatch({ control, name: "dateTime" });
-  const divinationDirection = useWatch({ control, name: "divinationDirection" });
+  const yongShenTargets = useWatch({ control, name: "yongShenTargets" });
   const castingMethod = useWatch({ control, name: "castingMethod" });
   const numberMode = useWatch({ control, name: "numberMode" });
   const textMode = useWatch({ control, name: "textMode" });
@@ -244,7 +171,6 @@ export function LiuyaoHomeClient() {
 
   useEffect(() => {
     const currentTime = formatDateTimeLocal(new Date());
-    setValue("dateTime", currentTime);
     setValue("castingTime", currentTime);
     // Run once after hydration so the displayed minute stays stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -254,20 +180,12 @@ export function LiuyaoHomeClient() {
     const payload = {
       input: {
         ...values,
-        name: values.name?.trim() ?? "",
-        directionTopic: selectedTopicTitle,
         question: values.question.trim()
       },
       savedAt: new Date().toISOString()
     };
 
     window.localStorage.setItem("sm1:current-liuyao-input", JSON.stringify(payload));
-    await saveSharedProfile({
-      source: "六爻档案",
-      name: values.name?.trim() ?? "",
-      gender: values.gender,
-      dateTime: values.dateTime
-    });
 
     if (values.castingMethod === "shake") {
       router.push("/liuyao/shake");
@@ -300,40 +218,30 @@ export function LiuyaoHomeClient() {
 
       <div className="space-y-4 px-4 pt-4">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Controller
-            name="gender"
-            control={control}
-            render={({ field }) => (
-              <DivinationProfileCard
-                nameInputProps={register("name")}
-                nameError={errors.name?.message}
-                gender={field.value}
-                onGenderChange={field.onChange}
-                dateTime={dateTime}
-                dateTimeError={errors.dateTime?.message}
-                onOpenTimePicker={() => setTimePickerOpen(true)}
-                onApplyProfile={(profile) => {
-                  setValue("name", profile.name, { shouldDirty: true, shouldValidate: true });
-                  setValue("gender", profile.gender, { shouldDirty: true, shouldValidate: true });
-                  setValue("dateTime", profile.dateTime, { shouldDirty: true, shouldValidate: true });
-                }}
-              />
-            )}
-          />
-
           <SharedFormCard>
+            <SharedFieldRow icon={CalendarClock} label="起卦时间" error={errors.castingTime?.message}>
+              <button
+                type="button"
+                onClick={() => setCastingTimePickerOpen(true)}
+                className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
+                aria-label="选择起卦时间"
+              >
+                {formatDateTimeText(castingTime)}
+                <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
+              </button>
+            </SharedFieldRow>
             <Controller
-              name="divinationDirection"
+              name="yongShenTargets"
               control={control}
               render={({ field }) => (
-                <SharedFieldRow icon={Compass} label="求测方向" error={errors.divinationDirection?.message}>
+                <SharedFieldRow icon={Compass} label="分析目标" error={errors.yongShenTargets?.message}>
                   <button
                     type="button"
                     onClick={() => setDirectionPickerOpen(true)}
                     className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
-                    aria-label="选择求测方向"
+                    aria-label="选择分析目标"
                   >
-                    {formatDirectionLabel(field.value, selectedTopicTitle)}
+                    {formatYongShenTriggerLabel(field.value)}
                     <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
                   </button>
                 </SharedFieldRow>
@@ -415,22 +323,11 @@ export function LiuyaoHomeClient() {
                 name="castingCalendar"
                 control={control}
                 render={({ field }) => (
-                  <SharedFieldRow icon={CalendarClock} label="历法">
+                  <SharedFieldRow icon={CalendarClock} label="历法" last>
                     <SharedSegmentedPill value={field.value} onChange={field.onChange} options={calendarOptions} ariaLabel="选择起卦历法" />
                   </SharedFieldRow>
                 )}
               />
-              <SharedFieldRow icon={CalendarClock} label="起卦时间" error={errors.castingTime?.message} last>
-                <button
-                  type="button"
-                  onClick={() => setCastingTimePickerOpen(true)}
-                  className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
-                  aria-label="选择起卦时间"
-                >
-                  {formatDateTimeText(castingTime)}
-                  <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
-                </button>
-              </SharedFieldRow>
             </SharedFormCard>
           ) : null}
 
@@ -467,15 +364,6 @@ export function LiuyaoHomeClient() {
       </div>
 
       <DivinationTimePickerSheet
-        open={timePickerOpen}
-        value={dateTime}
-        onClose={() => setTimePickerOpen(false)}
-        onConfirm={(nextValue) => {
-          setValue("dateTime", nextValue, { shouldDirty: true, shouldValidate: true });
-          setTimePickerOpen(false);
-        }}
-      />
-      <DivinationTimePickerSheet
         open={castingTimePickerOpen}
         value={castingTime}
         ariaLabel="关闭起卦时间选择"
@@ -485,15 +373,13 @@ export function LiuyaoHomeClient() {
           setCastingTimePickerOpen(false);
         }}
       />
-      <OptionSheet
+      <YongShenSheet
         open={directionPickerOpen}
-        title="选择求测方向"
-        options={directionOptions}
-        value={divinationDirection}
+        title="选择分析目标"
+        value={yongShenTargets}
         onClose={() => setDirectionPickerOpen(false)}
-        onSelect={(value, topicTitle) => {
-          setValue("divinationDirection", value, { shouldDirty: true, shouldValidate: true });
-          setSelectedTopicTitle(topicTitle ?? "");
+        onConfirm={(value) => {
+          setValue("yongShenTargets", value, { shouldDirty: true, shouldValidate: true });
           setDirectionPickerOpen(false);
         }}
       />
@@ -524,83 +410,115 @@ export function LiuyaoHomeClient() {
   );
 }
 
-function OptionSheet<TValue extends string>({
+function YongShenSheet({
   open,
   title,
-  options,
   value,
   onClose,
-  onSelect
+  onConfirm
 }: {
   open: boolean;
   title: string;
-  options: ReadonlyArray<{ label: string; value: TValue }>;
-  value: TValue;
+  value: YongShenValue[];
   onClose: () => void;
-  onSelect: (value: TValue, topicTitle?: string) => void;
+  onConfirm: (value: YongShenValue[]) => void;
 }) {
-  const [expandedValue, setExpandedValue] = useState<TValue | null>(null);
+  const [draftValue, setDraftValue] = useState<YongShenValue[]>(value);
 
   useEffect(() => {
     if (open) {
-      setExpandedValue(null);
+      setDraftValue(value);
     }
-  }, [open]);
+  }, [open, value]);
 
   if (!open) {
     return null;
   }
 
+  function toggleOption(nextValue: YongShenValue) {
+    setDraftValue((current) => {
+      if (current.includes(nextValue)) {
+        return current.filter((item) => item !== nextValue);
+      }
+
+      return [...current, nextValue];
+    });
+  }
+
+  function handleConfirm() {
+    onConfirm(draftValue);
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-3">
       <button className="absolute inset-0 cursor-default" type="button" aria-label="关闭选择弹窗" onClick={onClose} />
-      <section className="relative max-h-[70dvh] w-full max-w-[430px] overflow-hidden rounded-t-[18px] bg-[#fffef7] px-5 pb-8 pt-6 shadow-soft">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f0efea] text-[#9b9993]"
-          aria-label="关闭"
-        >
-          <X size={32} strokeWidth={1.8} />
-        </button>
-        <h2 className="pr-16 text-left text-[22px] font-semibold leading-[3.5rem] text-[#32302d]">{title}</h2>
-        <div className="mt-3 max-h-[calc(70dvh-116px)] space-y-4 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {options.map((option) => (
-            <div key={option.value}>
+      <section className="relative w-full max-w-[414px] overflow-hidden rounded-xl border border-black/10 bg-white text-[#151515] shadow-soft dark:border-white/10 dark:bg-[#0b0b0c] dark:text-[#f5f2ea]">
+        <header className="flex h-11 items-center justify-between border-b border-black/10 px-4 dark:border-white/10">
+          <h2 className="text-[14px] font-semibold">{title}</h2>
+          <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-md border border-black/15 text-[#555] dark:border-white/20 dark:text-[#d6d1c8]" aria-label="关闭">
+            <X size={17} strokeWidth={2} />
+          </button>
+        </header>
+
+        <div className="space-y-2 px-3 py-3">
+          {yongShenOptions.map((option) => {
+            const selected = draftValue.includes(option.label);
+            return (
               <button
+                key={option.label}
                 type="button"
-                onClick={() => setExpandedValue((current) => (current === option.value ? null : option.value))}
+                onClick={() => toggleOption(option.label)}
                 className={cn(
-                  "relative flex min-h-[62px] w-full items-center rounded-md border border-[#e8e1cf] bg-[#fffef7] px-6 text-left text-[18px] font-semibold text-[#33312e]",
-                  "before:absolute before:bottom-0 before:left-0 before:top-0 before:w-1.5 before:rounded-l-md before:bg-[#a58024]",
-                  option.value === value && "border-[#d8c8a6] bg-[#f6f0e2]"
+                  "flex min-h-[55px] w-full items-center justify-between rounded-md border px-3 text-left transition-colors",
+                  selected
+                    ? "border-[#9b7a14] bg-[#f4c62a]/10 text-[#cfa51d]"
+                    : "border-black/10 bg-white text-[#151515] dark:border-white/12 dark:bg-[#0b0b0c] dark:text-[#d8d4cc]"
                 )}
+                aria-pressed={selected}
               >
-                {option.label}
+                <span className="min-w-0">
+                  <span className="flex items-baseline gap-2">
+                    <span className="text-[15px] font-semibold">{option.label}</span>
+                    <span className={cn("text-[14px] font-semibold", selected ? "text-[#cfa51d]" : "text-[#777] dark:text-[#8e8880]")}>{option.title}</span>
+                  </span>
+                  <span className={cn("mt-1 block text-[12px] leading-5", selected ? "text-[#9d7d18]" : "text-[#777] dark:text-[#7f7a73]")}>{option.description}</span>
+                </span>
+                {selected ? <Check size={17} strokeWidth={2.4} className="ml-3 shrink-0 text-[#cfa51d]" /> : null}
               </button>
-              {expandedValue === option.value ? (
-                <div className="rounded-b-md bg-[#f2f0df] px-5 py-4">
-                  <div className="space-y-3">
-                    {getDirectionTopics(option.value).map((topic) => (
-                      <button
-                        key={topic.title}
-                        type="button"
-                        onClick={() => onSelect(option.value, topic.title)}
-                        className="grid min-h-[54px] w-full grid-cols-[108px_1fr] items-center rounded-md bg-[#fffef9] px-4 text-left"
-                      >
-                        <span className="text-[16px] font-semibold text-[#33312e]">{topic.title}</span>
-                        <span className="min-w-0 text-[15px] font-semibold text-[#aaa8a1]">{topic.description}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ))}
+            );
+          })}
         </div>
+
+        <footer className="flex h-14 items-center justify-between border-t border-black/10 px-4 dark:border-white/10">
+          <p className="min-w-0 truncate text-[12px] text-[#777] dark:text-[#8e8880]">已选：{formatYongShenLabel(draftValue)}</p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setDraftValue([])} className="h-9 rounded-md border border-black/15 px-4 text-[13px] font-semibold dark:border-white/18">
+              清空
+            </button>
+            <button type="button" onClick={handleConfirm} className="h-9 rounded-md bg-[#d4ad28] px-4 text-[13px] font-semibold text-white">
+              确认
+            </button>
+          </div>
+        </footer>
       </section>
     </div>
   );
+}
+
+function formatYongShenLabel(value: readonly YongShenValue[]) {
+  if (!value.length) {
+    return "未选择";
+  }
+
+  return value.join("、");
+}
+
+function formatYongShenTriggerLabel(value: readonly YongShenValue[]) {
+  if (!value.length) {
+    return "选择分析目标";
+  }
+
+  return `分析目标 ${value.length} 项`;
 }
 
 function getOptionLabel<TValue extends string>(options: ReadonlyArray<{ label: string; value: TValue }>, value: TValue) {
@@ -941,15 +859,6 @@ function SimpleOptionSheet<TValue extends string>({
       </section>
     </div>
   );
-}
-
-function formatDirectionLabel(value: DirectionValue, topicTitle: string) {
-  const directionLabel = getOptionLabel(directionOptions, value);
-  return topicTitle ? `${directionLabel}-${topicTitle}` : directionLabel;
-}
-
-function getDirectionTopics<TValue extends string>(value: TValue) {
-  return directionTopics[value as DirectionValue] ?? [];
 }
 
 function validateCastingNumber(value: string, path: string[], context: z.RefinementCtx) {
