@@ -9,19 +9,13 @@ type QimenChart = QimenOutput;
 
 type QimenAiCommandModalProps = {
   chart: QimenChart;
-  profile?: {
-    name?: string;
-    gender?: string;
-    divinationType?: string;
-    location?: string;
-  };
   onClose: () => void;
 };
 
-export function QimenAiCommandModal({ chart, profile, onClose }: QimenAiCommandModalProps) {
+export function QimenAiCommandModal({ chart, onClose }: QimenAiCommandModalProps) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "selected">("idle");
   const commandTextRef = useRef<HTMLTextAreaElement>(null);
-  const commandText = useMemo(() => buildQimenAiCommandText({ chart, profile }), [chart, profile]);
+  const commandText = useMemo(() => buildQimenAiCommandText({ chart }), [chart]);
 
   async function handleCopy() {
     try {

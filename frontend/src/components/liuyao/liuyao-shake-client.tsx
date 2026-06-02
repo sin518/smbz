@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { castLiuyaoLine, type LiuyaoLine } from "@/lib/liuyao/casting";
@@ -106,6 +106,11 @@ export function LiuyaoShakeClient() {
     }
   }, []);
 
+  const handleContinueCasting = useCallback(() => {
+    void requestMotion();
+    castNextLine();
+  }, [castNextLine, requestMotion]);
+
   useEffect(() => {
     if (!motionEnabled || !canCast) {
       return;
@@ -135,7 +140,7 @@ export function LiuyaoShakeClient() {
 
   return (
     <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-paper pb-8 text-ink shadow-soft">
-      <header className="sticky top-0 z-20 flex h-20 items-center justify-between bg-[#F8F7EE] px-[15px] pb-2 pt-6">
+      <header className="sticky top-0 z-20 flex h-20 items-center justify-between bg-[var(--color-header)] px-[15px] pb-2 pt-6">
         <div className="flex items-center justify-between">
           <Link
             href="/liuyao"
@@ -150,70 +155,62 @@ export function LiuyaoShakeClient() {
       </header>
 
       <section className="px-4 pt-4">
-        <div className="rounded-[22px] bg-white px-5 pb-6 pt-7 text-center shadow-soft">
-          <div className="mx-auto flex h-10 w-[78%] items-center justify-center rounded-full bg-[#f2f2f0] text-[16px] font-semibold text-ink">
-            {step === "complete" ? "卦象已成" : "摇晃起卦"}
-          </div>
-
-          <div className="relative mt-10 flex min-h-[210px] items-center justify-center overflow-hidden rounded-[22px] bg-[#f6f0e2]">
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,rgba(246,240,226,0),rgba(248,247,238,0.8))]" />
-            <div className={cn("liuyao-coins relative z-10", isShaking && "animate-liuyao-phone-shake")} aria-hidden="true">
-              <QianlongCoin className="coin-one" side={displayedCoins[0]} />
-              <QianlongCoin className="coin-two" side={displayedCoins[1]} />
-              <QianlongCoin className="coin-three" side={displayedCoins[2]} />
+        <div className="rounded-[22px] bg-[var(--color-surface)] px-5 pb-6 pt-6 text-center shadow-soft">
+          <div className="mx-auto w-full rounded-[18px] border border-[var(--color-control-border)] bg-[var(--color-control)] px-4 pb-5 pt-4 text-ink" aria-label="摇卦进度">
+            <div className="relative flex min-h-[174px] items-center justify-center overflow-hidden rounded-[14px] bg-[var(--color-surface)]">
+              <div className={cn("liuyao-coins relative z-10", isShaking && "animate-liuyao-phone-shake")} aria-hidden="true">
+                <QianlongCoin className="coin-one" side={displayedCoins[0]} />
+                <QianlongCoin className="coin-two" side={displayedCoins[1]} />
+                <QianlongCoin className="coin-three" side={displayedCoins[2]} />
+              </div>
             </div>
-          </div>
-
-          <p className="mt-7 text-center text-[23px] font-semibold leading-[1.7] text-ink">
-            {step === "complete" ? "卦象已成，天地有数" : "请摇晃手机六次"}
-            {step !== "ready" ? (
-              <>
-                <br />
-                <span className="text-[31px] font-medium text-[#a58024]">{shakeCount}/{maxShakeCount}</span>
-              </>
+            <p className="mt-4 min-h-6 text-center text-[14px] text-mutedInk">
+              {lines.length > 0 ? formatLatestLineSummary(lines[lines.length - 1]) : "静心感应，开始摇卦"}
+            </p>
+            {motionEnabled && step !== "complete" ? (
+              <p className="text-center text-[12px] text-mutedInk">已开启感应，可摇晃手机或点击按钮</p>
             ) : null}
-          </p>
+            <div className="mt-4 flex flex-col gap-3">
+              {Array.from({ length: maxShakeCount }, (_, index) => {
+                const position = maxShakeCount - index;
+                const line = lines[position - 1];
 
-          {step === "ready" && motionEnabled ? (
-            <p className="mt-2 text-[15px] font-semibold text-mutedInk">已开启感应，请摇晃手机</p>
-          ) : null}
-
-          {lines.length > 0 ? (
-            <div className="mx-auto mt-6 flex min-h-[216px] w-[76%] flex-col items-center justify-center gap-3 rounded-[22px] bg-[#faf9f3] py-5" aria-label="已生成卦爻">
-              {[...lines].reverse().map((line) => (
-                <div key={line.position} className="grid h-8 grid-cols-[18px_104px_18px] items-center">
-                  <span />
-                  <span className="flex justify-center">
-                    <LinePreviewSymbol symbol={line.kind === "old-yang" || line.kind === "young-yang" ? "yang" : "yin"} />
-                  </span>
-                  {line.changing ? <span className="text-center text-[18px] font-semibold text-[#c23521]">×</span> : <span />}
-                </div>
-              ))}
+                return (
+                  <div key={position} className="grid h-4 grid-cols-[34px_1fr_16px] items-center gap-3">
+                    <span className="text-left text-[13px] text-mutedInk">{formatLinePosition(position)}</span>
+                    <span className="flex justify-center">
+                      {line ? (
+                        <LinePreviewSymbol symbol={line.kind === "old-yang" || line.kind === "young-yang" ? "yang" : "yin"} />
+                      ) : (
+                        <LinePlaceholderSymbol />
+                      )}
+                    </span>
+                    {line?.changing ? <span className="text-center text-[16px] font-semibold text-[var(--color-icon)]">×</span> : <span />}
+                  </div>
+                );
+              })}
             </div>
-          ) : (
-            <div className="mx-auto mt-6 flex min-h-[216px] w-[76%] items-center justify-center rounded-[22px] bg-[#faf9f3] text-[15px] font-semibold text-mutedInk">
-              等待起卦
-            </div>
-          )}
+            {step !== "complete" ? (
+              <button
+                type="button"
+                onClick={handleContinueCasting}
+                className="mx-auto mt-7 flex h-12 w-[78%] items-center justify-center gap-2 rounded-[8px] bg-[var(--color-primary)] px-5 text-[15px] font-semibold text-[var(--color-primary-text)]"
+              >
+                <RotateCcw size={17} strokeWidth={2.4} />
+                继续摇卦
+              </button>
+            ) : null}
+          </div>
 
           <div className="mt-7 flex flex-col items-center gap-3">
             {step === "complete" ? (
               <Link
                 href="/liuyao/result"
-                className="flex h-14 w-[68%] items-center justify-center rounded-full bg-black text-[22px] font-semibold text-[#e8d4a7] shadow-soft"
+                className="flex h-14 w-[68%] items-center justify-center rounded-full bg-[var(--color-primary)] text-[22px] font-semibold text-[var(--color-primary-text)] shadow-soft"
               >
                 查看卦象
               </Link>
-            ) : (
-              <div className="grid w-full grid-cols-2 gap-3">
-                <button type="button" onClick={requestMotion} className="h-12 rounded-full bg-[#f2f2f0] px-5 text-[15px] font-semibold text-[#55514a]">
-                  开始感应
-                </button>
-                <button type="button" onClick={castNextLine} className="h-12 rounded-full bg-black px-5 text-[15px] font-semibold text-[#e8d4a7]">
-                  轻点模拟摇晃
-                </button>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       </section>
@@ -234,25 +231,34 @@ function QianlongCoin({ className, side }: { className: string; side: 0 | 1 }) {
 
 function LinePreviewSymbol({ symbol }: { symbol: "yang" | "yin" }) {
   if (symbol === "yang") {
-    return <span className="block h-3.5 w-[92px] rounded-sm bg-[#303030]" />;
+    return <span className="block h-2 w-[88px] rounded-full bg-[var(--color-primary)]" />;
   }
 
   return (
-    <span className="flex gap-3">
-      <span className="block h-3.5 w-[39px] rounded-sm bg-[#303030]" />
-      <span className="block h-3.5 w-[39px] rounded-sm bg-[#303030]" />
+    <span className="flex gap-2">
+      <span className="block h-2 w-10 rounded-full bg-[var(--color-primary)]" />
+      <span className="block h-2 w-10 rounded-full bg-[var(--color-primary)]" />
     </span>
   );
 }
 
-function BaguaPlate() {
+function LinePlaceholderSymbol() {
   return (
-    <div className="liuyao-bagua absolute inset-x-0 bottom-[17dvh] z-0 mx-auto h-[29dvh] max-h-[230px] min-h-[170px] w-[82%]" aria-hidden="true">
-      {Array.from({ length: 8 }, (_, index) => (
-        <span key={index} className="liuyao-gua" style={{ transform: `rotate(${index * 45}deg)` }} />
-      ))}
-      <span className="liuyao-bagua-ring ring-one" />
-      <span className="liuyao-bagua-ring ring-two" />
-    </div>
+    <span className="flex gap-2">
+      <span className="block h-2 w-10 rounded-full bg-[var(--color-row-border)]" />
+      <span className="block h-2 w-10 rounded-full bg-[var(--color-row-border)]" />
+    </span>
   );
+}
+
+function formatLinePosition(position: number) {
+  return ["", "初爻", "二爻", "三爻", "四爻", "五爻", "上爻"][position];
+}
+
+function formatLatestLineSummary(line: LiuyaoLine) {
+  const frontCount = line.coins.filter((coin) => coin === 1).length;
+  const backCount = line.coins.length - frontCount;
+  const lineLabel = line.kind === "old-yang" || line.kind === "young-yang" ? "阳爻" : "阴爻";
+
+  return `${frontCount}正${backCount}反 →${lineLabel}`;
 }
