@@ -275,6 +275,19 @@ function buildLiuyaoAiCommandText(chart: LiuyaoChart) {
   const timeRecommendations = chart.skillWorkflow.timeRecommendations.length
     ? chart.skillWorkflow.timeRecommendations.map((item) => `- ${item}`).join("\n")
     : "- 系统暂未给出明确时间窗口，请基于用神、世应、动爻谨慎判断。";
+  const structuredData = {
+    yongShen: chart.taibu.yongShen,
+    fuShen: chart.taibu.fuShen,
+    shenSystemByYongShen: chart.taibu.shenSystemByYongShen,
+    timeRecommendations: chart.taibu.timeRecommendations,
+    warnings: chart.taibu.warnings,
+    liuChongGuaInfo: chart.taibu.liuChongGuaInfo,
+    liuHeGuaInfo: chart.taibu.liuHeGuaInfo,
+    chongHeTransition: chart.taibu.chongHeTransition,
+    guaFanFuYin: chart.taibu.guaFanFuYin,
+    sanHeAnalysis: chart.taibu.sanHeAnalysis,
+    globalShenSha: chart.taibu.globalShenSha
+  };
 
   return `你是理性、审慎的六爻分析助手。请严格按六爻固定解读流程执行：先校验输入，再读卦象，再定用神，再分析世应和动爻，最后给出时间窗口、倾向结论和可执行建议。
 
@@ -296,11 +309,16 @@ function buildLiuyaoAiCommandText(chart: LiuyaoChart) {
 【规范排盘文本】
 ${chart.canonicalText}
 
+【结构化六爻数据 JSON】
+\`\`\`json
+${JSON.stringify(structuredData, null, 2)}
+\`\`\`
+
 【1. 卦象层】
 请提取本卦、变卦、卦宫、五行、卦辞/象辞、占卜干支时间、旬空；标注六冲卦、三合/半合、整盘神煞。
 
 【2. 用神层（Mandatory）】
-请使用 yongShen[] 分组分析目标六亲；candidates[0] 为主用神，后续为候选。必须比较旺衰、动静、空亡、受生受克；结合原神、忌神、仇神；若用神不现，检查伏神是否可用。
+请使用结构化数据中的 yongShen[] 分组分析目标六亲；selected 为系统筛选出的主用神，candidates 为其他候选。当 selectionStatus 为 ambiguous 时，不要强行只取一爻，必须并看候选。必须比较旺衰、动静、空亡、受生受克；结合原神、忌神、仇神；若用神不现，检查 fuShen 是否可用。
 
 【3. 结构关系层】
 请定位世爻、应爻；分析动爻变爻、回头生克、化进化退、六神、十二长生，并说明关键阻力来自时间、人、资源还是判断偏差。

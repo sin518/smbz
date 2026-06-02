@@ -21,6 +21,8 @@ interface StoredQimenResult {
     method?: "time" | "question";
     question?: string;
     plateType?: QimenPlateType;
+    juMethod?: "chaibu" | "maoshan";
+    zhiFuJiGong?: "ji_liuyi" | "ji_wugong";
     manualDunType?: "yin" | "yang";
     manualJu?: number;
     juMode?: "auto" | "manual";
@@ -40,13 +42,14 @@ export function QimenChartResult() {
       try {
         const parsed = JSON.parse(raw) as StoredQimenResult;
         const recalculatedChart =
-          parsed.input?.dateTime && parsed.input.location
+          parsed.input?.dateTime
             ? await calculateQimenChart({
                 ...parseDateTimeLocal(parsed.input.dateTime),
                 timezone: "Asia/Shanghai",
                 question: parsed.input.question,
-                panType: "zhuan",
-                juMethod: "chaibu"
+                panType: parsed.input.plateType ?? "zhuan",
+                juMethod: parsed.input.juMethod ?? "chaibu",
+                zhiFuJiGong: parsed.input.zhiFuJiGong ?? "ji_liuyi"
               })
             : null;
 
@@ -106,14 +109,12 @@ function ResultInfoPanel({ result }: { result: StoredQimenResult }) {
 
   return (
     <section className="mx-4 rounded-[22px] bg-white px-4 py-4 text-[14px] font-normal leading-[1.8] text-mutedInk shadow-soft">
-      <div className="flex gap-10">
-        <InfoLine label="姓名" value={input?.name?.trim() || "未填写"} />
-        <InfoLine label="性别" value={input?.gender === "female" ? "女" : "男"} />
-      </div>
       <InfoLine label="起局时间" value={`${formatChineseSolar(chart.dateInfo.solarDate)} ${chart.dateInfo.lunarDate}`} />
       <InfoLine label="节气信息" value={`${chart.dateInfo.solarTerm}${chart.yuan}`} />
-      <InfoLine label="求测类型" value={formatDivinationType(input?.divinationType)} />
-      <InfoLine label="求测问题" value={input?.question?.trim() || "未填写"} />
+      <InfoLine label="奇门类型" value={chart.panType} />
+      <InfoLine label="定局法" value={chart.juMethod} />
+      <InfoLine label="直符寄宫" value={formatZhiFuJiGong(input?.zhiFuJiGong)} />
+      {input?.question?.trim() ? <InfoLine label="占事" value={input.question.trim()} /> : null}
     </section>
   );
 }
@@ -146,36 +147,22 @@ function QimenChartCard({ result }: { result: StoredQimenResult }) {
 
   return (
     <section className="mx-4 mt-4 rounded-[22px] bg-white px-3 py-4 shadow-soft">
-      <h2 className="rounded-full bg-[#f2f2f0] py-[7px] text-center text-[16px] font-medium text-ink">九宫盘</h2>
-      <div className="mt-3 grid grid-cols-4 border-b border-[#eaded2] bg-[#f6f0e2] px-2 py-2 text-center text-[12px] font-semibold text-[#6f5a25]">
-        <span>{chart.panType}</span>
-        <span>{chart.dunType === "yang" ? "阳遁" : "阴遁"}{chart.juNumber}局</span>
-        <span>值符：{chart.zhiFu.star}</span>
-        <span>值使：{chart.zhiShi.gate}</span>
+      <div className="border-y border-[#d7d7d7] py-2">
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] text-[#8b8b8b]">
+          {ELEMENT_LEGEND.map((item) => (
+            <span key={item.label} className="flex items-center gap-1">
+              <i className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+              {item.label}{chart.monthPhase?.[item.representativeStem] ?? ""}
+            </span>
+          ))}
+        </div>
       </div>
 
-      <div className="overflow-hidden rounded-b-md border-x border-b border-[#eaded2] bg-[#fffdf7]">
-        <div className="grid grid-cols-3 bg-[#fdfbf4]">
-        {getDisplayPalaces(chart).map((palace) => (
-          <div key={palace.palaceIndex} className="relative min-h-[118px] border border-[#eaded2] p-2 pb-6 text-[12px] leading-[18px] text-[#2f2d2a]">
-            <StatusBadge value={getGateStatus(palace.gate)} />
-            <VoidMark labels={getVoidLabels(chart, palace.palaceIndex)} />
-            <div className="grid grid-cols-[1fr_auto] gap-x-1 pr-5">
-              <div className="space-y-1">
-                <p className={palace.deity === "值符" ? "font-semibold text-[#2f8a24]" : undefined}>{palace.deity || "-"}</p>
-                <p>{palace.star}</p>
-                <p>{palace.gate || "中宫"}</p>
-              </div>
-            </div>
-            <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between text-[12px]">
-              <span className="text-[15px] font-semibold">{palace.palaceName}{palace.palaceIndex}</span>
-              <span className="flex flex-col items-end leading-4">
-                <span className="text-[#7d7972]">{palace.heavenStem}</span>
-                <span className="font-semibold text-[#a58024]">{palace.earthStem}</span>
-              </span>
-            </div>
-          </div>
-        ))}
+      <div className="mt-5 overflow-hidden rounded-md border border-[#3a3a3a] bg-[#090909]">
+        <div className="grid grid-cols-3">
+          {getDisplayPalaces(chart).map((palace) => (
+            <QimenPalaceCell key={palace.palaceIndex} chart={chart} palace={palace} />
+          ))}
         </div>
       </div>
 
@@ -186,7 +173,7 @@ function QimenChartCard({ result }: { result: StoredQimenResult }) {
         <InfoPill label="值使" value={`${chart.zhiShi.gate}落${chart.zhiShi.palace}宫`} />
       </div>
       <p className="mt-4 text-[14px] leading-6 text-[#7d7972]">
-        {result.input?.location ?? "未填写地点"}，{chart.dateInfo.solarDate}。值符{chart.zhiFu.star}落{chart.zhiFu.palace}宫。
+        {chart.dateInfo.solarDate}。值符{chart.zhiFu.star}落{chart.zhiFu.palace}宫。
       </p>
       <button
         type="button"
@@ -199,12 +186,6 @@ function QimenChartCard({ result }: { result: StoredQimenResult }) {
       {isAiCommandOpen ? (
         <QimenAiCommandModal
           chart={chart}
-          profile={{
-            name: result.input?.name,
-            gender: result.input?.gender,
-            divinationType: result.input?.divinationType,
-            location: result.input?.location
-          }}
           onClose={() => setIsAiCommandOpen(false)}
         />
       ) : null}
@@ -212,30 +193,47 @@ function QimenChartCard({ result }: { result: StoredQimenResult }) {
   );
 }
 
-function StatusBadge({ value }: { value: string | null }) {
-  if (!value) {
-    return null;
+function QimenPalaceCell({ chart, palace }: { chart: QimenChart; palace: QimenChart["palaces"][number] }) {
+  if (palace.palaceIndex === 5) {
+    return (
+      <div className="relative flex min-h-[142px] items-center justify-center border border-[#202020] p-2 text-center">
+        <span className="absolute left-1.5 top-1 text-[10px] text-[#565656]">{palace.palaceName}</span>
+        <div>
+          <p className="text-[12px] text-[#858585]">{chart.dunType === "yang" ? "阳遁" : "阴遁"}</p>
+          <p className="mt-1 text-[20px] font-semibold text-[#efefef]">{chart.juNumber}局</p>
+          <p className="mt-1 text-[12px] text-[#686868]">中五宫</p>
+        </div>
+      </div>
+    );
   }
 
-  return (
-    <span className="absolute right-2 top-2 rounded bg-black px-1 py-0.5 font-semibold text-[#e8d4a7]">
-      {value}
-    </span>
-  );
-}
-
-function VoidMark({ labels }: { labels: string[] }) {
-  if (!labels.length) {
-    return null;
-  }
+  const voidLabels = getVoidLabels(chart, palace.palaceIndex);
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-3 text-center text-[14px] font-semibold leading-5 text-[#2f8a24]">
-      {labels.map((label) => (
-        <span key={label} className="whitespace-pre-line">
-          {label}
-        </span>
-      ))}
+    <div className="relative min-h-[142px] border border-[#202020] px-2 pb-6 pt-7 text-[12px] leading-[1.55] text-[#949494]">
+      <span className="absolute left-1.5 top-1 text-[10px] text-[#565656]">{palace.palaceName}</span>
+      <div className="grid grid-cols-[minmax(0,1fr)_32px] gap-1">
+        <div>
+          <p className="text-[19px] font-semibold leading-none" style={{ color: getStemColor(palace.heavenStem) }}>
+            {palace.heavenStem || "-"}
+          </p>
+          <p className="mt-3">{palace.star || "-"}</p>
+          <p>{palace.gate || "中宫"}</p>
+          <p className="mt-1 text-[11px] text-[#6f6f6f]">星{formatElement(palace.starElement)}</p>
+          <p className="text-[11px] text-[#6f6f6f]">宫{formatElement(palace.element)}</p>
+        </div>
+        <div className="flex flex-col items-end">
+          <p className="whitespace-nowrap text-[12px] text-[#a0a0a0]">{palace.deity || "-"}</p>
+          <p className="mt-8 text-[19px] font-semibold leading-none" style={{ color: getStemColor(palace.earthStem) }}>
+            {palace.earthStem || "-"}
+          </p>
+          <p className="mt-auto whitespace-nowrap text-[11px] text-[#6f6f6f]">门{formatElement(palace.gateElement)}</p>
+        </div>
+      </div>
+      <div className="absolute bottom-1.5 left-2 flex items-center gap-1.5 text-[11px] leading-none">
+        {voidLabels.length ? <span className="text-[#d2a900]">◎</span> : null}
+        {palace.isYiMa ? <span className="text-[#00c8c8]">马</span> : null}
+      </div>
     </div>
   );
 }
@@ -258,25 +256,6 @@ function formatChineseSolar(value: string) {
   return `${match[1]}年${match[2]}月${match[3]}日${match[4] ? ` ${match[4]}:${match[5]}` : ""}`;
 }
 
-function getGateStatus(gate: string | null) {
-  if (!gate) {
-    return null;
-  }
-
-  const statuses: Record<string, string> = {
-    休门: "凶",
-    生门: "凶",
-    伤门: "休",
-    杜门: "旺",
-    景门: "相",
-    死门: "死",
-    惊门: "死",
-    开门: "旺"
-  };
-
-  return statuses[gate] ?? null;
-}
-
 function getVoidLabels(chart: QimenChart, palaceNumber: number) {
   const labels: string[] = [];
 
@@ -289,6 +268,43 @@ function getVoidLabels(chart: QimenChart, palaceNumber: number) {
   }
 
   return labels;
+}
+
+const ELEMENT_COLORS: Record<string, string> = {
+  木: "#00d66b",
+  火: "#ff3038",
+  水: "#3184ff",
+  金: "#ff9d00",
+  土: "#8c8c8c"
+};
+
+const ELEMENT_LEGEND = [
+  { label: "木", representativeStem: "甲", color: ELEMENT_COLORS.木 },
+  { label: "火", representativeStem: "丙", color: ELEMENT_COLORS.火 },
+  { label: "水", representativeStem: "壬", color: ELEMENT_COLORS.水 },
+  { label: "金", representativeStem: "庚", color: ELEMENT_COLORS.金 },
+  { label: "土", representativeStem: "戊", color: ELEMENT_COLORS.土 }
+] as const;
+
+const STEM_COLORS: Record<string, string> = {
+  甲: "#3184ff",
+  乙: "#3184ff",
+  丙: "#00d66b",
+  丁: "#00d66b",
+  戊: "#ff3038",
+  己: "#ff3038",
+  庚: "#8c8c8c",
+  辛: "#8c8c8c",
+  壬: "#ff9d00",
+  癸: "#ff9d00"
+};
+
+function getStemColor(stem: string | undefined) {
+  return stem ? STEM_COLORS[stem] ?? "#a0a0a0" : "#a0a0a0";
+}
+
+function formatElement(element: string | undefined) {
+  return element || "-";
 }
 
 const PALACE_DISPLAY_ORDER = [4, 9, 2, 3, 5, 7, 8, 1, 6];
@@ -312,16 +328,6 @@ function parseDateTimeLocal(value: string) {
   };
 }
 
-function formatDivinationType(value: string | undefined) {
-  const labels: Record<string, string> = {
-    wealth: "财运走势",
-    single: "单身姻缘",
-    relationship: "伴侣感情",
-    promotion: "工作升职",
-    job: "工作求职",
-    cooperation: "合作谈判",
-    lawsuit: "官司诉讼"
-  };
-
-  return value ? labels[value] ?? "未选择" : "未选择";
+function formatZhiFuJiGong(value: "ji_liuyi" | "ji_wugong" | undefined) {
+  return value === "ji_wugong" ? "寄戊宫" : "寄六仪";
 }
