@@ -107,20 +107,6 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
 
       <div className={cn("space-y-4", embedded ? "px-0 pt-0" : "px-4 pt-4")}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <SharedFormCard>
-            <SharedFieldRow icon={CalendarClock} label="起卦时间" error={errors.dateTime?.message} last>
-              <button
-                type="button"
-                onClick={() => setTimePickerOpen(true)}
-                className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
-                aria-label="选择起卦时间"
-              >
-                {dateTime ? formatPickerLabel(dateTime) : "请选择"}
-                <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
-              </button>
-            </SharedFieldRow>
-          </SharedFormCard>
-
           <section className="pt-1">
             <label htmlFor="qimen-question" className="block text-center text-[15px] font-semibold text-[#8b8985]">
               占事（选填）
@@ -134,6 +120,20 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
             />
             {errors.question?.message ? <p className="mt-2 text-right text-sm text-red-600">{errors.question.message}</p> : null}
           </section>
+
+          <SharedFormCard>
+            <SharedFieldRow icon={CalendarClock} label="起卦时间" error={errors.dateTime?.message} last>
+              <button
+                type="button"
+                onClick={() => setTimePickerOpen(true)}
+                className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
+                aria-label="选择起卦时间"
+              >
+                {dateTime ? formatPickerLabel(dateTime) : "请选择"}
+                <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
+              </button>
+            </SharedFieldRow>
+          </SharedFormCard>
 
           <SharedFormCard>
             <Controller

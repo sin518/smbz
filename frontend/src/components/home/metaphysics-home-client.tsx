@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, Hexagon, Sparkles, Stars } from "lucide-react";
+import { Compass, Hexagon, ScrollText, Sparkles, Stars } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { AppBottomNav } from "@/components/app-bottom-nav";
@@ -19,7 +19,7 @@ const homeCards: HomeCard[] = [
   {
     title: "八字",
     subtitle: "四柱排盘 看清自己",
-    suitable: ["运势类：近期运势如何"],
+    suitable: ["看长期运势"],
     href: "/bazi",
     icon: Sparkles,
     tone: "red"
@@ -27,7 +27,7 @@ const homeCards: HomeCard[] = [
   {
     title: "六爻",
     subtitle: "一事一问 推演变化",
-    suitable: ["决策类：该不该做某事", "人事类：某人/某事如何"],
+    suitable: ["问具体事情"],
     href: "/liuyao",
     icon: Hexagon,
     tone: "purple"
@@ -35,7 +35,7 @@ const homeCards: HomeCard[] = [
   {
     title: "紫薇斗数",
     subtitle: "命盘结构 洞察格局",
-    suitable: ["格局类：人生方向如何"],
+    suitable: ["看人生格局"],
     href: "/ziwei/profile",
     icon: Stars,
     tone: "gold"
@@ -43,9 +43,17 @@ const homeCards: HomeCard[] = [
   {
     title: "奇门遁甲",
     subtitle: "起局分析 辅助决策",
-    suitable: ["时机类：什么时候做最好"],
+    suitable: ["择时定方向"],
     href: "/qimen",
     icon: Compass,
+    tone: "brown"
+  },
+  {
+    title: "大六壬",
+    subtitle: "起课问事 推演人事",
+    suitable: ["断人事吉凶"],
+    href: "/daliuren",
+    icon: ScrollText,
     tone: "brown"
   }
 ];
