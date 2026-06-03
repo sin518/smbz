@@ -452,10 +452,10 @@ function YongShenSheet({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-3">
       <button className="absolute inset-0 cursor-default" type="button" aria-label="关闭选择弹窗" onClick={onClose} />
-      <section className="relative w-full max-w-[414px] overflow-hidden rounded-xl border border-black/10 bg-white text-[#151515] shadow-soft dark:border-white/10 dark:bg-[#0b0b0c] dark:text-[#f5f2ea]">
-        <header className="flex h-11 items-center justify-between border-b border-black/10 px-4 dark:border-white/10">
+      <section className="liuyao-choice-sheet relative w-full max-w-[414px] overflow-hidden rounded-xl border border-[var(--liuyao-sheet-border)] bg-[var(--liuyao-sheet-bg)] text-[var(--liuyao-sheet-text)] shadow-soft">
+        <header className="flex h-11 items-center justify-between border-b border-[var(--liuyao-sheet-border)] px-4">
           <h2 className="text-[14px] font-semibold">{title}</h2>
-          <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-md border border-black/15 text-[#555] dark:border-white/20 dark:text-[#d6d1c8]" aria-label="关闭">
+          <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--liuyao-sheet-border)] text-[var(--liuyao-sheet-muted)]" aria-label="关闭">
             <X size={17} strokeWidth={2} />
           </button>
         </header>
@@ -471,17 +471,17 @@ function YongShenSheet({
                 className={cn(
                   "flex min-h-[55px] w-full items-center justify-between rounded-md border px-3 text-left transition-colors",
                   selected
-                    ? "border-[#9b7a14] bg-[#f4c62a]/10 text-[#cfa51d]"
-                    : "border-black/10 bg-white text-[#151515] dark:border-white/12 dark:bg-[#0b0b0c] dark:text-[#d8d4cc]"
+                    ? "border-[var(--liuyao-sheet-selected-border)] bg-[var(--liuyao-sheet-selected-bg)] text-[var(--liuyao-sheet-selected-text)]"
+                    : "border-[var(--liuyao-sheet-border)] bg-[var(--liuyao-sheet-option-bg)] text-[var(--liuyao-sheet-text)]"
                 )}
                 aria-pressed={selected}
               >
                 <span className="min-w-0">
                   <span className="flex items-baseline gap-2">
                     <span className="text-[15px] font-semibold">{option.label}</span>
-                    <span className={cn("text-[14px] font-semibold", selected ? "text-[#cfa51d]" : "text-[#777] dark:text-[#8e8880]")}>{option.title}</span>
+                    <span className={cn("text-[14px] font-semibold", selected ? "text-[var(--liuyao-sheet-selected-text)]" : "text-[var(--liuyao-sheet-muted)]")}>{option.title}</span>
                   </span>
-                  <span className={cn("mt-1 block text-[12px] leading-5", selected ? "text-[#9d7d18]" : "text-[#777] dark:text-[#7f7a73]")}>{option.description}</span>
+                  <span className={cn("mt-1 block text-[12px] leading-5", selected ? "text-[var(--liuyao-sheet-selected-text)]" : "text-[var(--liuyao-sheet-muted)]")}>{option.description}</span>
                 </span>
                 {selected ? <Check size={17} strokeWidth={2.4} className="ml-3 shrink-0 text-[#cfa51d]" /> : null}
               </button>
@@ -489,10 +489,10 @@ function YongShenSheet({
           })}
         </div>
 
-        <footer className="flex h-14 items-center justify-between border-t border-black/10 px-4 dark:border-white/10">
-          <p className="min-w-0 truncate text-[12px] text-[#777] dark:text-[#8e8880]">已选：{formatYongShenLabel(draftValue)}</p>
+        <footer className="flex h-14 items-center justify-between border-t border-[var(--liuyao-sheet-border)] px-4">
+          <p className="min-w-0 truncate text-[12px] text-[var(--liuyao-sheet-muted)]">已选：{formatYongShenLabel(draftValue)}</p>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setDraftValue([])} className="h-9 rounded-md border border-black/15 px-4 text-[13px] font-semibold dark:border-white/18">
+            <button type="button" onClick={() => setDraftValue([])} className="h-9 rounded-md border border-[var(--liuyao-sheet-border)] px-4 text-[13px] font-semibold">
               清空
             </button>
             <button type="button" onClick={handleConfirm} className="h-9 rounded-md bg-[#d4ad28] px-4 text-[13px] font-semibold text-white">
