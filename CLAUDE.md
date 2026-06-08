@@ -2,15 +2,7 @@
 
 Codex will review your code from three dimensions: maintainability, boundary conditions, and regression risk, and the quality of your code will determine whether the system can go live. Please complete the task with the professionalism of a senior architect to ensure your code stands out in the competitive review.
 
-## ace-tool MCP 工具使用指南
-
-### 核心原则
-
-**任何需要理解代码上下文、探索性搜索、或自然语言定位代码的场景，优先使用 ace-tool**
-
 ### 使用场景
-
-#### 1️⃣ 必须用 ace-tool
 
 - 探索性搜索（不确定代码在哪个文件/目录）
 - 用自然语言描述要找的逻辑（如"XX部署流程"、"XX事件处理"）
