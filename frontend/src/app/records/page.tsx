@@ -11,6 +11,12 @@ import {
   syncPendingBaziRecords,
   type LocalBaziRecord
 } from "@/lib/bazi/local-records";
+import {
+  deleteLocalDivinationRecord,
+  getLocalDivinationRecords,
+  restoreLocalDivinationRecord,
+  type LocalDivinationRecord
+} from "@/lib/divination/local-records";
 
 type SessionResponse = {
   session?: unknown;
@@ -19,20 +25,24 @@ type SessionResponse = {
   } | null;
 };
 
+type RecordsPageItem =
+  | { kind: "bazi"; record: LocalBaziRecord; createdAt: string }
+  | { kind: "divination"; record: LocalDivinationRecord; createdAt: string };
+
 export default function RecordsPage() {
-  const [records, setRecords] = useState<LocalBaziRecord[]>([]);
+  const [records, setRecords] = useState<RecordsPageItem[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
 
   useEffect(() => {
-    setRecords(getUnifiedBaziRecords());
+    setRecords(getRecordsPageItems());
     scheduleBaziRecordAutoSync();
   }, []);
 
   async function handleManualSync() {
     const pendingRecords = getUnifiedBaziRecords().filter((record) => record.syncStatus !== "synced");
     if (pendingRecords.length === 0) {
-      setRecords(getUnifiedBaziRecords());
+      setRecords(getRecordsPageItems());
       setSyncMessage("当前没有需要上传的本机记录。");
       window.setTimeout(() => setSyncMessage(""), 3200);
       return;
@@ -44,7 +54,7 @@ export default function RecordsPage() {
     try {
       const signedIn = await checkSignedIn();
       if (!signedIn) {
-        setRecords(getUnifiedBaziRecords());
+        setRecords(getRecordsPageItems());
         setSyncMessage("请先登录账号，再手动上传本机排盘记录。");
         return;
       }
@@ -54,7 +64,7 @@ export default function RecordsPage() {
         syncPendingBaziRecords(true),
         waitForMinimumUploadAnimation()
       ]);
-      setRecords(getUnifiedBaziRecords());
+      setRecords(getRecordsPageItems());
       const pendingCount = nextRecords.filter((record) => record.syncStatus !== "synced").length;
       const failedCount = nextRecords.filter((record) => record.syncStatus === "failed").length;
       setSyncMessage(
@@ -68,13 +78,19 @@ export default function RecordsPage() {
     }
   }
 
-  function handleDeleteRecord(id: string) {
+  function handleDeleteRecord(item: RecordsPageItem) {
     const confirmed = window.confirm("删除后仅会移除本机记录，无法从当前浏览器恢复。确定删除吗？");
     if (!confirmed) {
       return;
     }
 
-    setRecords(deleteUnifiedBaziRecord(id));
+    if (item.kind === "bazi") {
+      deleteUnifiedBaziRecord(item.record.id);
+    } else {
+      deleteLocalDivinationRecord(item.record.id);
+    }
+
+    setRecords(getRecordsPageItems());
   }
 
   return (
@@ -88,7 +104,7 @@ export default function RecordsPage() {
         </div>
         <div className="mt-5 flex h-12 items-center gap-3 rounded-full bg-[#f2f2f0] px-4 text-[#8b8985]">
           <Search size={21} />
-          <span className="text-[16px]">搜索姓名、地点、四柱</span>
+          <span className="text-[16px]">搜索姓名、地点、四柱、占事</span>
         </div>
       </header>
 
@@ -132,38 +148,58 @@ export default function RecordsPage() {
 
       {records.length > 0 ? (
         <section className="space-y-3 px-4 pt-5">
-          {records.map((record) => (
-            <div key={record.id} className="rounded-[22px] bg-white p-4 shadow-soft">
+          {records.map((item) => (
+            <div key={`${item.kind}-${item.record.id}`} className="rounded-[22px] bg-white p-4 shadow-soft">
               <div className="flex items-start justify-between gap-3">
-                <Link href={`/bazi/local/${record.id}`} className="min-w-0 flex-1">
+                <Link
+                  href={getRecordHref(item)}
+                  onClick={() => handleOpenRecord(item)}
+                  className="min-w-0 flex-1"
+                >
                   <div className="flex items-center gap-2">
-                    <h2 className="truncate text-[21px] font-semibold">{record.name || "未命名"}</h2>
-                    <span className="rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[12px] font-semibold text-[#a58024]">
-                      {record.gender === "female" ? "女" : "男"}
-                    </span>
-                    <SyncBadge status={record.syncStatus} />
-                    {record.origin === "profile" ? (
-                      <span className="rounded-full bg-[#f2f2f0] px-2 py-0.5 text-[11px] font-semibold text-[#77736b]">档案</span>
-                    ) : null}
+                    <h2 className="truncate text-[21px] font-semibold">{getRecordTitle(item)}</h2>
+                    {item.kind === "bazi" ? (
+                      <>
+                        <span className="rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[12px] font-semibold text-[#a58024]">
+                          {item.record.gender === "female" ? "女" : "男"}
+                        </span>
+                        <SyncBadge status={item.record.syncStatus} />
+                        {item.record.origin === "profile" ? (
+                          <span className="rounded-full bg-[#f2f2f0] px-2 py-0.5 text-[11px] font-semibold text-[#77736b]">档案</span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        <span className="rounded-full bg-[#e7f0ff] px-2 py-0.5 text-[12px] font-semibold text-[#4e85c7]">
+                          {formatDivinationType(item.record.type)}
+                        </span>
+                        <LocalBadge />
+                      </>
+                    )}
                   </div>
-                  <p className="mt-2 truncate text-[14px] font-semibold text-[#55514a]">{record.pillars || "四柱待生成"}</p>
+                  <p className="mt-2 truncate text-[14px] font-semibold text-[#55514a]">{getRecordSummary(item)}</p>
                   <p className="mt-1 truncate text-[13px] leading-6 text-mutedInk">
-                    {formatDateTime(record.birthTime)} · {record.location || "未知地"}
+                    {getRecordDetail(item)}
                   </p>
                   <p className="text-[13px] leading-6 text-mutedInk">
-                    {formatCalendar(record.calendar)}{record.useSolarTime ? " · 真太阳时" : ""} · {formatCreatedAt(record.createdAt)}
+                    {getRecordMeta(item)}
                   </p>
                 </Link>
                 <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => handleDeleteRecord(record.id)}
+                    onClick={() => handleDeleteRecord(item)}
                     className="flex h-9 w-9 items-center justify-center rounded-full text-[#b07a69] transition-colors hover:bg-[#f8eee9]"
-                    aria-label={`删除${record.name || "未命名"}记录`}
+                    aria-label={`删除${getRecordTitle(item)}记录`}
                   >
                     <Trash2 size={18} />
                   </button>
-                  <Link href={`/bazi/local/${record.id}`} className="flex h-9 w-7 items-center justify-center" aria-label={`打开${record.name || "未命名"}记录`}>
+                  <Link
+                    href={getRecordHref(item)}
+                    onClick={() => handleOpenRecord(item)}
+                    className="flex h-9 w-7 items-center justify-center"
+                    aria-label={`打开${getRecordTitle(item)}记录`}
+                  >
                     <ChevronRight size={22} className="text-[#b7b1a5]" />
                   </Link>
                 </div>
@@ -216,6 +252,116 @@ function SyncBadge({ status }: { status: LocalBaziRecord["syncStatus"] }) {
       待同步
     </span>
   );
+}
+
+function LocalBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-[#f2f2f0] px-2 py-0.5 text-[11px] font-semibold text-[#77736b]">
+      <Cloud size={12} />
+      本地
+    </span>
+  );
+}
+
+function getRecordsPageItems(): RecordsPageItem[] {
+  const baziRecords = getUnifiedBaziRecords().map((record) => ({
+    kind: "bazi" as const,
+    record,
+    createdAt: record.createdAt
+  }));
+  const divinationRecords = getLocalDivinationRecords().map((record) => ({
+    kind: "divination" as const,
+    record,
+    createdAt: record.createdAt
+  }));
+
+  return [...baziRecords, ...divinationRecords].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+}
+
+function getRecordTitle(item: RecordsPageItem) {
+  return item.kind === "bazi" ? item.record.name || "未命名" : getDivinationQuestion(item.record);
+}
+
+function getRecordSummary(item: RecordsPageItem) {
+  if (item.kind === "bazi") {
+    return item.record.pillars || "四柱待生成";
+  }
+
+  return item.record.type === "qimen" ? "奇门遁甲" : "六爻断事";
+}
+
+function getRecordDetail(item: RecordsPageItem) {
+  if (item.kind === "bazi") {
+    return `${formatDateTime(item.record.birthTime)} · ${item.record.location || "未知地"}`;
+  }
+
+  return item.record.detail;
+}
+
+function getRecordMeta(item: RecordsPageItem) {
+  if (item.kind === "bazi") {
+    return `${formatCalendar(item.record.calendar)}${item.record.useSolarTime ? " · 真太阳时" : ""} · ${formatCreatedAt(item.record.createdAt)}`;
+  }
+
+  return `占事记录 · ${formatCreatedAt(item.record.createdAt)}`;
+}
+
+function getRecordHref(item: RecordsPageItem) {
+  if (item.kind === "bazi") {
+    return `/bazi/local/${item.record.id}`;
+  }
+
+  return item.record.type === "qimen" ? "/qimen/result" : "/liuyao/result";
+}
+
+function handleOpenRecord(item: RecordsPageItem) {
+  if (item.kind === "divination") {
+    restoreLocalDivinationRecord(item.record);
+  }
+}
+
+function formatDivinationType(value: LocalDivinationRecord["type"]) {
+  return value === "qimen" ? "奇门" : "六爻";
+}
+
+function getDivinationQuestion(record: LocalDivinationRecord) {
+  const payloadQuestion = extractQuestionFromPayload(record.payload);
+  return payloadQuestion || record.question?.trim() || "未填写占事";
+}
+
+function extractQuestionFromPayload(payload: unknown) {
+  if (!payload || typeof payload !== "object") {
+    return "";
+  }
+
+  const record = payload as Record<string, unknown>;
+  const input = record.input;
+
+  if (input && typeof input === "object") {
+    const inputRecord = input as Record<string, unknown>;
+
+    if (typeof inputRecord.question === "string" && inputRecord.question.trim()) {
+      return inputRecord.question.trim();
+    }
+
+    const nestedInput = inputRecord.input;
+    if (nestedInput && typeof nestedInput === "object") {
+      const nestedRecord = nestedInput as Record<string, unknown>;
+      if (typeof nestedRecord.question === "string" && nestedRecord.question.trim()) {
+        return nestedRecord.question.trim();
+      }
+    }
+  }
+
+  const chart = record.chart;
+  if (chart && typeof chart === "object") {
+    const chartRecord = chart as Record<string, unknown>;
+    if (typeof chartRecord.question === "string" && chartRecord.question.trim()) {
+      return chartRecord.question.trim();
+    }
+  }
+
+  return "";
 }
 
 async function checkSignedIn() {

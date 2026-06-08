@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { QimenOutput } from "taibu-core/qimen";
 import { QimenAiCommandModal } from "@/components/qimen/qimen-ai-command-modal";
+import { saveLocalQimenRecord } from "@/lib/divination/local-records";
 import { calculateQimenChart } from "@/lib/qimen-api";
 
 type QimenChart = QimenOutput;
@@ -58,7 +59,9 @@ export function QimenChartResult() {
           return;
         }
 
-        setResult({ ...parsed, chart: recalculatedChart });
+        const nextResult = { ...parsed, chart: recalculatedChart };
+        saveLocalQimenRecord(nextResult);
+        setResult(nextResult);
       } catch {
         setResult(null);
       }

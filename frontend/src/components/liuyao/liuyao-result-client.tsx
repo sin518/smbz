@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { buildLiuyaoAiCommandText } from "@/lib/ai/liuyao-command";
+import { saveLocalLiuyaoRecord } from "@/lib/divination/local-records";
 import {
   buildLiuyaoChart,
   type LiuyaoChart,
@@ -39,7 +40,10 @@ export function LiuyaoResultClient() {
     let cancelled = false;
     buildLiuyaoChart(input?.input, casting.lines)
       .then((nextChart) => {
-        if (!cancelled) setChart(nextChart);
+        if (!cancelled) {
+          saveLocalLiuyaoRecord({ input, casting });
+          setChart(nextChart);
+        }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
