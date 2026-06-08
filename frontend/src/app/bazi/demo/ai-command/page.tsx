@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AiCommandModal } from "@/components/bazi/ai-command-modal";
+import { BaziChartView, type BaziTab } from "@/components/bazi/bazi-chart-view";
 import { calculateBaziChartOnBackend } from "@/lib/bazi/api";
 
 type AiCommandPageProps = {
@@ -9,11 +10,27 @@ type AiCommandPageProps = {
 export default async function AiCommandPage({ searchParams }: AiCommandPageProps) {
   const params = (await searchParams) ?? {};
   const chart = await buildChart(params);
+  const activeTab = toTab(getParam(params, "tab"));
+  const queryBirthTime = formatQueryBirthTime(getParam(params, "birthTime"));
 
   return (
-    <main className="min-h-screen bg-[#666]">
+    <>
+      <BaziChartView
+        chart={chart}
+        activeTab={activeTab}
+        backHref={buildBackHref(params)}
+        getTabHref={(tab) => buildTabHref(params, tab)}
+        aiCommandHref={buildToolHref(params, "/bazi/demo/ai-command")}
+        profileOverride={{
+          name: getParam(params, "name") || chart.profile.name,
+          gender: getParam(params, "gender") === "female" ? "女" : chart.profile.gender,
+          solar: queryBirthTime || chart.profile.solar,
+          solarTime: chart.profile.solarTime,
+          location: getParam(params, "location") || chart.profile.location
+        }}
+      />
       <AiCommandModal chart={chart} closeHref={buildBackHref(params)} useSolarTime={getParam(params, "useSolarTime") === "true"} />
-    </main>
+    </>
   );
 }
 
@@ -63,10 +80,55 @@ function toCalendar(value: string) {
   return "solar";
 }
 
+function formatQueryBirthTime(value: string) {
+  if (!value) {
+    return "";
+  }
+
+  return value.replace("T", " ");
+}
+
+function toTab(value: string): BaziTab {
+  if (value === "info" || value === "detail") {
+    return value;
+  }
+
+  return "chart";
+}
+
+function buildTabHref(params: Record<string, string | string[] | undefined>, tab: BaziTab) {
+  const nextParams = copyParams(params, ["tab"]);
+
+  if (tab !== "chart") {
+    nextParams.set("tab", tab);
+  }
+
+  const query = nextParams.toString();
+
+  return query ? `/bazi/demo?${query}` : "/bazi/demo";
+}
+
+function buildToolHref(params: Record<string, string | string[] | undefined>, pathname: string) {
+  const query = copyParams(params).toString();
+
+  return query ? `${pathname}?${query}` : pathname;
+}
+
 function buildBackHref(params: Record<string, string | string[] | undefined>) {
+  const query = copyParams(params).toString();
+
+  return query ? `/bazi/demo?${query}` : "/bazi/demo";
+}
+
+function copyParams(params: Record<string, string | string[] | undefined>, omit: string[] = []) {
+  const omitted = new Set(omit);
   const nextParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
+    if (omitted.has(key)) {
+      return;
+    }
+
     if (Array.isArray(value)) {
       value.forEach((item) => nextParams.append(key, item));
       return;
@@ -77,7 +139,5 @@ function buildBackHref(params: Record<string, string | string[] | undefined>) {
     }
   });
 
-  const query = nextParams.toString();
-
-  return query ? `/bazi/demo?${query}` : "/bazi/demo";
+  return nextParams;
 }
