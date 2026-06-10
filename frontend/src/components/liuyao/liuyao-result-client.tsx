@@ -148,12 +148,12 @@ export function LiuyaoResultClient() {
         <div className="grid min-h-[28px] grid-cols-[116fr_530fr_530fr] items-center border-b border-[#ebe7dd] text-center text-[14px] font-normal text-[#8b8985]">
           <div className="flex h-full items-center justify-center">六神</div>
           <div className="flex h-full items-center justify-center text-center">
-            主卦【{chart.hexagram.lower}】 {chart.hexagram.name}
+            主卦【{chart.hexagram.upper}上/{chart.hexagram.lower}下】 {chart.hexagram.name}
           </div>
           <div className="flex h-full items-center justify-center text-center">
             {chart.hexagram.changed ? (
               <span className="inline-flex flex-wrap items-center justify-center gap-x-1">
-                变卦【{chart.hexagram.changed.lower}】 {chart.hexagram.changed.name}
+                变卦【{chart.hexagram.changed.upper}上/{chart.hexagram.changed.lower}下】 {chart.hexagram.changed.name}
               </span>
             ) : (
               <span className="text-[#b8b8b8]">无变卦</span>

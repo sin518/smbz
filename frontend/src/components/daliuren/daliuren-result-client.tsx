@@ -95,7 +95,7 @@ export function DaliurenResultClient() {
   const lunarDate = useMemo(() => (storedInput ? formatLunarDate(storedInput.input.dateTime) : ""), [storedInput]);
 
   return (
-    <main className="daliuren-result-scope light-surface-text-scope app-responsive-shell flex h-dvh flex-col overflow-hidden bg-[#F8F7EE] pb-3 text-ink shadow-soft">
+    <main className="daliuren-result-scope light-surface-text-scope app-responsive-shell flex h-dvh flex-col overflow-hidden bg-[#F8F7EE] text-ink shadow-soft">
       <header className="z-20 flex h-16 shrink-0 items-center justify-between bg-[#F8F7EE] px-[15px] pt-3">
         <Link href="/daliuren" className="-ml-1 flex h-10 w-10 items-center justify-center" aria-label="返回大六壬">
           <ArrowLeft size={24} />
@@ -105,7 +105,7 @@ export function DaliurenResultClient() {
       </header>
 
       {chart && storedInput ? (
-        <div className="min-h-0 flex-1 space-y-2 overflow-hidden px-3">
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-3">
           <CourseSummary chart={chart} input={storedInput} lunarDate={lunarDate} />
           <CoreInfoRow chart={chart} />
           <SanChuanCard chart={chart} />
