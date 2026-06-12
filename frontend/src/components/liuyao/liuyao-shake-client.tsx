@@ -2,29 +2,19 @@
 
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { castLiuyaoLine, type LiuyaoLine } from "@/lib/liuyao/casting";
 import { cn } from "@/lib/utils";
 
 type ShakeStep = "ready" | "casting" | "complete";
 
-type DeviceMotionPermission = "granted" | "denied" | "default";
-
-type DeviceMotionEventWithPermission = typeof DeviceMotionEvent & {
-  requestPermission?: () => Promise<DeviceMotionPermission>;
-};
-
 const maxShakeCount = 6;
-const shakeThreshold = 18;
-const shakeCooldownMs = 780;
 
 export function LiuyaoShakeClient() {
   const [step, setStep] = useState<ShakeStep>("ready");
   const [lines, setLines] = useState<LiuyaoLine[]>([]);
   const [displayedCoins, setDisplayedCoins] = useState<LiuyaoLine["coins"]>([1, 1, 1]);
   const [isShaking, setIsShaking] = useState(false);
-  const [motionEnabled, setMotionEnabled] = useState(false);
-  const lastShakeAtRef = useRef(0);
 
   const shakeCount = lines.length;
   const canCast = step === "ready" || step === "casting";
@@ -85,58 +75,9 @@ export function LiuyaoShakeClient() {
     });
   }, [canCast, shakeCount, storeCompletedCasting, storeDraftCasting]);
 
-  const requestMotion = useCallback(async () => {
-    if (typeof DeviceMotionEvent === "undefined") {
-      setMotionEnabled(false);
-      return;
-    }
-
-    const motionEvent = DeviceMotionEvent as DeviceMotionEventWithPermission;
-
-    if (typeof motionEvent.requestPermission !== "function") {
-      setMotionEnabled(true);
-      return;
-    }
-
-    try {
-      const permission = await motionEvent.requestPermission();
-      setMotionEnabled(permission === "granted");
-    } catch {
-      setMotionEnabled(false);
-    }
-  }, []);
-
   const handleContinueCasting = useCallback(() => {
-    void requestMotion();
     castNextLine();
-  }, [castNextLine, requestMotion]);
-
-  useEffect(() => {
-    if (!motionEnabled || !canCast) {
-      return;
-    }
-
-    function handleMotion(event: DeviceMotionEvent) {
-      const acceleration = event.accelerationIncludingGravity;
-      if (!acceleration) {
-        return;
-      }
-
-      const x = acceleration.x ?? 0;
-      const y = acceleration.y ?? 0;
-      const z = acceleration.z ?? 0;
-      const force = Math.sqrt(x * x + y * y + z * z);
-      const now = Date.now();
-
-      if (force >= shakeThreshold && now - lastShakeAtRef.current > shakeCooldownMs) {
-        lastShakeAtRef.current = now;
-        castNextLine();
-      }
-    }
-
-    window.addEventListener("devicemotion", handleMotion);
-    return () => window.removeEventListener("devicemotion", handleMotion);
-  }, [castNextLine, canCast, motionEnabled]);
+  }, [castNextLine]);
 
   return (
     <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-paper pb-8 text-ink shadow-soft">
@@ -167,9 +108,6 @@ export function LiuyaoShakeClient() {
             <p className="mt-4 min-h-6 text-center text-[14px] text-mutedInk">
               {lines.length > 0 ? formatLatestLineSummary(lines[lines.length - 1]) : "静心感应，开始摇卦"}
             </p>
-            {motionEnabled && step !== "complete" ? (
-              <p className="text-center text-[12px] text-mutedInk">已开启感应，可摇晃手机或点击按钮</p>
-            ) : null}
             <div className="mt-4 flex flex-col gap-3">
               {Array.from({ length: maxShakeCount }, (_, index) => {
                 const position = maxShakeCount - index;
