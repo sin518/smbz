@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     google_client_secret: Optional[str] = None
     github_client_id: Optional[str] = None
     github_client_secret: Optional[str] = None
+    admin_user_ids: str = ""
+    admin_emails: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
