@@ -61,7 +61,6 @@ export function AdminApp() {
   return (
     <Admin
       title="SM1 后台管理"
-      basename="/admin"
       dataProvider={dataProvider}
       authProvider={authProvider}
       requireAuth
