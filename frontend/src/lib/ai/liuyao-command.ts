@@ -10,7 +10,7 @@ export function buildLiuyaoAiCommandText(chart: LiuyaoChart) {
         .join("\n")
     : "- 系统暂未给出明确时间窗口，请基于用神、世应、动爻谨慎判断。";
 
-  return `# 周易六爻断卦系统指令（完整版）
+  return `
 
 ## 安全红线
 1. 信息不足时明确告知「条件不足，无法准确判断」，不编造数据。
