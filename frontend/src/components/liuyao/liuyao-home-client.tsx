@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CalendarClock, Check, ChevronDown, Compass, Hand, Hash, ListChecks, MessageSquareText, Type, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, Check, ChevronDown, Compass, Hand, Hash, Info, ListChecks, MessageSquareText, Type, X } from "lucide-react";
 import { Lunar, Solar } from "lunar-typescript";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -365,6 +365,36 @@ export function LiuyaoHomeClient() {
           >
             开始起卦
           </button>
+
+          <aside className="mx-auto mt-7 w-full max-w-[398px] border-t border-[#e5decb] px-1 pt-5" aria-labelledby="liuyao-question-tip-title">
+            <h2 id="liuyao-question-tip-title" className="flex items-center gap-2 text-[16px] font-semibold text-[#8f6f2e]">
+              <Info size={18} strokeWidth={2.2} />
+              友情提示
+            </h2>
+            <div className="mt-4 space-y-4 text-[14px] leading-6 text-[#66615a]">
+              <div className="grid grid-cols-[24px_minmax(0,1fr)] gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#efe5cb] text-[12px] font-semibold text-[#8f6f2e]">1</span>
+                <p>
+                  <strong className="font-semibold text-[#55514a]">把问题说完整：</strong>
+                  建议包含“能否/是否＋具体动作＋期限或对象”，例如“下周三与 XX 公司的合作签约能否成功？”
+                </p>
+              </div>
+              <div className="grid grid-cols-[24px_minmax(0,1fr)] gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#efe5cb] text-[12px] font-semibold text-[#8f6f2e]">2</span>
+                <p>
+                  <strong className="font-semibold text-[#55514a]">聚焦单一事件：</strong>
+                  每次只问一个具体问题，也可以问“今年的财运状况如何？”。避免只写“事业如何”，或同时询问多个不相干事件。
+                </p>
+              </div>
+              <div className="grid grid-cols-[24px_minmax(0,1fr)] gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#efe5cb] text-[12px] font-semibold text-[#8f6f2e]">3</span>
+                <p>
+                  <strong className="font-semibold text-[#55514a]">可以替他人代测：</strong>
+                  请说明对方与您的关系，并把问题描述清楚，例如“我的同事今年财运如何？”或“我的同事近期健康状况如何？”。两类事情请分开起卦。
+                </p>
+              </div>
+            </div>
+          </aside>
         </form>
       </div>
 
