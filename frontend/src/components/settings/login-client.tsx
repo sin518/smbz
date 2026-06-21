@@ -428,11 +428,11 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
             aria-label="同意用户协议和隐私政策"
           />
           <span>我已阅读并同意</span>
-          <Link href="/settings/login" className="font-semibold text-ink">
+          <Link href="/settings/user-agreement" className="font-semibold text-ink">
             《用户协议》
           </Link>
           <span>和</span>
-          <Link href="/settings/login" className="font-semibold text-ink">
+          <Link href="/settings/privacy-policy" className="font-semibold text-ink">
             《隐私政策》
           </Link>
         </label>
