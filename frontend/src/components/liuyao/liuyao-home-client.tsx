@@ -61,6 +61,7 @@ type LiuyaoFormValues = z.infer<typeof liuyaoFormSchema>;
 type CastingMethodValue = LiuyaoFormValues["castingMethod"];
 type ManualLineValue = NonNullable<LiuyaoFormValues["manualLines"][number]>;
 type YongShenValue = LiuyaoFormValues["yongShenTargets"][number];
+type YongShenOptionValue = YongShenValue | "通用";
 
 const defaultValues: LiuyaoFormValues = {
   yongShenTargets: [],
@@ -79,7 +80,10 @@ const defaultValues: LiuyaoFormValues = {
   castingTime: ""
 };
 
-const yongShenOptions: ReadonlyArray<{ label: YongShenValue; title: string; description: string }> = [
+const allYongShenTargets: YongShenValue[] = ["妻财", "官鬼", "父母", "子孙", "兄弟"];
+
+const yongShenOptions: ReadonlyArray<{ label: YongShenOptionValue; title: string; description: string }> = [
+  { label: "通用", title: "综合判断", description: "不清楚如何取用神时选择，由系统结合问题与全卦综合判断" },
   { label: "妻财", title: "钱和资源", description: "钱财/交易/资源/经营；婚恋多见于男问对象或以财为线索时" },
   { label: "官鬼", title: "工作与压力", description: "功名求官/工作事业/规则/压力/风险/疾病；婚恋多见于女问对象或以官为线索时" },
   { label: "父母", title: "学业与文书", description: "合同文书/证件/学业/房屋车辆/长辈" },
@@ -435,8 +439,16 @@ function YongShenSheet({
     return null;
   }
 
-  function toggleOption(nextValue: YongShenValue) {
+  function toggleOption(nextValue: YongShenOptionValue) {
     setDraftValue((current) => {
+      if (nextValue === "通用") {
+        return isGeneralYongShenSelection(current) ? [] : allYongShenTargets;
+      }
+
+      if (isGeneralYongShenSelection(current)) {
+        return [nextValue];
+      }
+
       if (current.includes(nextValue)) {
         return current.filter((item) => item !== nextValue);
       }
@@ -462,7 +474,8 @@ function YongShenSheet({
 
         <div className="space-y-2 px-3 py-3">
           {yongShenOptions.map((option) => {
-            const selected = draftValue.includes(option.label);
+            const generalSelected = isGeneralYongShenSelection(draftValue);
+            const selected = option.label === "通用" ? generalSelected : !generalSelected && draftValue.includes(option.label);
             return (
               <button
                 key={option.label}
@@ -510,6 +523,10 @@ function formatYongShenLabel(value: readonly YongShenValue[]) {
     return "未选择";
   }
 
+  if (isGeneralYongShenSelection(value)) {
+    return "通用";
+  }
+
   return value.join("、");
 }
 
@@ -518,7 +535,15 @@ function formatYongShenTriggerLabel(value: readonly YongShenValue[]) {
     return "选择分析目标";
   }
 
+  if (isGeneralYongShenSelection(value)) {
+    return "通用分析";
+  }
+
   return `分析目标 ${value.length} 项`;
+}
+
+function isGeneralYongShenSelection(value: readonly YongShenValue[]) {
+  return allYongShenTargets.every((target) => value.includes(target));
 }
 
 function getOptionLabel<TValue extends string>(options: ReadonlyArray<{ label: string; value: TValue }>, value: TValue) {

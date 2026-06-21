@@ -19,7 +19,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+
+import { chinaLocationOptions } from "@/lib/locations/china";
 
 type ApiResult<T> = T & {
   message?: string;
@@ -467,7 +469,7 @@ function UserSettingsPage({
 
   function startEdit(field: EditableProfileField) {
     setEditingField(field);
-    setDraftValue(profile[field]);
+    setDraftValue(field === "birthPlace" ? formatBirthPlace(parseBirthPlace(profile.birthPlace)) : profile[field]);
   }
 
   function saveEdit() {
@@ -703,13 +705,15 @@ function ProfileEditDialog({
               </button>
             ))}
           </div>
+        ) : field === "birthPlace" ? (
+          <BirthPlaceFields value={value} onChange={onChange} />
         ) : (
           <input
             value={value}
             onChange={(event) => onChange(event.target.value)}
             type={field === "birthTime" ? "datetime-local" : "text"}
             maxLength={field === "name" ? 20 : 60}
-            placeholder={field === "birthPlace" ? "请输入出生地区" : "请输入内容"}
+            placeholder="请输入内容"
             className="h-14 w-full rounded-[14px] bg-[#f2f2f0] px-4 text-[19px] outline-none"
             autoFocus
           />
@@ -717,6 +721,108 @@ function ProfileEditDialog({
       </div>
     </div>
   );
+}
+
+function BirthPlaceFields({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const selection = parseBirthPlace(value);
+  const cities = getBirthPlaceCities(selection.province);
+  const districts = getBirthPlaceDistricts(selection.province, selection.city);
+
+  function updateProvince(province: string) {
+    const nextCities = getBirthPlaceCities(province);
+    const city = nextCities[0]?.city ?? "";
+    const district = getBirthPlaceDistricts(province, city)[0] ?? "";
+    onChange(formatBirthPlace({ province, city, district }));
+  }
+
+  function updateCity(city: string) {
+    const district = getBirthPlaceDistricts(selection.province, city)[0] ?? "";
+    onChange(formatBirthPlace({ province: selection.province, city, district }));
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <LocationSelect ariaLabel="省份" value={selection.province} onChange={updateProvince}>
+        {chinaLocationOptions.map((item) => (
+          <option key={item.province} value={item.province}>
+            {item.province}
+          </option>
+        ))}
+      </LocationSelect>
+      <LocationSelect ariaLabel="城市" value={selection.city} onChange={updateCity}>
+        {cities.map((item) => (
+          <option key={item.city} value={item.city}>
+            {item.city}
+          </option>
+        ))}
+      </LocationSelect>
+      <LocationSelect
+        ariaLabel="区县"
+        value={selection.district}
+        onChange={(district) => onChange(formatBirthPlace({ ...selection, district }))}
+      >
+        {districts.map((district) => (
+          <option key={district} value={district}>
+            {district}
+          </option>
+        ))}
+      </LocationSelect>
+    </div>
+  );
+}
+
+function LocationSelect({
+  ariaLabel,
+  value,
+  onChange,
+  children
+}: {
+  ariaLabel: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-14 min-w-0 rounded-[14px] bg-[#f2f2f0] px-2 text-center text-[16px] font-medium text-[#555] outline-none"
+      aria-label={ariaLabel}
+    >
+      {children}
+    </select>
+  );
+}
+
+type BirthPlaceSelection = {
+  province: string;
+  city: string;
+  district: string;
+};
+
+function parseBirthPlace(value: string): BirthPlaceSelection {
+  const provinceOption = chinaLocationOptions.find((item) => value.includes(item.province)) ?? chinaLocationOptions[0];
+  const cityOption = provinceOption.cities.find((item) => value.includes(item.city)) ?? provinceOption.cities[0];
+  const district = cityOption.districts.find((item) => value.includes(item)) ?? cityOption.districts[0] ?? "";
+
+  return {
+    province: provinceOption.province,
+    city: cityOption.city,
+    district
+  };
+}
+
+function getBirthPlaceCities(province: string) {
+  return chinaLocationOptions.find((item) => item.province === province)?.cities ?? chinaLocationOptions[0].cities;
+}
+
+function getBirthPlaceDistricts(province: string, city: string) {
+  const cities = getBirthPlaceCities(province);
+  return cities.find((item) => item.city === city)?.districts ?? cities[0]?.districts ?? [];
+}
+
+function formatBirthPlace(selection: BirthPlaceSelection) {
+  return `${selection.province} ${selection.city} ${selection.district}`;
 }
 
 function DeleteAccountDialog({
