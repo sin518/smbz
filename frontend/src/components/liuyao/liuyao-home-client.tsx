@@ -151,6 +151,7 @@ const manualLineLabels = ["初爻", "二爻", "三爻", "四爻", "五爻", "上
 
 export function LiuyaoHomeClient() {
   const router = useRouter();
+  const [noticeOpen, setNoticeOpen] = useState(true);
   const [castingTimePickerOpen, setCastingTimePickerOpen] = useState(false);
   const [directionPickerOpen, setDirectionPickerOpen] = useState(false);
   const [castingMethodPickerOpen, setCastingMethodPickerOpen] = useState(false);
@@ -410,7 +411,81 @@ export function LiuyaoHomeClient() {
           setManualLinePickerIndex(null);
         }}
       />
+      <LiuyaoNoticeDialog open={noticeOpen} onClose={() => setNoticeOpen(false)} />
     </main>
+  );
+}
+
+function LiuyaoNoticeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 px-6 py-8">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="liuyao-notice-title"
+        className="relative max-h-[calc(100dvh-2rem)] w-full max-w-[350px] overflow-y-auto rounded-[8px] border-2 border-[#b7924a] bg-[#fffef9] p-1 shadow-[0_22px_60px_rgba(0,0,0,0.22)]"
+      >
+        <div className="rounded-[5px] border border-[#d8c8a6] px-6 pb-6 pt-8 text-center text-[#55514a]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-[#d8c8a6] bg-[#fffef9] text-[#77736b]"
+            aria-label="关闭六爻断事须知"
+          >
+            <X size={18} strokeWidth={2} />
+          </button>
+
+          <div className="flex items-center gap-3 text-[#a58024]" aria-hidden="true">
+            <span className="h-px flex-1 bg-[#d8c8a6]" />
+            <span className="h-1.5 w-1.5 rotate-45 border border-[#b7924a]" />
+            <span className="h-px flex-1 bg-[#d8c8a6]" />
+          </div>
+          <h2 id="liuyao-notice-title" className="mt-4 text-[24px] font-semibold text-[#8f6f2e]">
+            六爻断事须知
+          </h2>
+          <p className="mt-2 text-[14px] font-medium text-[#a58024]">一事一问 · 据实起卦 · 理性参考</p>
+
+          <p className="mt-6 text-[14px] leading-7 text-[#77736b]">
+            六爻以卦象、月建日辰、动爻、世应与六亲关系综合推演，为当前问题提供趋势和风险参考。
+          </p>
+
+          <div className="mt-5 space-y-4 text-[14px] leading-6">
+            <NoticeSection title="起卦前" lines={["静心片刻，只问一件最关心的事", "问题尽量具体，并说明对象与时间范围", "不清楚如何取用神时，可选择“通用分析”"]} />
+            <NoticeSection title="起卦时" lines={["选择适合的起卦方式，按真实情况操作", "确认起卦时间与问题无误后再开始"]} />
+            <NoticeSection title="查看结果" lines={["先看卦象结论，再核对用神、动变与应期依据", "内容仅供传统文化研究与休闲娱乐参考"]} />
+          </div>
+
+          <p className="mt-5 border-t border-[#e8dfcc] pt-4 text-[12px] leading-5 text-[#9b9383]">
+            不构成医疗、投资、法律或其他现实决策依据，请结合实际情况理性判断。
+          </p>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-5 h-12 w-full rounded-full bg-black text-[17px] font-semibold text-[#e8d4a7]"
+          >
+            我已知晓
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function NoticeSection({ title, lines }: { title: string; lines: readonly string[] }) {
+  return (
+    <div>
+      <h3 className="font-semibold text-[#8f6f2e]">{title}</h3>
+      <div className="mt-1 space-y-0.5 text-[#66615a]">
+        {lines.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </div>
+    </div>
   );
 }
 
