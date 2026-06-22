@@ -1,11 +1,12 @@
 "use client";
 
 // 需要读取 localStorage、计算本地排盘并控制 AI 指令弹层。
-import { ArrowLeft, Copy, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Copy, X } from "lucide-react";
 import { Solar } from "lunar-javascript";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { DaliurenInput, DaliurenOutput } from "taibu-core/daliuren";
+import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
 import { calculateDaliurenChart } from "@/lib/daliuren/api";
 import { cn } from "@/lib/utils";
 
@@ -111,14 +112,11 @@ export function DaliurenResultClient() {
           <SanChuanCard chart={chart} />
           <SiKeCard chart={chart} />
           <TianDiPanCard chart={chart} />
-          <button
-            type="button"
-            onClick={() => setAiOpen(true)}
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-black text-[15px] font-semibold text-[#e8d4a7] shadow-soft"
-          >
-            <Sparkles size={18} />
-            AI指令
-          </button>
+          <ProtectedAiCommandAction
+            loginNextHref="/daliuren/result"
+            onAuthorized={() => setAiOpen(true)}
+            expanded={aiOpen}
+          />
           {aiOpen ? <AiCommandModal chart={chart} canonicalText={canonicalText} onClose={() => setAiOpen(false)} /> : null}
         </div>
       ) : null}

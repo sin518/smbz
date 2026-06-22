@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { QimenOutput } from "taibu-core/qimen";
 import { QimenAiCommandModal } from "@/components/qimen/qimen-ai-command-modal";
+import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
 import { saveLocalQimenRecord } from "@/lib/divination/local-records";
 import { calculateQimenChart } from "@/lib/qimen-api";
 
@@ -178,14 +179,12 @@ function QimenChartCard({ result }: { result: StoredQimenResult }) {
       <p className="mt-4 text-[14px] leading-6 text-[#7d7972]">
         {chart.dateInfo.solarDate}。值符{chart.zhiFu.star}落{chart.zhiFu.palace}宫。
       </p>
-      <button
-        type="button"
-        onClick={() => setIsAiCommandOpen(true)}
-        className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-black text-[15px] font-semibold text-[#e8d4a7]"
-      >
-        <Sparkles size={16} />
-        AI指令
-      </button>
+      <ProtectedAiCommandAction
+        loginNextHref="/qimen/result"
+        onAuthorized={() => setIsAiCommandOpen(true)}
+        expanded={isAiCommandOpen}
+        className="mt-3"
+      />
       {isAiCommandOpen ? (
         <QimenAiCommandModal
           chart={chart}

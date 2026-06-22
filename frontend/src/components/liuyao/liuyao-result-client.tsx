@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowLeft, Check, Copy, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Check, Copy, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
 import { buildLiuyaoAiCommandText } from "@/lib/ai/liuyao-command";
 import { saveLocalLiuyaoRecord } from "@/lib/divination/local-records";
 import {
@@ -13,21 +14,15 @@ import {
   type LiuyaoStoredInput
 } from "@/lib/liuyao/chart";
 
-type SessionResponse = {
-  session?: unknown;
-  user?: unknown;
-};
-
-type AuthStatus = "checking" | "signed-in" | "signed-out";
-
 export function LiuyaoResultClient() {
   const [chart, setChart] = useState<LiuyaoChart | null>(null);
   const [missingCasting, setMissingCasting] = useState(false);
   const [chartError, setChartError] = useState("");
-  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const [showAiCommand, setShowAiCommand] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "selected">("idle");
+  const aiCommandSectionRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
+  const aiCommandText = useMemo(() => (chart ? buildLiuyaoAiCommandText(chart) : ""), [chart]);
 
   useEffect(() => {
     const input = readJson<LiuyaoStoredInput>("sm1:current-liuyao-input");
@@ -57,31 +52,16 @@ export function LiuyaoResultClient() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function checkSession() {
-      try {
-        const response = await fetch("/api/auth/get-session", {
-          method: "GET",
-          credentials: "include"
-        });
-        const data = response.ok ? ((await response.json()) as SessionResponse | null) : null;
-        if (!cancelled) {
-          setAuthStatus(data?.session && data.user ? "signed-in" : "signed-out");
-        }
-      } catch {
-        if (!cancelled) {
-          setAuthStatus("signed-out");
-        }
-      }
+    if (!showAiCommand) {
+      return;
     }
 
-    checkSession();
+    const frameId = window.requestAnimationFrame(() => {
+      aiCommandSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [showAiCommand]);
 
   if (missingCasting) {
     return (
@@ -108,10 +88,6 @@ export function LiuyaoResultClient() {
   if (!chart) {
     return <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-paper" />;
   }
-
-  const isSignedIn = authStatus === "signed-in";
-  const loginHref = `/settings/login?next=${encodeURIComponent(pathname || "/liuyao/result")}`;
-  const aiCommandText = buildLiuyaoAiCommandText(chart);
 
   async function handleCopyAiCommand() {
     try {
@@ -190,27 +166,22 @@ export function LiuyaoResultClient() {
       </section>
 
       <section className="px-4 py-4">
-        {isSignedIn ? (
-          <button
-            type="button"
-            onClick={() => {
-              setShowAiCommand((value) => !value);
+        <ProtectedAiCommandAction
+          loginNextHref={pathname || "/liuyao/result"}
+          onAuthorized={() => {
+              setShowAiCommand(true);
               setCopyStatus("idle");
-            }}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-black text-[17px] font-semibold text-[#e8d4a7] shadow-soft"
-          >
-            <Sparkles size={18} />
-            AI指令
-          </button>
-        ) : (
-          <Link href={loginHref} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-black text-[17px] font-semibold text-[#e8d4a7] shadow-soft">
-            <Sparkles size={18} />
-            AI指令
-          </Link>
-        )}
+          }}
+          expanded={showAiCommand}
+          controls="liuyao-ai-command-panel"
+        />
 
-        {isSignedIn && showAiCommand ? (
-          <section className="mt-3 overflow-hidden rounded-[22px] bg-white shadow-soft">
+        {showAiCommand ? (
+          <section
+            id="liuyao-ai-command-panel"
+            ref={aiCommandSectionRef}
+            className="mt-3 scroll-mt-24 overflow-hidden rounded-[22px] bg-white shadow-soft"
+          >
             <header className="flex items-center justify-between border-b border-[#f0eadc] px-4 py-3">
               <h2 className="text-[16px] font-semibold text-ink">AI指令复制</h2>
               <button
