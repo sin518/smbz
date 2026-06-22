@@ -550,15 +550,7 @@ function YongShenSheet({
         return isGeneralYongShenSelection(current) ? [] : allYongShenTargets;
       }
 
-      if (isGeneralYongShenSelection(current)) {
-        return [nextValue];
-      }
-
-      if (current.includes(nextValue)) {
-        return current.filter((item) => item !== nextValue);
-      }
-
-      return [...current, nextValue];
+      return current.length === 1 && current[0] === nextValue ? [] : [nextValue];
     });
   }
 
