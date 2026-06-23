@@ -115,7 +115,7 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
               {...register("question")}
               id="qimen-question"
               rows={2}
-              className="mt-3 min-h-[62px] w-full resize-none rounded-lg border border-[#d8c8a6] bg-transparent px-4 py-3 text-center text-[17px] font-semibold text-ink outline-none placeholder:text-[#8b8985]"
+              className="mt-3 min-h-[62px] w-full resize-none content-center rounded-lg border border-[#d8c8a6] bg-transparent px-4 py-3 text-center text-[17px] font-semibold text-ink outline-none placeholder:text-[#8b8985]"
               placeholder="例如：此次合作能否成功？"
             />
             {errors.question?.message ? <p className="mt-2 text-right text-sm text-red-600">{errors.question.message}</p> : null}

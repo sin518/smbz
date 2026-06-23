@@ -114,6 +114,8 @@ function SharedProfileSheet({
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [cloudUnavailable, setCloudUnavailable] = useState(false);
   const [deletingProfileId, setDeletingProfileId] = useState<string | null>(null);
+  const [openSource, setOpenSource] = useState<string | null>(null);
+  const profileGroups = useMemo(() => groupProfilesBySource(profiles), [profiles]);
 
   useEffect(() => {
     let mounted = true;
@@ -156,6 +158,12 @@ function SharedProfileSheet({
     };
   }, []);
 
+  useEffect(() => {
+    if (openSource && !profileGroups.some((group) => group.source === openSource)) {
+      setOpenSource(null);
+    }
+  }, [openSource, profileGroups]);
+
   async function deleteProfile(profile: SharedProfileValue) {
     const deleteKey = getProfileDeleteKey(profile);
     setDeletingProfileId(deleteKey);
@@ -185,7 +193,7 @@ function SharedProfileSheet({
           <X size={25} />
         </button>
         <h2 className="pr-12 text-[23px] font-semibold text-ink">选择通用档案</h2>
-        <p className="mt-1 text-[14px] leading-6 text-[#8f8b82]">八字、六爻、奇门共用姓名、性别和出生时间。</p>
+        <p className="mt-1 text-[14px] leading-6 text-[#8f8b82]">八字、紫微、六爻、奇门共用姓名、性别和出生时间。</p>
         {cloudUnavailable ? (
           <p className="mt-3 rounded-xl bg-[#f8f3e7] px-3 py-2 text-[13px] leading-5 text-[#9b761f]">
             云端档案暂时不可用，已优先显示本机最近保存的资料。
@@ -198,31 +206,53 @@ function SharedProfileSheet({
             <p className="mt-2 text-[14px] leading-6 text-[#8f8b82]">会同时检查本机最近资料和当前账号档案。</p>
           </div>
         ) : profiles.length > 0 ? (
-          <div className="mt-5 space-y-3">
-            {profiles.map((profile) => (
-              <div
-                key={profile.id ?? `${profile.source}-${profile.name}-${profile.dateTime}`}
-                className="grid grid-cols-[minmax(0,1fr)_116px] items-center gap-3 rounded-xl border border-[#e6dfd0] bg-white px-4 py-3 shadow-sm"
-              >
-                <button type="button" onClick={() => onApply(profile)} className="min-w-0 text-left" aria-label={`选择${profile.name || "未填写姓名"}档案`}>
-                  <span className="block min-w-0 truncate text-[18px] font-semibold text-ink">{profile.name || "未填写姓名"}</span>
-                  <p className="mt-2 text-[15px] font-semibold text-[#77736b]">
-                    {profile.gender === "female" ? "女" : "男"} · {formatPickerLabel(profile.dateTime)}
-                  </p>
+          <div className="mt-5 max-h-[58vh] space-y-3 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {profileGroups.map((group) => (
+              <section key={group.source} className="overflow-hidden rounded-2xl border border-[#e6dfd0] bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setOpenSource((current) => (current === group.source ? null : group.source))}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
+                  aria-expanded={openSource === group.source}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-[18px] font-semibold text-ink">{group.source}</span>
+                    <span className="mt-1 block text-[14px] font-semibold text-[#8f8b82]">{group.profiles.length} 份档案</span>
+                  </span>
+                  <ChevronDown
+                    size={22}
+                    strokeWidth={2.4}
+                    className={cn("shrink-0 text-[#a58024] transition-transform", openSource === group.source && "rotate-180")}
+                  />
                 </button>
-                <div className="flex items-center justify-end gap-2">
-                  <span className="min-w-[68px] shrink-0 rounded-full bg-[#f4efe2] px-3 py-1 text-center text-[13px] font-semibold text-[#a58024]">{profile.source}</span>
-                  <button
-                    type="button"
-                    onClick={() => void deleteProfile(profile)}
-                    disabled={deletingProfileId === getProfileDeleteKey(profile)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f8f3e7] text-[#b95c45] disabled:opacity-55"
-                    aria-label={`删除${profile.name || "未填写姓名"}档案`}
-                  >
-                    {deletingProfileId === getProfileDeleteKey(profile) ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} strokeWidth={2.1} />}
-                  </button>
-                </div>
-              </div>
+
+                {openSource === group.source ? (
+                  <div className="space-y-2 border-t border-[#ebe7dd] bg-[#fffaf0] p-3">
+                    {group.profiles.map((profile) => (
+                      <div
+                        key={profile.id ?? `${profile.source}-${profile.name}-${profile.dateTime}`}
+                        className="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2 rounded-xl border border-[#eee5d4] bg-white px-3 py-3"
+                      >
+                        <button type="button" onClick={() => onApply(profile)} className="min-w-0 text-left" aria-label={`选择${profile.name || "未填写姓名"}档案`}>
+                          <span className="block min-w-0 truncate text-[17px] font-semibold text-ink">{profile.name || "未填写姓名"}</span>
+                          <p className="mt-1 text-[14px] font-semibold text-[#77736b]">
+                            {profile.gender === "female" ? "女" : "男"} · {formatPickerLabel(profile.dateTime)}
+                          </p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteProfile(profile)}
+                          disabled={deletingProfileId === getProfileDeleteKey(profile)}
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f8f3e7] text-[#b95c45] disabled:opacity-55"
+                          aria-label={`删除${profile.name || "未填写姓名"}档案`}
+                        >
+                          {deletingProfileId === getProfileDeleteKey(profile) ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} strokeWidth={2.1} />}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
             ))}
           </div>
         ) : (
@@ -525,6 +555,22 @@ function formatDisplayDateTime(value: string) {
     return "未选择时间";
   }
   return value.replace("T", " ");
+}
+
+function groupProfilesBySource(profiles: SharedProfileValue[]) {
+  const sourceMap = new Map<string, SharedProfileValue[]>();
+
+  profiles.forEach((profile) => {
+    const source = profile.source || "本机档案";
+    const groupProfiles = sourceMap.get(source) ?? [];
+    groupProfiles.push(profile);
+    sourceMap.set(source, groupProfiles);
+  });
+
+  return Array.from(sourceMap, ([source, groupProfiles]) => ({
+    source,
+    profiles: groupProfiles
+  }));
 }
 
 function getLocalProfiles() {
