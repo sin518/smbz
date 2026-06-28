@@ -25,7 +25,6 @@ export function LiuyaoResultClient() {
   const [adminAnalysisStatus, setAdminAnalysisStatus] = useState<"idle" | "streaming" | "done" | "error">("idle");
   const [adminAnalysisText, setAdminAnalysisText] = useState("");
   const [adminAnalysisError, setAdminAnalysisError] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
   const aiCommandSectionRef = useRef<HTMLElement>(null);
   const adminAiCommandSectionRef = useRef<HTMLElement>(null);
   const adminAnalysisAbortRef = useRef<AbortController | null>(null);
@@ -71,29 +70,6 @@ export function LiuyaoResultClient() {
 
     return () => window.cancelAnimationFrame(frameId);
   }, [showAiCommand]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetch("/api/admin/me", {
-      method: "GET",
-      credentials: "include"
-    })
-      .then((response) => {
-        if (!cancelled) {
-          setIsAdmin(response.ok);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setIsAdmin(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!showAdminAiCommand) {
@@ -150,6 +126,16 @@ export function LiuyaoResultClient() {
 
   async function handleRunAdminAiAnalysis() {
     if (adminAnalysisStatus === "streaming") {
+      return;
+    }
+
+    const signedIn = await getSignedIn();
+
+    if (!signedIn) {
+      setShowAdminAiCommand(true);
+      setAdminAnalysisStatus("error");
+      setAdminAnalysisText("");
+      setAdminAnalysisError("请先登录后再使用 AI 分析");
       return;
     }
 
@@ -339,18 +325,16 @@ export function LiuyaoResultClient() {
           </section>
         ) : null}
 
-        {isAdmin ? (
-          <div className="mt-3">
-            <AiCommandAction
-              onClick={() => void handleRunAdminAiAnalysis()}
-              loading={adminAnalysisStatus === "streaming"}
-              label="AI分析指令"
-              expanded={showAdminAiCommand}
-              controls="liuyao-admin-ai-command-panel"
-              className="bg-[#a58024] text-white"
-            />
-          </div>
-        ) : null}
+        <div className="mt-3">
+          <AiCommandAction
+            onClick={() => void handleRunAdminAiAnalysis()}
+            loading={adminAnalysisStatus === "streaming"}
+            label="AI分析指令"
+            expanded={showAdminAiCommand}
+            controls="liuyao-admin-ai-command-panel"
+            className="bg-[#a58024] text-white"
+          />
+        </div>
 
         {showAdminAiCommand ? (
           <section
@@ -457,6 +441,20 @@ function readJson<TValue>(key: string): TValue | undefined {
     return raw ? (JSON.parse(raw) as TValue) : undefined;
   } catch {
     return undefined;
+  }
+}
+
+async function getSignedIn() {
+  try {
+    const response = await fetch("/api/auth/get-session", {
+      method: "GET",
+      credentials: "include"
+    });
+    const data = response.ok ? ((await response.json().catch(() => null)) as { session?: unknown; user?: unknown } | null) : null;
+
+    return Boolean(data?.session && data.user);
+  } catch {
+    return false;
   }
 }
 

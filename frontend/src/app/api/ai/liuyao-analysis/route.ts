@@ -32,10 +32,10 @@ type AnthropicStreamChunk = {
 
 export async function POST(request: Request) {
   const cookieHeader = await getCookieHeader();
-  const isAdmin = await getIsAdmin(cookieHeader);
+  const isSignedIn = await getIsSignedIn(cookieHeader);
 
-  if (!isAdmin) {
-    return Response.json({ error: "当前账号没有后台管理权限" }, { status: 403 });
+  if (!isSignedIn) {
+    return Response.json({ error: "请先登录后再进行 AI 分析" }, { status: 401 });
   }
 
   let rawInput: unknown;
@@ -90,18 +90,19 @@ async function getCookieHeader() {
     .join("; ");
 }
 
-async function getIsAdmin(cookieHeader: string) {
+async function getIsSignedIn(cookieHeader: string) {
   if (!cookieHeader) {
     return false;
   }
 
   try {
-    const response = await fetch(`${getBackendUrl()}/api/admin/me`, {
+    const response = await fetch(`${getBackendUrl()}/api/auth/get-session`, {
       headers: { cookie: cookieHeader },
       cache: "no-store"
     });
+    const data = (await response.json().catch(() => null)) as { session?: unknown; user?: unknown } | null;
 
-    return response.ok;
+    return response.ok && Boolean(data?.session && data.user);
   } catch {
     return false;
   }
