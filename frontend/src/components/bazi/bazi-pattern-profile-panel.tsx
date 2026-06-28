@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import type { BaziInfoCategory } from "@/components/bazi/bazi-info-category-tabs";
-import { branchElements, controls, hiddenStems, stemElements } from "@/lib/bazi/five-elements";
+import { branchElements, buildFiveElementStats, controls, hiddenStems, stemElements } from "@/lib/bazi/five-elements";
 import { LoginBlurGate } from "@/components/shared/login-blur-gate";
 import {
   buildPatternProfile,
@@ -169,8 +169,10 @@ function AnalysisReportCard({
   return (
     <article
       className={cn(
-        "relative overflow-hidden rounded-[10px] bg-[#151326] text-white shadow-[0_10px_24px_rgba(22,18,40,0.16)]"
+        "relative scroll-mt-[154px] overflow-hidden rounded-[10px] bg-[#151326] text-white shadow-[0_10px_24px_rgba(22,18,40,0.16)]"
       )}
+      id={`bazi-topic-${category}`}
+      data-bazi-topic={category}
       style={{ zIndex: 10 - index }}
     >
       <div className={cn("relative px-4 py-4", category !== "月度总结" ? "min-h-[174px]" : "min-h-[92px]")}>
@@ -182,12 +184,47 @@ function AnalysisReportCard({
         </div>
         {category !== "月度总结" ? <TopicBaziMiniChart category={category} columns={columns} /> : null}
         {category === "事业谋划" ? (
-          <LoginBlurGate>
-            <CareerPatternDetails columns={columns} profile={profile} luckCycles={luckCycles} years={years} />
-          </LoginBlurGate>
+          <AiAnalysisDrawer>
+            <LoginBlurGate>
+              <CareerPatternDetails columns={columns} profile={profile} luckCycles={luckCycles} years={years} />
+            </LoginBlurGate>
+          </AiAnalysisDrawer>
+        ) : null}
+        {category === "婚姻剖析" ? (
+          <AiAnalysisDrawer>
+            <LoginBlurGate>
+              <MarriagePatternDetails columns={columns} profile={profile} years={years} />
+            </LoginBlurGate>
+          </AiAnalysisDrawer>
+        ) : null}
+        {category === "财运前瞻" ? (
+          <AiAnalysisDrawer>
+            <LoginBlurGate>
+              <WealthPatternDetails columns={columns} profile={profile} luckCycles={luckCycles} years={years} />
+            </LoginBlurGate>
+          </AiAnalysisDrawer>
         ) : null}
       </div>
     </article>
+  );
+}
+
+function AiAnalysisDrawer({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section className="relative mt-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex h-10 w-full items-center justify-center rounded-full border border-[#d9b987] bg-[#fff6e9] text-[13px] font-semibold text-[#9a6c2f] shadow-[0_4px_12px_rgba(41,31,18,0.12)] transition hover:brightness-98"
+      >
+        AI 分析
+        <ChevronDown size={15} strokeWidth={2} className={cn("ml-1.5 transition-transform", open && "rotate-180")} />
+      </button>
+      {open ? children : null}
+    </section>
   );
 }
 
@@ -373,6 +410,207 @@ function CareerTimingForecast({ columns, profile, luckCycles, years }: { columns
   );
 }
 
+function MarriagePatternDetails({ columns, profile, years }: { columns: ChartColumn[]; profile: PatternProfile; years: LuckColumn[] }) {
+  const dayColumn = columns.find((column) => column.title === "日柱") ?? columns[2];
+  const spouseBranch = dayColumn?.pillar.branch ?? "";
+  const spouseElement = branchElements[spouseBranch] ?? "土";
+  const spousePalaceGod = getSpousePalaceGod(dayColumn);
+  const strongestGroup = splitCareerCombo(profile.primaryCombo)[0] ?? profile.selectedPattern.replace("格", "");
+  const spouseElementPercent = getElementPercentage(columns, spouseElement);
+  const spouseTypeTags = buildSpouseTypeTags(spouseElement, spousePalaceGod, strongestGroup);
+  const risk = buildMarriageRisk(profile, dayColumn);
+  const harmonyBranches = getHarmonyBranches(spouseBranch);
+  const timingItems = buildMarriageTimingItems(spouseBranch, years);
+
+  return (
+    <section className="relative mt-3 rounded-[9px] bg-white px-3 py-3 text-[#6f6a62] shadow-[inset_0_0_0_1px_rgba(230,220,205,0.85)]">
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <MarriageSummaryBadge title="配偶星" value={spouseElement} />
+        <MarriageSummaryBadge title="夫妻宫" value={spousePalaceGod} />
+        <MarriageSummaryBadge title="本命最强" value={strongestGroup} />
+      </div>
+
+      <div className="mt-3 border-t border-[#f0e8dc] pt-3">
+        <h4 className="mb-2 text-[13px] font-semibold text-[#2f2b26]">配偶类型</h4>
+        <div className="grid grid-cols-3 gap-2">
+          {spouseTypeTags.map((tag) => (
+            <span key={tag} className="rounded-[4px] border border-[#efd7bc] bg-[#fff3e8] px-2 py-1 text-center text-[11px] font-medium text-[#c47f3f]">
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-3 border-t border-[#f0e8dc] pt-3">
+        <h4 className="mb-2 text-[13px] font-semibold text-[#2f2b26]">配偶星状态</h4>
+        <div className="relative flex h-6 items-center rounded-full bg-[#f5ebdf]">
+          <div className="flex h-full items-center rounded-full bg-[#d99b4a] pl-3 text-[10px] font-semibold text-white" style={{ width: `${Math.max(18, spouseElementPercent)}%` }}>
+            {formatPercentage(spouseElementPercent)}
+          </div>
+          <span className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#e6bf94] bg-white text-[13px] font-semibold text-[#c47f3f]">
+            {risk.role}
+          </span>
+        </div>
+        <p className="mt-2 text-[12px] leading-5 text-[#6f6a62]">
+          夫妻宫为{spouseBranch}{spouseElement}，配偶星力量约{formatPercentage(spouseElementPercent)}。{risk.statusText}
+        </p>
+      </div>
+
+      <div className="mt-3 border-t border-[#f0e8dc] pt-3">
+        <h4 className="mb-2 text-[13px] font-semibold text-[#2f2b26]">二婚危险度</h4>
+        <MarriageRiskDiagram risk={risk} />
+        <p className="mt-2 text-[12px] leading-5 text-[#6f6a62]">{risk.body}</p>
+      </div>
+
+      {harmonyBranches.length > 0 ? (
+        <div className="mt-3 border-t border-[#f0e8dc] pt-3">
+          <h4 className="mb-2 text-[13px] font-semibold text-[#2f2b26]">伴侣属相提示</h4>
+          <div className="flex gap-4">
+            {harmonyBranches.map((branch) => (
+              <span key={branch} className="flex h-8 w-8 items-center justify-center rounded-full border border-[#edd6b9] bg-[#fffaf4] text-[14px] font-semibold text-[#9a6c2f]">
+                {branch}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-3 border-t border-[#f0e8dc] pt-3">
+        <h4 className="mb-2 text-[13px] font-semibold text-[#2f2b26]">感情/婚恋年份提示</h4>
+        <div className="space-y-3">
+          {timingItems.map((item) => (
+            <section key={item.tag} className="border-b border-[#f0e8dc] pb-3 last:border-b-0 last:pb-0">
+              <span className="rounded-[4px] border border-[#f0d8bf] bg-[#fff3e8] px-2 py-0.5 text-[11px] font-medium text-[#c47f3f]">
+                {item.tag}
+              </span>
+              <p className="mt-2 text-[12px] leading-5 text-[#6f6a62]">{item.body}</p>
+            </section>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MarriageSummaryBadge({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="mb-2 text-[12px] font-semibold text-[#2f2b26]">{title}</p>
+      <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-[#e6bf94] bg-white text-[13px] font-semibold text-[#c47f3f]">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function MarriageRiskDiagram({ risk }: { risk: ReturnType<typeof buildMarriageRisk> }) {
+  return (
+    <div className="mx-auto flex max-w-[260px] flex-col items-center">
+      <div className="grid w-full grid-cols-2 gap-5 px-1 text-center">
+        {risk.tags.slice(0, 2).map((tag) => (
+          <span key={tag} className="rounded-full border border-[#efd0ab] bg-white px-3 py-1 text-[12px] font-medium text-[#c47f3f]">
+            {tag}
+          </span>
+        ))}
+      </div>
+      <div className="relative h-7 w-[72%]">
+        <div className="absolute left-0 right-0 top-2 h-px bg-[#d9a05a]" />
+        <div className="absolute left-0 top-0 h-2 w-px bg-[#d9a05a]" />
+        <div className="absolute right-0 top-0 h-2 w-px bg-[#d9a05a]" />
+        <div className="absolute left-1/2 top-2 h-5 w-px -translate-x-1/2 bg-[#d9a05a]" />
+      </div>
+      <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e6bf94] bg-white text-[14px] font-semibold text-[#c47f3f]">
+        {risk.level}
+      </span>
+    </div>
+  );
+}
+
+function WealthPatternDetails({ columns, profile, luckCycles, years }: { columns: ChartColumn[]; profile: PatternProfile; luckCycles: LuckColumn[]; years: LuckColumn[] }) {
+  const dayColumn = columns.find((column) => column.title === "日柱") ?? columns[2];
+  const dayElement = dayColumn ? stemElements[dayColumn.pillar.stem] : "土";
+  const wealthElement = controls[dayElement];
+  const wealthPercent = getElementPercentage(columns, wealthElement);
+  const earningPercent = Math.min(96, Math.max(8, wealthPercent + getUsefulSupportScore(profile)));
+  const wealthYears = buildWealthYears(wealthElement, luckCycles, years);
+  const wealthSources = buildWealthSources(columns, wealthElement);
+  const lossWarnings = buildLossWarnings(dayElement, wealthElement, years);
+
+  return (
+    <section className="relative mt-3 rounded-[9px] bg-white px-3 py-3 text-[#6f6a62] shadow-[inset_0_0_0_1px_rgba(230,220,205,0.85)]">
+      <div className="grid grid-cols-2 gap-4 text-center">
+        <WealthRing title="该数值用于衡量财星旺弱" value={wealthPercent} />
+        <WealthRing title="该数值用于衡量赚钱能力" value={earningPercent} />
+      </div>
+      <p className="mt-3 border-t border-[#f0e8dc] pt-3 text-[12px] leading-5 text-[#6f6a62]">
+        {buildWealthSummary(profile, wealthElement, wealthPercent, earningPercent)}
+      </p>
+
+      <div className="mt-3 border-t border-[#f0e8dc] pt-3">
+        <h4 className="mb-2 text-[13px] font-semibold text-[#2f2b26]">近十年财运</h4>
+        <div className="mb-2 flex flex-wrap gap-2">
+          {wealthYears.map((item) => (
+            <span key={item.tag} className="rounded-[4px] border border-[#f0d8bf] bg-[#fff3e8] px-2 py-0.5 text-[11px] font-medium text-[#c47f3f]">
+              {item.tag}
+            </span>
+          ))}
+        </div>
+        <p className="text-[12px] leading-5 text-[#6f6a62]">
+          {wealthYears.map((item) => item.body).join(" ")}
+        </p>
+      </div>
+
+      <div className="mt-3 border-t border-[#f0e8dc] pt-3">
+        <h4 className="mb-2 text-[13px] font-semibold text-[#2f2b26]">财源类型</h4>
+        <div className="space-y-2">
+          {wealthSources.map((item) => (
+            <div key={item.title} className="grid grid-cols-[58px_1fr] gap-2">
+              <span className="rounded-full border border-[#efd0ab] bg-[#fffaf4] px-2 py-1 text-center text-[12px] font-semibold text-[#c47f3f]">
+                {item.title}
+              </span>
+              <p className="text-[12px] leading-5 text-[#6f6a62]">{item.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-3 border-t border-[#f0e8dc] pt-3">
+        <h4 className="mb-2 text-[13px] font-semibold text-[#2f2b26]">破财注意</h4>
+        <div className="space-y-3">
+          {lossWarnings.map((item) => (
+            <section key={item.tag} className="border-b border-[#f0e8dc] pb-3 last:border-b-0 last:pb-0">
+              <span className="rounded-[4px] border border-[#f0d8bf] bg-[#fff3e8] px-2 py-0.5 text-[11px] font-medium text-[#c47f3f]">
+                {item.tag}
+              </span>
+              <p className="mt-2 text-[12px] leading-5 text-[#6f6a62]">{item.body}</p>
+            </section>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WealthRing({ title, value }: { title: string; value: number }) {
+  const displayValue = Math.round(value * 10) / 10;
+  const angle = Math.min(100, Math.max(0, value)) * 3.6;
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div
+        className="flex h-[74px] w-[74px] items-center justify-center rounded-full"
+        style={{ background: `conic-gradient(#d99b4a ${angle}deg, #f3e8dc ${angle}deg)` }}
+      >
+        <div className="flex h-[56px] w-[56px] flex-col items-center justify-center rounded-full bg-white text-[#c47f3f]">
+          <span className="text-[16px] font-semibold">{displayValue}%</span>
+          <span className="text-[9px] text-[#b68a5c]">旺</span>
+        </div>
+      </div>
+      <p className="max-w-[120px] text-[10px] leading-4 text-[#8d857b]">{title}</p>
+    </div>
+  );
+}
+
 function StarRating({ value }: { value: number }) {
   return (
     <span className="text-[12px]" aria-label={`${value}星`}>
@@ -507,6 +745,181 @@ function buildCareerTimingItems(columns: ChartColumn[], profile: PatternProfile,
       body: `事业状态有被带动的机会。${harmonyYear ? `${getLuckGanZhi(harmonyYear)}流年` : "对应流年"}与命盘形成相合或财星牵引时，适合推进资源合作、职位申请和长期计划。`
     }
   ];
+}
+
+function getSpousePalaceGod(dayColumn?: ChartColumn) {
+  const firstSubStar = dayColumn?.subStars.find(Boolean);
+
+  return firstSubStar && firstSubStar !== "元男" && firstSubStar !== "元女" ? firstSubStar : dayColumn?.mainStar.replace(/^元/, "") || "夫妻宫";
+}
+
+function getElementPercentage(columns: ChartColumn[], element: ElementRole["element"]) {
+  return buildFiveElementStats(columns).find((item) => item.element === element)?.percentage ?? 0;
+}
+
+function formatPercentage(value: number) {
+  return `${Math.round(value * 10) / 10}%`;
+}
+
+function buildSpouseTypeTags(element: ElementRole["element"], palaceGod: string, strongestGroup: string) {
+  const elementTags: Record<ElementRole["element"], string[]> = {
+    木: ["有责任感", "重成长", "讲原则"],
+    火: ["热情直接", "表达主动", "重氛围"],
+    土: ["踏实稳定", "顾家", "重承诺"],
+    金: ["边界清晰", "讲规则", "审美强"],
+    水: ["心思细腻", "适应力强", "善沟通"]
+  };
+  const godTags: Record<string, string[]> = {
+    正官: ["克制", "尊重秩序"],
+    七杀: ["强势", "行动快"],
+    正财: ["务实", "会经营"],
+    偏财: ["大气", "资源感强"],
+    正印: ["包容", "有耐心"],
+    偏印: ["敏感", "有距离感"],
+    食神: ["温和", "会照顾"],
+    伤官: ["表达强", "挑剔"],
+    比肩: ["独立", "自我"],
+    劫财: ["直爽", "竞争感"]
+  };
+
+  return Array.from(new Set([...(godTags[palaceGod] ?? []), ...(elementTags[element] ?? []), strongestGroup ? `${strongestGroup}明显` : "关系牵引"])).slice(0, 6);
+}
+
+function buildMarriageRisk(profile: PatternProfile, dayColumn?: ChartColumn) {
+  const spouseGod = getSpousePalaceGod(dayColumn);
+  const branch = dayColumn?.pillar.branch ?? "";
+  const hasMixedSignals = ["伤官", "七杀", "劫财"].includes(spouseGod) || profile.primaryCombo.includes("食伤");
+  const weakSelf = profile.strength === "弱" || profile.strength === "从弱";
+  const tags = [
+    hasMixedSignals ? "关系信号复杂" : "无明显混杂",
+    weakSelf ? "承压感偏强" : "关系承载尚可"
+  ];
+  const level = hasMixedSignals && weakSelf ? "中" : hasMixedSignals ? "偏低" : "低";
+
+  return {
+    role: weakSelf ? "忌" : "喜",
+    level,
+    tags,
+    statusText: weakSelf
+      ? "日主偏弱时，亲密关系里容易先感受到压力，需要清楚边界与支持系统。"
+      : "日主承载较稳，关系更适合在明确承诺与稳定节奏中推进。",
+    body: `${branch ? `${branch}为夫妻宫，` : ""}${tags.join("，")}。整体风险为${level}，重点不在“必然变化”，而在沟通方式、责任分配和情绪节奏是否稳定。`
+  };
+}
+
+function buildMarriageTimingItems(spouseBranch: string, years: LuckColumn[]) {
+  const futureYears = getFutureLuckYears(years);
+  const harmonyBranches = getHarmonyBranches(spouseBranch);
+  const opposite = getOppositeBranch(spouseBranch);
+  const harmonyYear = pickLuckYear(futureYears, (item) => harmonyBranches.includes(getLuckBranch(item))) ?? futureYears[0];
+  const clashYear = pickLuckYear(futureYears, (item) => getLuckBranch(item) === opposite) ?? futureYears[1] ?? futureYears[0];
+  const sameElementYear = pickLuckYear(futureYears, (item) => branchElements[getLuckBranch(item)] === branchElements[spouseBranch]) ?? futureYears[2] ?? futureYears[0];
+
+  return [
+    {
+      tag: formatLuckTag(harmonyYear),
+      body: `${getLuckGanZhi(harmonyYear)}流年与夫妻宫有相合牵引，代表感情互动、关系确认或生活安排更容易被推动。`
+    },
+    {
+      tag: formatLuckTag(clashYear),
+      body: `${getLuckGanZhi(clashYear)}流年冲动夫妻宫，关系中容易出现观念变化、距离变化或沟通压力，宜提前留出缓冲。`
+    },
+    {
+      tag: formatLuckTag(sameElementYear),
+      body: `${getLuckGanZhi(sameElementYear)}流年加强夫妻宫同类气场，适合重新梳理相处模式、承诺边界和长期计划。`
+    }
+  ].filter((item) => item.tag !== "流年待定");
+}
+
+function getUsefulSupportScore(profile: PatternProfile) {
+  if (profile.strength === "强" || profile.strength === "从强") {
+    return 18;
+  }
+
+  return profile.primaryCombo.includes("印") ? 8 : 4;
+}
+
+function buildWealthSummary(profile: PatternProfile, wealthElement: ElementRole["element"], wealthPercent: number, earningPercent: number) {
+  const wealthTone = wealthPercent >= 20 ? "财星不弱，容易遇到资源与收益机会" : "财星偏弱，求财更适合稳扎稳打";
+  const earningTone = earningPercent >= 50 ? "赚钱能力有发挥空间" : "赚钱能力需要依赖专业、平台与节奏积累";
+
+  return `${wealthTone}。当前财星为${wealthElement}，占比约${formatPercentage(wealthPercent)}；${earningTone}。${profile.strength === "弱" ? "日主偏弱时，不宜过早扩大投入，先保证承载力与现金流。" : "日主承载较足时，可把输出和机会转成可见收益。"}`;
+}
+
+function buildWealthYears(wealthElement: ElementRole["element"], luckCycles: LuckColumn[], years: LuckColumn[]) {
+  const activeLuck = luckCycles.find((item) => item.active);
+  const futureYears = getFutureLuckYears(years);
+  const wealthYear = pickLuckYear(futureYears, (item) => getLuckElement(item) === wealthElement) ?? futureYears[0];
+  const outputYear = pickLuckYear(futureYears, (item) => getLuckElement(item) && controls[getLuckElement(item) as ElementRole["element"]] === wealthElement) ?? futureYears[1] ?? futureYears[0];
+
+  return [
+    {
+      tag: activeLuck ? `${activeLuck.year}${getLuckGanZhi(activeLuck)}大运` : formatLuckTag(wealthYear),
+      body: activeLuck ? `${getLuckGanZhi(activeLuck)}大运牵动阶段性财运底色，宜观察稳定收入与长期项目。` : `${getLuckGanZhi(wealthYear)}流年财星显现，适合关注收入机会。`
+    },
+    {
+      tag: formatLuckTag(wealthYear),
+      body: `${getLuckGanZhi(wealthYear)}流年财星被引动，代表收益、订单、资源或现金流更容易被看见。`
+    },
+    {
+      tag: formatLuckTag(outputYear),
+      body: `${getLuckGanZhi(outputYear)}流年可通过技能输出、项目交付或内容表达带动财源。`
+    }
+  ].filter((item) => item.tag !== "流年待定").slice(0, 2);
+}
+
+function buildWealthSources(columns: ChartColumn[], wealthElement: ElementRole["element"]) {
+  const visibleWealth = columns.some((column) => stemElements[column.pillar.stem] === wealthElement);
+  const hiddenWealth = columns.some((column) => hiddenStems[column.pillar.branch]?.some((item) => item.element === wealthElement));
+  const sources = [
+    {
+      title: "财富合身",
+      body: visibleWealth ? "财星透出，代表从你的主业、岗位回报或明确合作中见财。" : "财星不透，适合先通过稳定职业能力积累收益。"
+    }
+  ];
+
+  if (hiddenWealth) {
+    sources.push({
+      title: "正财",
+      body: "财星藏于地支，代表长期积累、固定资源、项目沉淀或不张扬的收益。"
+    });
+  }
+
+  sources.push({
+    title: "偏财",
+    body: "可关注额外副业、资源撮合、投资机会，但需要控制投入规模。"
+  });
+
+  return sources;
+}
+
+function buildLossWarnings(dayElement: ElementRole["element"], wealthElement: ElementRole["element"], years: LuckColumn[]) {
+  const futureYears = getFutureLuckYears(years);
+  const peerYear = pickLuckYear(futureYears, (item) => getLuckElement(item) === dayElement) ?? futureYears[0];
+  const pressureYear = pickLuckYear(futureYears, (item) => {
+    const element = getLuckElement(item);
+    return element ? controls[element] === dayElement : false;
+  }) ?? futureYears[1] ?? futureYears[0];
+  const wealthRootYear = pickLuckYear(futureYears, (item) => getLuckElement(item) === wealthElement) ?? futureYears[2] ?? futureYears[0];
+
+  return [
+    {
+      tag: formatLuckTag(peerYear),
+      body: `${getLuckGanZhi(peerYear)}流年比劫或同党被引动，需防合作分财、冲动消费或人情支出。`
+    },
+    {
+      tag: formatLuckTag(pressureYear),
+      body: `${getLuckGanZhi(pressureYear)}流年外部压力增强，容易因责任、规则或突发事务增加开销。`
+    },
+    {
+      tag: formatLuckTag(wealthRootYear),
+      body: `${getLuckGanZhi(wealthRootYear)}流年财星被触动，机会增多，也要警惕投入过大导致本源受伤。`
+    }
+  ].filter((item) => item.tag !== "流年待定");
+}
+
+function getLuckElement(item: LuckColumn) {
+  return stemElements[getLuckStem(item)] ?? branchElements[getLuckBranch(item)];
 }
 
 function getFutureLuckYears(years: LuckColumn[]) {

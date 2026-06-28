@@ -1,19 +1,53 @@
 "use client";
 
-// 需要 useState 让分类按钮组在当前页面内切换选中态。
-import { useState } from "react";
+// 需要 useState + IntersectionObserver 让分类按钮与页面模块联动。
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export const baziInfoCategories = ["事业谋划", "婚姻剖析", "财运前瞻", "月度总结"] as const;
 export type BaziInfoCategory = (typeof baziInfoCategories)[number];
-export const BAZI_INFO_CATEGORY_EVENT = "bazi-info-category-change";
 
 export function BaziInfoCategoryTabs() {
   const [activeCategory, setActiveCategory] = useState<BaziInfoCategory>("事业谋划");
 
+  useEffect(() => {
+    const targets = baziInfoCategories
+      .map((category) => document.querySelector<HTMLElement>(`[data-bazi-topic="${category}"]`))
+      .filter((target): target is HTMLElement => Boolean(target));
+
+    if (targets.length === 0) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+        const nextCategory = visibleEntry?.target.getAttribute("data-bazi-topic") as BaziInfoCategory | null;
+
+        if (nextCategory) {
+          setActiveCategory(nextCategory);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "-152px 0px -55% 0px",
+        threshold: [0.15, 0.35, 0.6]
+      }
+    );
+
+    targets.forEach((target) => observer.observe(target));
+
+    return () => observer.disconnect();
+  }, []);
+
   function handleCategoryChange(category: BaziInfoCategory) {
     setActiveCategory(category);
-    window.dispatchEvent(new CustomEvent<BaziInfoCategory>(BAZI_INFO_CATEGORY_EVENT, { detail: category }));
+    document.querySelector<HTMLElement>(`[data-bazi-topic="${category}"]`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
   }
 
   return (
