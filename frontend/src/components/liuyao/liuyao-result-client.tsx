@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowLeft, Check, Copy, X } from "lucide-react";
+import { ArrowLeft, Check, Copy, Loader2, Square, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AiCommandAction } from "@/components/shared/ai-command-action";
 import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
 import { buildLiuyaoAiCommandText } from "@/lib/ai/liuyao-command";
 import { saveLocalLiuyaoRecord } from "@/lib/divination/local-records";
@@ -19,10 +20,18 @@ export function LiuyaoResultClient() {
   const [missingCasting, setMissingCasting] = useState(false);
   const [chartError, setChartError] = useState("");
   const [showAiCommand, setShowAiCommand] = useState(false);
+  const [showAdminAiCommand, setShowAdminAiCommand] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "selected">("idle");
+  const [adminAnalysisStatus, setAdminAnalysisStatus] = useState<"idle" | "streaming" | "done" | "error">("idle");
+  const [adminAnalysisText, setAdminAnalysisText] = useState("");
+  const [adminAnalysisError, setAdminAnalysisError] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
   const aiCommandSectionRef = useRef<HTMLElement>(null);
+  const adminAiCommandSectionRef = useRef<HTMLElement>(null);
+  const adminAnalysisAbortRef = useRef<AbortController | null>(null);
   const pathname = usePathname();
   const aiCommandText = useMemo(() => (chart ? buildLiuyaoAiCommandText(chart) : ""), [chart]);
+  const adminAiCommandText = useMemo(() => (chart ? buildAdminLiuyaoAiAnalysisCommandText(chart, aiCommandText) : ""), [chart, aiCommandText]);
 
   useEffect(() => {
     const input = readJson<LiuyaoStoredInput>("sm1:current-liuyao-input");
@@ -63,6 +72,47 @@ export function LiuyaoResultClient() {
     return () => window.cancelAnimationFrame(frameId);
   }, [showAiCommand]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/admin/me", {
+      method: "GET",
+      credentials: "include"
+    })
+      .then((response) => {
+        if (!cancelled) {
+          setIsAdmin(response.ok);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIsAdmin(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showAdminAiCommand) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      adminAiCommandSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [showAdminAiCommand]);
+
+  useEffect(() => {
+    return () => {
+      adminAnalysisAbortRef.current?.abort();
+    };
+  }, []);
+
   if (missingCasting) {
     return (
       <main className="light-surface-text-scope app-responsive-shell flex min-h-screen flex-col items-center justify-center bg-paper px-8 text-center shadow-soft">
@@ -96,6 +146,74 @@ export function LiuyaoResultClient() {
     } catch {
       setCopyStatus("selected");
     }
+  }
+
+  async function handleRunAdminAiAnalysis() {
+    if (adminAnalysisStatus === "streaming") {
+      return;
+    }
+
+    const controller = new AbortController();
+    adminAnalysisAbortRef.current?.abort();
+    adminAnalysisAbortRef.current = controller;
+    setShowAdminAiCommand(true);
+    setAdminAnalysisStatus("streaming");
+    setAdminAnalysisText("");
+    setAdminAnalysisError("");
+
+    try {
+      const response = await fetch("/api/ai/liuyao-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        signal: controller.signal,
+        body: JSON.stringify({
+          prompt: adminAiCommandText,
+          maxTokens: 3600
+        })
+      });
+
+      if (!response.ok || !response.body) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? "AI 分析请求失败");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        if (chunk) {
+          setAdminAnalysisText((current) => `${current}${chunk}`);
+        }
+      }
+
+      setAdminAnalysisStatus("done");
+    } catch (error) {
+      if (controller.signal.aborted) {
+        setAdminAnalysisStatus(adminAnalysisText ? "done" : "idle");
+        return;
+      }
+
+      setAdminAnalysisStatus("error");
+      setAdminAnalysisError(error instanceof Error ? error.message : "AI 分析请求失败");
+    } finally {
+      if (adminAnalysisAbortRef.current === controller) {
+        adminAnalysisAbortRef.current = null;
+      }
+    }
+  }
+
+  function handleStopAdminAiAnalysis() {
+    adminAnalysisAbortRef.current?.abort();
+    adminAnalysisAbortRef.current = null;
+    setAdminAnalysisStatus(adminAnalysisText ? "done" : "idle");
   }
 
   return (
@@ -169,8 +287,8 @@ export function LiuyaoResultClient() {
         <ProtectedAiCommandAction
           loginNextHref={pathname || "/liuyao/result"}
           onAuthorized={() => {
-              setShowAiCommand(true);
-              setCopyStatus("idle");
+            setShowAiCommand(true);
+            setCopyStatus("idle");
           }}
           expanded={showAiCommand}
           controls="liuyao-ai-command-panel"
@@ -220,9 +338,105 @@ export function LiuyaoResultClient() {
             </div>
           </section>
         ) : null}
+
+        {isAdmin ? (
+          <div className="mt-3">
+            <AiCommandAction
+              onClick={() => void handleRunAdminAiAnalysis()}
+              loading={adminAnalysisStatus === "streaming"}
+              label="AI分析指令"
+              expanded={showAdminAiCommand}
+              controls="liuyao-admin-ai-command-panel"
+              className="bg-[#a58024] text-white"
+            />
+          </div>
+        ) : null}
+
+        {showAdminAiCommand ? (
+          <section
+            id="liuyao-admin-ai-command-panel"
+            ref={adminAiCommandSectionRef}
+            className="mt-3 scroll-mt-24 overflow-hidden rounded-[22px] bg-white shadow-soft"
+          >
+            <header className="flex items-center justify-between border-b border-[#f0eadc] px-4 py-3">
+              <h2 className="text-[16px] font-semibold text-ink">AI分析</h2>
+              <button
+                type="button"
+                onClick={() => setShowAdminAiCommand(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f6f0e2] text-[#4a4036]"
+                aria-label="关闭AI分析指令"
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <div className="px-4 py-4">
+              <p className="text-[13px] leading-5 text-[#6d6254]">
+                已将上方 AI 指令作为提示词提交给大模型，分析内容会在此实时显示。
+              </p>
+              <div className="mt-3 min-h-[240px] whitespace-pre-wrap rounded-[14px] border border-[#eee4d2] bg-[#fffdf8] p-3 text-[13px] leading-6 text-[#554f47]">
+                {adminAnalysisText ? adminAnalysisText : null}
+                {adminAnalysisStatus === "streaming" ? (
+                  <span className="inline-flex items-center gap-1 text-[#a58024]">
+                    <Loader2 size={14} className="animate-spin" />
+                    分析中...
+                  </span>
+                ) : null}
+                {adminAnalysisStatus === "idle" ? <span className="text-[#8f877d]">等待开始分析...</span> : null}
+                {adminAnalysisError ? <span className="text-[#c23521]">{adminAnalysisError}</span> : null}
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleRunAdminAiAnalysis()}
+                  disabled={adminAnalysisStatus === "streaming"}
+                  className="flex h-11 items-center justify-center gap-2 rounded-full bg-[#a58024] text-[15px] font-semibold text-white disabled:cursor-wait disabled:opacity-65"
+                >
+                  {adminAnalysisStatus === "streaming" ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />}
+                  {adminAnalysisText ? "重新分析" : "开始分析"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStopAdminAiAnalysis}
+                  disabled={adminAnalysisStatus !== "streaming"}
+                  className="flex h-11 items-center justify-center gap-2 rounded-full bg-[#f6f0e2] text-[15px] font-semibold text-[#4a4036] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Square size={15} />
+                  停止
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : null}
       </section>
     </main>
   );
+}
+
+function buildAdminLiuyaoAiAnalysisCommandText(chart: LiuyaoChart, publicCommandText: string) {
+  return `# 六爻后台AI分析指令
+
+你是后台管理员使用的六爻分析助手。请基于下方排盘与公开AI指令，输出一份可审核的分析草稿。
+
+## 管理员要求
+1. 先给明确结论，再列卦理证据。
+2. 标注用神取法、旺衰依据、动变影响、世应关系、应期依据。
+3. 单独列出“需要人工复核”的点，尤其是用神不确定、问题过宽、空亡/伏神/日破存在争议的情况。
+4. 不输出恐吓、医疗/投资/法律保证、玄学化解、付费引导。
+5. 若卦象信息不足，必须写明“不足以定论”的原因。
+
+## 本次排盘摘要
+- 求测方向：${chart.profile.direction}
+- 求测事项：${chart.profile.question}
+- 起卦时间：${chart.profile.castingText}
+- 干支：${chart.ganzhiText}
+- 系统用神目标：${chart.skillWorkflow.yongShenTargets.join("、")}
+
+## 规范排盘文本
+${chart.canonicalText}
+
+## 公开AI指令基线
+${publicCommandText}
+`;
 }
 
 function LineSymbol({ symbol, changing }: { symbol: "yang" | "yin"; changing: boolean }) {
