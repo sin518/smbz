@@ -88,7 +88,7 @@ export function BaziChartView({
             <DayMasterFeature columns={columns} />
             <BaziFiveElementsPanel columns={columns} />
             <BaziPatternProfilePanel columns={columns} />
-            <BaziTopicReportStack columns={columns} luckCycles={luckCycles} years={years} />
+            <BaziTopicReportStack columns={columns} profile={profileView} luckCycles={luckCycles} years={years} />
           </div>
         </section>
       ) : null}

@@ -19,11 +19,12 @@ import {
   type PatternProfile,
   type StrengthKey
 } from "@/lib/bazi/pattern-profile";
-import type { ChartColumn, LuckColumn } from "@/lib/bazi/demo";
+import type { ChartColumn, DemoProfile, LuckColumn } from "@/lib/bazi/demo";
 import { cn } from "@/lib/utils";
 
 type BaziPatternProfilePanelProps = {
   columns: ChartColumn[];
+  profile?: DemoProfile;
   luckCycles?: LuckColumn[];
   years?: LuckColumn[];
 };
@@ -31,6 +32,24 @@ type BaziPatternProfilePanelProps = {
 type SessionResponse = {
   session?: unknown;
   user?: unknown;
+};
+
+type MonthlySummary = {
+  monthPillar: string;
+  period: string;
+  score: number;
+  name: string;
+  gender: string;
+  trend: string;
+  work: string;
+  emotion: string;
+  wealth: string;
+  lifeReminder: string;
+  lifeTips: Array<{ label: string; body: string }>;
+  tenGodCombo: string[];
+  tenGodText: string;
+  branchRelation: string;
+  seasonalElement: string;
 };
 
 const elementColorClasses: Record<ElementRole["element"], string> = {
@@ -135,21 +154,21 @@ export function BaziPatternProfilePanel({ columns }: BaziPatternProfilePanelProp
   );
 }
 
-export function BaziTopicReportStack({ columns, luckCycles = [], years = [] }: BaziPatternProfilePanelProps) {
+export function BaziTopicReportStack({ columns, profile: displayProfile, luckCycles = [], years = [] }: BaziPatternProfilePanelProps) {
   const profile = useMemo(() => buildPatternProfile(columns), [columns]);
 
   return (
     <div className="border-b-0 pb-4">
-      <AnalysisReportStack columns={columns} profile={profile} luckCycles={luckCycles} years={years} />
+      <AnalysisReportStack columns={columns} profile={profile} displayProfile={displayProfile} luckCycles={luckCycles} years={years} />
     </div>
   );
 }
 
-function AnalysisReportStack({ columns, profile, luckCycles, years }: { columns: ChartColumn[]; profile: PatternProfile; luckCycles: LuckColumn[]; years: LuckColumn[] }) {
+function AnalysisReportStack({ columns, profile, displayProfile, luckCycles, years }: { columns: ChartColumn[]; profile: PatternProfile; displayProfile?: DemoProfile; luckCycles: LuckColumn[]; years: LuckColumn[] }) {
   return (
     <section className="space-y-3">
       {(Object.keys(reportCards) as BaziInfoCategory[]).map((category, index) => (
-        <AnalysisReportCard key={category} category={category} index={index} columns={columns} profile={profile} luckCycles={luckCycles} years={years} />
+        <AnalysisReportCard key={category} category={category} index={index} columns={columns} profile={profile} displayProfile={displayProfile} luckCycles={luckCycles} years={years} />
       ))}
     </section>
   );
@@ -160,6 +179,7 @@ function AnalysisReportCard({
   index,
   columns,
   profile,
+  displayProfile,
   luckCycles,
   years
 }: {
@@ -167,6 +187,7 @@ function AnalysisReportCard({
   index: number;
   columns: ChartColumn[];
   profile: PatternProfile;
+  displayProfile?: DemoProfile;
   luckCycles: LuckColumn[];
   years: LuckColumn[];
 }) {
@@ -207,6 +228,13 @@ function AnalysisReportCard({
           <AiAnalysisDrawer>
             <LoginBlurGate>
               <WealthPatternDetails columns={columns} profile={profile} luckCycles={luckCycles} years={years} />
+            </LoginBlurGate>
+          </AiAnalysisDrawer>
+        ) : null}
+        {category === "月度总结" ? (
+          <AiAnalysisDrawer>
+            <LoginBlurGate>
+              <MonthlySummaryDetails columns={columns} profile={profile} displayProfile={displayProfile} />
             </LoginBlurGate>
           </AiAnalysisDrawer>
         ) : null}
@@ -280,6 +308,447 @@ function AiAnalysisDrawer({ children }: { children: ReactNode }) {
       {open ? children : null}
     </section>
   );
+}
+
+function MonthlySummaryDetails({ columns, profile, displayProfile }: { columns: ChartColumn[]; profile: PatternProfile; displayProfile?: DemoProfile }) {
+  const fallbackSummary = useMemo(() => buildMonthlySummary(columns, profile, displayProfile), [columns, profile, displayProfile]);
+  const aiAnalysis = useMonthlyAiAnalysis({
+    columns,
+    profile,
+    fallback: fallbackSummary
+  });
+  const summary = aiAnalysis.data ?? fallbackSummary;
+
+  return (
+    <section className="relative mt-3 rounded-[9px] bg-white px-3 py-3 text-[#6f6a62] shadow-[inset_0_0_0_1px_rgba(230,220,205,0.85)]">
+      <section>
+        <h4 className="mb-3 text-[15px] font-semibold text-[#2f2b26]">基本信息</h4>
+        <div className="space-y-2 border-b border-[#f0e8dc] pb-3 text-[12px] leading-5">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <MonthlyInfoLine label="周期" value={`${summary.monthPillar} ${summary.period}`} />
+            <MonthlyInfoLine label="月度分数" value={`${summary.score}分`} strong />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <MonthlyInfoLine label="姓名" value={summary.name} />
+            <MonthlyInfoLine label="性别" value={summary.gender} />
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-3">
+        <h4 className="mb-2 text-[15px] font-semibold text-[#2f2b26]">本月趋势</h4>
+        <p className="text-[12px] leading-5 text-[#6f6a62]">{summary.trend}</p>
+      </section>
+
+      <section className="mt-3 border-t border-[#f0e8dc] pt-3">
+        <span className="mb-2 inline-flex rounded-[4px] border border-[#f0d8bf] bg-[#fff3e8] px-2 py-0.5 text-[12px] font-semibold text-[#c47f3f]">
+          工作上
+        </span>
+        <p className="text-[12px] leading-5 text-[#6f6a62]">{summary.work}</p>
+      </section>
+
+      <MonthlySummaryBlock label="情感上" body={summary.emotion} />
+      <MonthlySummaryBlock label="财富上" body={summary.wealth} />
+
+      <section className="mt-4 border-t border-[#f0e8dc] pt-3">
+        <h4 className="mb-2 text-[15px] font-semibold text-[#2f2b26]">生活提醒</h4>
+        <p className="text-[12px] leading-5 text-[#6f6a62]">{summary.lifeReminder}</p>
+        <div className="mt-3 space-y-2">
+          {summary.lifeTips.map((item) => (
+            <div key={item.label}>
+              <span className="mb-1 inline-flex rounded-[4px] border border-[#f0d8bf] bg-[#fff3e8] px-2 py-0.5 text-[12px] font-semibold text-[#c47f3f]">
+                {item.label}
+              </span>
+              <p className="text-[12px] leading-5 text-[#6f6a62]">{item.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-4 border-t border-[#f0e8dc] pt-3">
+        <h4 className="mb-3 text-[15px] font-semibold text-[#2f2b26]">十神组合</h4>
+        <div className="mb-2 flex items-center justify-center gap-4">
+          {summary.tenGodCombo.map((item, index) => (
+            <div key={item} className="flex items-center gap-4">
+              <span className="flex h-10 min-w-10 items-center justify-center rounded-full border border-[#e8c79f] bg-[#fffaf4] px-3 text-[13px] font-semibold text-[#c47f3f]">
+                {item}
+              </span>
+              {index < summary.tenGodCombo.length - 1 ? <span className="text-[16px] text-[#c47f3f]">+</span> : null}
+            </div>
+          ))}
+        </div>
+        <p className="text-[12px] leading-5 text-[#6f6a62]">{summary.tenGodText}</p>
+      </section>
+
+      <section className="mt-4 border-t border-[#f0e8dc] pt-3">
+        <h4 className="mb-2 text-[15px] font-semibold text-[#2f2b26]">干支关系</h4>
+        <p className="text-[12px] leading-5 text-[#6f6a62]">{summary.branchRelation}</p>
+      </section>
+
+      <section className="mt-4 border-t border-[#f0e8dc] pt-3">
+        <h4 className="mb-2 text-[15px] font-semibold text-[#2f2b26]">五行四时</h4>
+        <p className="text-[12px] leading-5 text-[#6f6a62]">{summary.seasonalElement}</p>
+      </section>
+    </section>
+  );
+}
+
+function MonthlySummaryBlock({ label, body }: { label: string; body: string }) {
+  return (
+    <section className="mt-3 border-t border-[#f0e8dc] pt-3">
+      <span className="mb-2 inline-flex rounded-[4px] border border-[#f0d8bf] bg-[#fff3e8] px-2 py-0.5 text-[12px] font-semibold text-[#c47f3f]">
+        {label}
+      </span>
+      <p className="text-[12px] leading-5 text-[#6f6a62]">{body}</p>
+    </section>
+  );
+}
+
+function MonthlyInfoLine({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <p className="inline-flex min-w-0 max-w-full items-baseline whitespace-nowrap">
+      <span className="mr-1 shrink-0 font-semibold text-[#7d776f]">{label}</span>
+      <span className={cn("min-w-0 truncate", strong ? "font-semibold text-[#7d776f]" : "text-[#8d857b]")}>{value}</span>
+    </p>
+  );
+}
+
+type MonthlyAiAnalysisData = Pick<MonthlySummary, "trend" | "work" | "emotion" | "wealth" | "lifeReminder" | "lifeTips" | "tenGodText" | "branchRelation" | "seasonalElement">;
+
+const monthlyAiRequestCache = new Map<string, Promise<MonthlyAiAnalysisData>>();
+
+function useMonthlyAiAnalysis({ columns, profile, fallback }: { columns: ChartColumn[]; profile: PatternProfile; fallback: MonthlySummary }) {
+  const aiFallback = useMemo<MonthlyAiAnalysisData>(
+    () => ({
+      trend: fallback.trend,
+      work: fallback.work,
+      emotion: fallback.emotion,
+      wealth: fallback.wealth,
+      lifeReminder: fallback.lifeReminder,
+      lifeTips: fallback.lifeTips,
+      tenGodText: fallback.tenGodText,
+      branchRelation: fallback.branchRelation,
+      seasonalElement: fallback.seasonalElement
+    }),
+    [fallback]
+  );
+  const [state, setState] = useState<{ status: "loading" | "ready" | "error"; data?: MonthlySummary }>({ status: "loading" });
+  const payload = useMemo(
+    () => ({
+      pillars: columns.map((column) => ({
+        title: column.title,
+        stem: column.pillar.stem,
+        branch: column.pillar.branch,
+        mainStar: column.mainStar,
+        subStars: column.subStars,
+        hiddenStems: column.hiddenStems
+      })),
+      profile: {
+        strength: profile.strength,
+        selectedPattern: profile.selectedPattern,
+        primaryCombo: profile.primaryCombo,
+        activeCombos: profile.activeCombos
+      },
+      monthly: fallback
+    }),
+    [columns, fallback, profile.activeCombos, profile.primaryCombo, profile.selectedPattern, profile.strength]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const cacheKey = getMonthlyAiCacheKey(payload);
+
+    async function loadAnalysis() {
+      setState({ status: "loading" });
+
+      try {
+        const cached = readMonthlyAiCache(cacheKey);
+        if (cached) {
+          setState({ status: "ready", data: { ...fallback, ...cached } });
+          return;
+        }
+
+        const request = monthlyAiRequestCache.get(cacheKey) ?? requestMonthlyAiAnalysis(payload, aiFallback);
+        monthlyAiRequestCache.set(cacheKey, request);
+
+        const parsed = await request;
+
+        if (!cancelled) {
+          writeMonthlyAiCache(cacheKey, parsed);
+          setState({ status: "ready", data: { ...fallback, ...parsed } });
+        }
+      } catch {
+        monthlyAiRequestCache.delete(cacheKey);
+        if (!cancelled) {
+          setState({ status: "error", data: fallback });
+        }
+      }
+    }
+
+    void loadAnalysis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [aiFallback, fallback, payload]);
+
+  return state;
+}
+
+async function requestMonthlyAiAnalysis(payload: unknown, fallback: MonthlyAiAnalysisData) {
+  const response = await fetch("/api/ai/quick-analysis", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source: "bazi-monthly",
+      responseFormat: "json_object",
+      maxTokens: 1600,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "你是八字月度总结助手，只能基于用户提供的命盘、月度结构化数据、旺衰、格局与十神组合生成话术。",
+            "不要重新判盘，不要编造未提供的神煞、年份或夸张断语。",
+            "返回严格 JSON，不要 Markdown。",
+            "JSON 字段：trend, work, emotion, wealth, lifeReminder, lifeTips, tenGodText, branchRelation, seasonalElement。",
+            "lifeTips 必须保留输入的 label，只重写 body；其他字段每段 45-95 个中文字符。",
+            "基本信息、周期、分数、姓名、性别、十神组合圆点不允许改。"
+          ].join("\n")
+        },
+        {
+          role: "user",
+          content: JSON.stringify(payload)
+        }
+      ]
+    })
+  });
+  const result = (await response.json()) as { content?: string };
+
+  if (!response.ok) {
+    throw new Error("AI 月度总结请求失败");
+  }
+
+  return parseMonthlyAiAnalysis(result.content, fallback);
+}
+
+function parseMonthlyAiAnalysis(content: string | undefined, fallback: MonthlyAiAnalysisData): MonthlyAiAnalysisData {
+  if (!content) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(extractJsonObjectText(content)) as Partial<MonthlyAiAnalysisData>;
+
+    return {
+      trend: getNonEmptyString(parsed.trend, fallback.trend),
+      work: getNonEmptyString(parsed.work, fallback.work),
+      emotion: getNonEmptyString(parsed.emotion, fallback.emotion),
+      wealth: getNonEmptyString(parsed.wealth, fallback.wealth),
+      lifeReminder: getNonEmptyString(parsed.lifeReminder, fallback.lifeReminder),
+      lifeTips: parseMonthlyLifeTips(parsed.lifeTips, fallback.lifeTips),
+      tenGodText: getNonEmptyString(parsed.tenGodText, fallback.tenGodText),
+      branchRelation: getNonEmptyString(parsed.branchRelation, fallback.branchRelation),
+      seasonalElement: getNonEmptyString(parsed.seasonalElement, fallback.seasonalElement)
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function parseMonthlyLifeTips(input: unknown, fallback: MonthlyAiAnalysisData["lifeTips"]) {
+  if (!Array.isArray(input)) {
+    return fallback;
+  }
+
+  return fallback.map((item) => {
+    const matched = input.find((value): value is Partial<{ label: string; body: string }> => {
+      return typeof value === "object" && value !== null && "label" in value && (value as { label?: string }).label === item.label;
+    });
+
+    return {
+      ...item,
+      body: getNonEmptyString(matched?.body, item.body)
+    };
+  });
+}
+
+function getNonEmptyString(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function getMonthlyAiCacheKey(payload: unknown) {
+  return `bazi:monthly-ai:v1:${hashText(JSON.stringify(payload))}`;
+}
+
+function readMonthlyAiCache(key: string) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as MonthlyAiAnalysisData) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeMonthlyAiCache(key: string, data: MonthlyAiAnalysisData) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(data));
+  } catch {
+    // Ignore storage quota or privacy mode failures.
+  }
+}
+
+function buildMonthlySummary(columns: ChartColumn[], profile: PatternProfile, displayProfile?: DemoProfile): MonthlySummary {
+  const now = new Date();
+  const dayColumn = columns.find((column) => column.title === "日柱") ?? columns[2];
+  const dayElement = dayColumn ? stemElements[dayColumn.pillar.stem] : "土";
+  const monthInfo = getCurrentMonthPillarInfo(now);
+  const monthElement = stemElements[monthInfo.stem] ?? branchElements[monthInfo.branch] ?? "土";
+  const wealthElement = controls[dayElement];
+  const wealthPercent = getElementPercentage(columns, wealthElement);
+  const spouseBranch = dayColumn?.pillar.branch ?? "";
+  const spouseElement = branchElements[spouseBranch] ?? "土";
+  const monthGod = getMonthlyTenGod(dayElement, monthElement);
+  const comboParts = splitCareerCombo(profile.primaryCombo).slice(0, 2);
+  const tenGodCombo = comboParts.length >= 2 ? comboParts : [monthGod, profile.primaryCombo.replace(/配.*/, "") || "印"].filter(Boolean).slice(0, 2);
+  const stats = buildFiveElementStats(columns);
+  const monthElementStat = stats.find((item) => item.element === monthElement)?.percentage ?? 0;
+  const supportScore = monthElement === dayElement ? 12 : controls[monthElement] === dayElement ? 8 : controls[dayElement] === monthElement ? -8 : 0;
+  const strengthPenalty = profile.strength === "弱" || profile.strength === "从弱" ? -7 : 5;
+  const score = Math.min(88, Math.max(18, Math.round(46 + monthElementStat * 0.7 + supportScore + strengthPenalty)));
+  const monthPillar = `【${monthInfo.stem}${monthInfo.branch}月】`;
+  const period = `${monthInfo.startMonth}月${monthInfo.startDay}日-${monthInfo.endMonth}月${monthInfo.endDay}日`;
+  const pressureText = profile.strength === "弱" || profile.strength === "从弱"
+    ? "外部阻力和内心负荷都会偏明显，压力增加时，内耗严重；这可能对你的健康造成挑战。"
+    : "行动力和承接度会有所提升，但仍需要控制节奏，避免把所有事项同时推进。";
+  const workText = profile.primaryCombo.includes("官杀")
+    ? "压力和内耗是主旋律，建议收放自如。看自己当看身，面对上级、老板或客户，不如早做规划，大事复盘、小事复小盘。逢空云：多言数穷，不如守中。时下重量宜辨明，以待着光。"
+    : "工作上适合先梳理优先级，再把资源投向稳定产出。少做临时冲动承诺，多用清单、复盘和阶段目标来降低返工。";
+
+  return {
+    monthPillar,
+    period,
+    score,
+    name: displayProfile?.name || "未命名",
+    gender: displayProfile?.gender || "男",
+    trend: `本月运势偏${score >= 60 ? "稳" : "弱"}，${pressureText}如果你健康状况不佳，千万不要熬夜，也不要过度思考问题。可以重温一下路遥的《平凡的世界》，或许会有所启发。`,
+    work: workText,
+    emotion: "食色，性也。几经疲惫的身心，恐怕难得亲密。单身的你即便身陷花海，也难有正缘，要提防年长的烂桃花。有伴的你余力不在，与其轰轰烈烈又嘎然而止，逢场作戏不如平淡度过。",
+    wealth: "合规合法是正道，不可逾越。无论工作或是生意，本分务实，或有生机。涉及法律、政策法规、伦理道德的情况，尤其谨慎选择，听取专业人士意见。",
+    lifeReminder: `【${monthInfo.stem}${monthInfo.branch}月】月令五行属${monthElement}，日主五行属${dayElement}。本月宜把生活节奏放慢，少做临时消耗，多给身体、情绪和日程留出余量。`,
+    lifeTips: [
+      {
+        label: "穿衣",
+        body: `适宜选择${getMonthlyColorAdvice(dayElement, monthElement)}为主，材质以舒适、透气为先；若压力感明显，少用过于厚重或强刺激的搭配。`
+      },
+      {
+        label: "佩戴",
+        body: `可选简洁、低调、便于日常佩戴的配饰。${profile.strength === "弱" || profile.strength === "从弱" ? "以稳定心神、减少分心为重点。" : "以提醒节制、收束锋芒为重点。"}`
+      },
+      {
+        label: "旅游",
+        body: `出行适合近郊、短线和节奏可控的安排。若要远行，提前确认交通、天气与证件，避免临时变动打乱计划。`
+      }
+    ],
+    tenGodCombo,
+    tenGodText: `${tenGodCombo.join("配")}在本月形成观察重点。${profile.primaryCombo.includes("官杀") ? "规则、责任与外部要求会更突出，宜先稳住承载力，再推进目标。" : "本月宜看资源、表达与执行是否流通，先把确定性做好，再处理变化。"}财星为${wealthElement}，约占${formatPercentage(wealthPercent)}，求财更重稳健。`,
+    branchRelation: `${monthInfo.branch}月与日支${spouseBranch || "待定"}相互作用，容易把关系、合作或内在情绪推到台前。若出现分歧，先降低反应速度，再做决定。`,
+    seasonalElement: `当前月令属${monthElement}，命盘中${monthElement}约占${formatPercentage(monthElementStat)}。五行四时看，本月宜顺势调节作息与事务密度，避免单点过载。`
+  };
+}
+
+function getMonthlyColorAdvice(dayElement: ElementRole["element"], monthElement: ElementRole["element"]) {
+  if (dayElement === "水" || monthElement === "水") {
+    return "深蓝、灰黑、白色";
+  }
+
+  if (dayElement === "木" || monthElement === "木") {
+    return "青绿、米白、浅蓝";
+  }
+
+  if (dayElement === "火" || monthElement === "火") {
+    return "暖红、米色、浅咖";
+  }
+
+  if (dayElement === "金" || monthElement === "金") {
+    return "白色、金色、浅灰";
+  }
+
+  return "黄色、棕色、米色";
+}
+
+function getMonthlyTenGod(dayElement: ElementRole["element"], monthElement: ElementRole["element"]) {
+  if (monthElement === dayElement) {
+    return "比劫";
+  }
+
+  if (controls[monthElement] === dayElement) {
+    return "印";
+  }
+
+  if (controls[dayElement] === monthElement) {
+    return "财";
+  }
+
+  if (monthElement && controls[monthElement] && controls[controls[monthElement]] === dayElement) {
+    return "官杀";
+  }
+
+  return "食伤";
+}
+
+function getCurrentMonthPillarInfo(date: Date) {
+  const monthWindows = [
+    { branch: "寅", startMonth: 2, startDay: 4, endMonth: 3, endDay: 5 },
+    { branch: "卯", startMonth: 3, startDay: 6, endMonth: 4, endDay: 4 },
+    { branch: "辰", startMonth: 4, startDay: 5, endMonth: 5, endDay: 5 },
+    { branch: "巳", startMonth: 5, startDay: 6, endMonth: 6, endDay: 5 },
+    { branch: "午", startMonth: 6, startDay: 6, endMonth: 7, endDay: 6 },
+    { branch: "未", startMonth: 7, startDay: 7, endMonth: 8, endDay: 7 },
+    { branch: "申", startMonth: 8, startDay: 8, endMonth: 9, endDay: 7 },
+    { branch: "酉", startMonth: 9, startDay: 8, endMonth: 10, endDay: 7 },
+    { branch: "戌", startMonth: 10, startDay: 8, endMonth: 11, endDay: 6 },
+    { branch: "亥", startMonth: 11, startDay: 7, endMonth: 12, endDay: 6 },
+    { branch: "子", startMonth: 12, startDay: 7, endMonth: 1, endDay: 5 },
+    { branch: "丑", startMonth: 1, startDay: 6, endMonth: 2, endDay: 3 }
+  ] as const;
+  const currentMonth = date.getMonth() + 1;
+  const currentDay = date.getDate();
+  const window =
+    monthWindows.find((item) => {
+      if (item.startMonth < item.endMonth) {
+        return (currentMonth === item.startMonth && currentDay >= item.startDay) || (currentMonth === item.endMonth && currentDay <= item.endDay);
+      }
+
+      return (currentMonth === item.startMonth && currentDay >= item.startDay) || (currentMonth === item.endMonth && currentDay <= item.endDay);
+    }) ?? monthWindows[0];
+  const yearStem = getYearStem(date.getFullYear());
+  const stem = getMonthStem(yearStem, window.branch);
+
+  return { ...window, stem };
+}
+
+function getYearStem(year: number) {
+  return yearStems[((year - 4) % 10 + 10) % 10] ?? "甲";
+}
+
+function getMonthStem(yearStem: string, monthBranch: string) {
+  const firstMonthStemByYearStem: Record<string, string> = {
+    甲: "丙",
+    己: "丙",
+    乙: "戊",
+    庚: "戊",
+    丙: "庚",
+    辛: "庚",
+    丁: "壬",
+    壬: "壬",
+    戊: "甲",
+    癸: "甲"
+  };
+  const branchIndex = ["寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥", "子", "丑"].indexOf(monthBranch);
+  const firstStem = firstMonthStemByYearStem[yearStem] ?? "丙";
+  const firstStemIndex = yearStems.indexOf(firstStem as (typeof yearStems)[number]);
+
+  return yearStems[(firstStemIndex + Math.max(0, branchIndex)) % 10] ?? "甲";
 }
 
 type BaziHighlight = {
