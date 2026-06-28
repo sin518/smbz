@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ChevronLeft, UserRound } from "lucide-react";
 import { LunarUtil } from "lunar-typescript";
-import { BaziDeterministicInsightCard } from "@/components/bazi/bazi-deterministic-insight-card";
+import { BaziFiveElementsPanel } from "@/components/bazi/bazi-five-elements-panel";
+import { BaziInfoCategoryTabs } from "@/components/bazi/bazi-info-category-tabs";
+import { BaziPatternProfilePanel, BaziTopicReportStack } from "@/components/bazi/bazi-pattern-profile-panel";
 import { BaziProfileHero } from "@/components/bazi/bazi-profile-hero";
 import { ProfessionalDetail } from "@/components/bazi/professional-detail";
 import { ProtectedAiCommandLink } from "@/components/bazi/protected-ai-command-link";
@@ -76,28 +78,17 @@ export function BaziChartView({
 
       {activeTab === "info" ? (
         <section className="px-4 pb-4 pt-4">
-          <div className="overflow-hidden rounded-[22px] bg-white px-4 py-3 text-[14px] leading-[1.8] text-mutedInk shadow-soft">
+          <div className="rounded-[22px] bg-white px-4 py-3 text-[14px] leading-[1.8] text-mutedInk shadow-soft">
             <InfoRow left={`姓名： ${profileView.name} (阴 乾造)`} right={`性别： ${profileView.gender}`} />
             <InfoRow left={`农历： ${profileView.lunar}`} right={`生肖： ${profileView.zodiac}`} muted />
             <InfoRow left={`阳历： ${profileView.solar}`} />
             <InfoRow left={`真太阳时： ${profileView.solarTime}`} muted />
             <InfoRow left={`出生地区： ${profileView.location}`} />
+            <BaziInfoCategoryTabs />
             <DayMasterFeature columns={columns} />
-            <BaziDeterministicInsightCard
-              chart={chart}
-              type="wuxing"
-              title="AI 专业五行分析"
-              subtitle="深度洞察五行旺衰与调候建议"
-              actionText="查看确定性五行报告"
-            />
-            <BaziDeterministicInsightCard
-              chart={chart}
-              type="personality"
-              title="AI 性格特征分析"
-              subtitle="基于十神命局的深度性格画像"
-              actionText="查看确定性性格报告"
-              last
-            />
+            <BaziFiveElementsPanel columns={columns} />
+            <BaziPatternProfilePanel columns={columns} />
+            <BaziTopicReportStack columns={columns} luckCycles={luckCycles} years={years} />
           </div>
         </section>
       ) : null}

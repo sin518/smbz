@@ -1,19 +1,16 @@
 import type { ChartColumn, DemoBaziChart, LuckColumn } from "@/lib/bazi/demo";
+import {
+  branchElements,
+  countFiveElements,
+  elementOrder,
+  hiddenStems,
+  stemElements,
+  stemMeta,
+  type FiveElement,
+  type HiddenStem
+} from "@/lib/bazi/five-elements";
 
-type FiveElement = "木" | "火" | "土" | "金" | "水";
 type YinYang = "阳" | "阴";
-
-type StemMeta = {
-  element: FiveElement;
-  yinYang: YinYang;
-};
-
-type HiddenStem = {
-  stem: string;
-  element: FiveElement;
-  qi: "主气" | "中气" | "余气";
-  weight: number;
-};
 
 export type AiCommandFocus =
   | "全项"
@@ -40,40 +37,6 @@ const focusDescriptions: Record<AiCommandFocus, string> = {
   六亲: "重点分析父母、伴侣、子女、兄弟姐妹等关系结构与边界建议。",
   健康: "重点分析体质倾向、压力来源、作息养护；不得替代医疗诊断。",
   学业: "重点分析学习方式、考试节奏、专业选择、资质积累与大运变化。",
-};
-
-const elementOrder: FiveElement[] = ["木", "火", "土", "金", "水"];
-
-const stemMeta: Record<string, StemMeta> = {
-  甲: { element: "木", yinYang: "阳" },
-  乙: { element: "木", yinYang: "阴" },
-  丙: { element: "火", yinYang: "阳" },
-  丁: { element: "火", yinYang: "阴" },
-  戊: { element: "土", yinYang: "阳" },
-  己: { element: "土", yinYang: "阴" },
-  庚: { element: "金", yinYang: "阳" },
-  辛: { element: "金", yinYang: "阴" },
-  壬: { element: "水", yinYang: "阳" },
-  癸: { element: "水", yinYang: "阴" },
-};
-
-const stemElements = Object.fromEntries(
-  Object.entries(stemMeta).map(([stem, meta]) => [stem, meta.element]),
-) as Record<string, FiveElement>;
-
-const branchElements: Record<string, FiveElement> = {
-  子: "水",
-  丑: "土",
-  寅: "木",
-  卯: "木",
-  辰: "土",
-  巳: "火",
-  午: "火",
-  未: "土",
-  申: "金",
-  酉: "金",
-  戌: "土",
-  亥: "水",
 };
 
 const generates: Record<FiveElement, FiveElement> = {
@@ -139,49 +102,6 @@ const BRANCH_HALF_COMBINE = [
   ["巳", "酉", "巳酉半合金局"],
   ["酉", "丑", "酉丑半合金局"],
 ] as const;
-
-const hiddenStems: Record<string, HiddenStem[]> = {
-  子: [hidden("癸", "主气", 1)],
-  丑: [
-    hidden("己", "主气", 1),
-    hidden("癸", "中气", 0.5),
-    hidden("辛", "余气", 0.25),
-  ],
-  寅: [
-    hidden("甲", "主气", 1),
-    hidden("丙", "中气", 0.5),
-    hidden("戊", "余气", 0.25),
-  ],
-  卯: [hidden("乙", "主气", 1)],
-  辰: [
-    hidden("戊", "主气", 1),
-    hidden("乙", "中气", 0.5),
-    hidden("癸", "余气", 0.25),
-  ],
-  巳: [
-    hidden("丙", "主气", 1),
-    hidden("戊", "中气", 0.5),
-    hidden("庚", "余气", 0.25),
-  ],
-  午: [hidden("丁", "主气", 1), hidden("己", "中气", 0.5)],
-  未: [
-    hidden("己", "主气", 1),
-    hidden("丁", "中气", 0.5),
-    hidden("乙", "余气", 0.25),
-  ],
-  申: [
-    hidden("庚", "主气", 1),
-    hidden("壬", "中气", 0.5),
-    hidden("戊", "余气", 0.25),
-  ],
-  酉: [hidden("辛", "主气", 1)],
-  戌: [
-    hidden("戊", "主气", 1),
-    hidden("辛", "中气", 0.5),
-    hidden("丁", "余气", 0.25),
-  ],
-  亥: [hidden("壬", "主气", 1), hidden("甲", "中气", 0.5)],
-};
 
 export function buildAiCommandText({
   chart,
@@ -726,46 +646,7 @@ export function buildUsefulGodAnalysis(
 }
 
 function countElements(columns: ChartColumn[]) {
-  const counts: Record<FiveElement, number> = {
-    木: 0,
-    火: 0,
-    土: 0,
-    金: 0,
-    水: 0,
-  };
-
-  columns.forEach((column) => {
-    const stemElement = stemElements[column.pillar.stem];
-    const branchElement = branchElements[column.pillar.branch];
-    const branchWeight = column.title === "月柱" ? 2 : 1;
-
-    if (stemElement) {
-      counts[stemElement] += 1;
-    }
-
-    if (branchElement) {
-      counts[branchElement] += branchWeight;
-    }
-
-    hiddenStems[column.pillar.branch]?.forEach((item) => {
-      counts[item.element] += item.weight * branchWeight;
-    });
-  });
-
-  return counts;
-}
-
-function hidden(
-  stem: string,
-  qi: HiddenStem["qi"],
-  weight: number,
-): HiddenStem {
-  return {
-    stem,
-    element: stemElements[stem],
-    qi,
-    weight,
-  };
+  return countFiveElements(columns, true);
 }
 
 function formatElementDistribution(counts: Record<FiveElement, number>) {
