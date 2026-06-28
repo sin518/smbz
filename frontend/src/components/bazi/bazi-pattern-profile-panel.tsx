@@ -1,8 +1,9 @@
 "use client";
 
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { BaziInfoCategory } from "@/components/bazi/bazi-info-category-tabs";
 import { branchElements, buildFiveElementStats, controls, hiddenStems, stemElements } from "@/lib/bazi/five-elements";
 import { LoginBlurGate } from "@/components/shared/login-blur-gate";
@@ -25,6 +26,11 @@ type BaziPatternProfilePanelProps = {
   columns: ChartColumn[];
   luckCycles?: LuckColumn[];
   years?: LuckColumn[];
+};
+
+type SessionResponse = {
+  session?: unknown;
+  user?: unknown;
 };
 
 const elementColorClasses: Record<ElementRole["element"], string> = {
@@ -210,17 +216,65 @@ function AnalysisReportCard({
 }
 
 function AiAnalysisDrawer({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const nextHref = useMemo(() => {
+    const query = searchParams.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  }, [pathname, searchParams]);
+
+  async function handleToggle() {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+
+    if (authorized) {
+      setOpen(true);
+      return;
+    }
+
+    if (checking) {
+      return;
+    }
+
+    setChecking(true);
+
+    try {
+      const response = await fetch("/api/auth/get-session", {
+        method: "GET",
+        credentials: "include"
+      });
+      const data = response.ok ? ((await response.json()) as SessionResponse | null) : null;
+
+      if (data?.session && data.user) {
+        setAuthorized(true);
+        setOpen(true);
+        return;
+      }
+    } catch {
+      // Treat session lookup failure as signed out.
+    } finally {
+      setChecking(false);
+    }
+
+    router.push(`/settings/login?next=${encodeURIComponent(nextHref)}`);
+  }
 
   return (
     <section className="relative mt-3">
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => void handleToggle()}
+        disabled={checking}
         className="flex h-10 w-full items-center justify-center rounded-full border border-[#d9b987] bg-[#fff6e9] text-[13px] font-semibold text-[#9a6c2f] shadow-[0_4px_12px_rgba(41,31,18,0.12)] transition hover:brightness-98"
       >
-        AI 分析
+        {checking ? "检查中..." : "AI 分析"}
         <ChevronDown size={15} strokeWidth={2} className={cn("ml-1.5 transition-transform", open && "rotate-180")} />
       </button>
       {open ? children : null}
@@ -314,13 +368,36 @@ function CareerPatternDetails({ columns, profile, luckCycles, years }: { columns
   const monthColumn = columns.find((column) => column.title === "月柱") ?? columns[1];
   const luBranch = getLuBranch(dayColumn?.pillar.stem ?? "");
   const luColumn = columns.find((column) => column.pillar.branch === luBranch);
-  const comboParts = splitCareerCombo(profile.primaryCombo);
-  const careerGods = getCareerTenGods(columns);
-  const harmonyBranches = getHarmonyBranches(luBranch);
+  const comboParts = useMemo(() => splitCareerCombo(profile.primaryCombo), [profile.primaryCombo]);
+  const careerGods = useMemo(() => getCareerTenGods(columns), [columns]);
+  const harmonyBranches = useMemo(() => getHarmonyBranches(luBranch), [luBranch]);
   const overview = buildCareerOverview(profile, dayColumn, monthColumn, luColumn);
   const advantage = buildCareerAdvantage(profile, careerGods, luColumn);
   const weakness = buildCareerWeakness(profile, careerGods);
   const careerGodText = buildCareerGodText(careerGods, profile);
+  const timingItems = useMemo(() => buildCareerTimingItems(columns, profile, luckCycles, years), [columns, luckCycles, profile, years]);
+  const fallbackAnalysis = useMemo(
+    () => ({
+      traitDescriptions: Object.fromEntries(comboParts.map((part) => [part, buildCareerTraitDescription(part, columns, profile)])),
+      overview,
+      advantage,
+      weakness,
+      careerGodText,
+      timingItems
+    }),
+    [careerGodText, columns, comboParts, overview, profile, advantage, weakness, timingItems]
+  );
+  const aiAnalysis = useCareerAiAnalysis({
+    columns,
+    profile,
+    comboParts,
+    careerGods,
+    luBranch,
+    luColumn,
+    timingItems,
+    fallback: fallbackAnalysis
+  });
+  const analysis = aiAnalysis.data ?? fallbackAnalysis;
 
   return (
     <section className="relative mt-3 rounded-[9px] bg-white px-3 py-3 text-[#6f6a62] shadow-[inset_0_0_0_1px_rgba(230,220,205,0.85)]">
@@ -331,21 +408,21 @@ function CareerPatternDetails({ columns, profile, luckCycles, years }: { columns
 
       <div className="grid grid-cols-[42px_1fr] gap-x-2 gap-y-2">
         {comboParts.map((part) => (
-          <CareerTraitRow key={part} label={part} description={buildCareerTraitDescription(part, columns, profile)} />
+          <CareerTraitRow key={part} label={part} description={analysis.traitDescriptions[part] ?? fallbackAnalysis.traitDescriptions[part]} />
         ))}
       </div>
 
       <p className="mt-3 border-t border-[#f0e8dc] pt-3 text-[12px] leading-5 text-[#6f6a62]">
-        {overview}
+        {aiAnalysis.status === "loading" ? "AI 正在结合命盘、格局与十神组合生成分析..." : analysis.overview}
       </p>
 
       <CareerTextBlock
         title="职场优势"
-        body={advantage}
+        body={analysis.advantage}
       />
       <CareerTextBlock
         title="职场劣势"
-        body={weakness}
+        body={analysis.weakness}
       />
 
       <div className="mt-3 border-t border-[#f0e8dc] pt-3">
@@ -354,7 +431,7 @@ function CareerPatternDetails({ columns, profile, luckCycles, years }: { columns
           <span className="text-[11px] text-[#b08a50]">{careerGods.join("、")}</span>
         </div>
         <p className="text-[12px] leading-5 text-[#6f6a62]">
-          {careerGodText}
+          {analysis.careerGodText}
         </p>
       </div>
 
@@ -371,7 +448,7 @@ function CareerPatternDetails({ columns, profile, luckCycles, years }: { columns
         </div>
       ) : null}
 
-      <CareerTimingForecast columns={columns} profile={profile} luckCycles={luckCycles} years={years} />
+      <CareerTimingForecast items={analysis.timingItems ?? fallbackAnalysis.timingItems} />
     </section>
   );
 }
@@ -383,9 +460,221 @@ type CareerTimingItem = {
   body: string;
 };
 
-function CareerTimingForecast({ columns, profile, luckCycles, years }: { columns: ChartColumn[]; profile: PatternProfile; luckCycles: LuckColumn[]; years: LuckColumn[] }) {
-  const items = buildCareerTimingItems(columns, profile, luckCycles, years);
+type CareerAiAnalysisData = {
+  traitDescriptions: Record<string, string>;
+  overview: string;
+  advantage: string;
+  weakness: string;
+  careerGodText: string;
+  timingItems: CareerTimingItem[];
+};
 
+const careerAiRequestCache = new Map<string, Promise<CareerAiAnalysisData>>();
+
+function useCareerAiAnalysis({
+  columns,
+  profile,
+  comboParts,
+  careerGods,
+  luBranch,
+  luColumn,
+  timingItems,
+  fallback
+}: {
+  columns: ChartColumn[];
+  profile: PatternProfile;
+  comboParts: string[];
+  careerGods: string[];
+  luBranch: string;
+  luColumn?: ChartColumn;
+  timingItems: CareerTimingItem[];
+  fallback: CareerAiAnalysisData;
+}) {
+  const [state, setState] = useState<{ status: "loading" | "ready" | "error"; data?: CareerAiAnalysisData }>({ status: "loading" });
+  const payload = useMemo(
+    () => ({
+      pillars: columns.map((column) => ({
+        title: column.title,
+        stem: column.pillar.stem,
+        branch: column.pillar.branch,
+        mainStar: column.mainStar,
+        subStars: column.subStars,
+        hiddenStems: column.hiddenStems
+      })),
+      profile: {
+        strength: profile.strength,
+        selectedPattern: profile.selectedPattern,
+        primaryCombo: profile.primaryCombo,
+        activeCombos: profile.activeCombos
+      },
+      career: {
+        comboParts,
+        careerGods,
+        luBranch,
+        luColumn: luColumn ? `${luColumn.title}${luColumn.pillar.branch}` : "不显",
+        timingItems
+      }
+    }),
+    [careerGods, columns, comboParts, luBranch, luColumn, profile.activeCombos, profile.primaryCombo, profile.selectedPattern, profile.strength, timingItems]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const cacheKey = getCareerAiCacheKey(payload);
+
+    async function loadAnalysis() {
+      setState({ status: "loading" });
+
+      try {
+        const cached = readCareerAiCache(cacheKey);
+        if (cached) {
+          setState({ status: "ready", data: cached });
+          return;
+        }
+
+        const request = careerAiRequestCache.get(cacheKey) ?? requestCareerAiAnalysis(payload, fallback);
+        careerAiRequestCache.set(cacheKey, request);
+
+        const parsed = await request;
+
+        if (!cancelled) {
+          writeCareerAiCache(cacheKey, parsed);
+          setState({ status: "ready", data: parsed });
+        }
+      } catch {
+        careerAiRequestCache.delete(cacheKey);
+        if (!cancelled) {
+          setState({ status: "error", data: fallback });
+        }
+      }
+    }
+
+    void loadAnalysis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fallback, payload]);
+
+  return state;
+}
+
+async function requestCareerAiAnalysis(payload: unknown, fallback: CareerAiAnalysisData) {
+  const response = await fetch("/api/ai/quick-analysis", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source: "bazi-career",
+      responseFormat: "json_object",
+      maxTokens: 1200,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "你是八字事业分析助手，只能基于用户提供的结构化命盘、旺衰、格局、十神组合生成话术。",
+            "不要重新判盘，不要编造未提供的神煞或年份。",
+            "返回严格 JSON，不要 Markdown。",
+            "JSON 字段：traitDescriptions, overview, advantage, weakness, careerGodText, timingItems。",
+            "traitDescriptions 的 key 必须覆盖输入 comboParts，每段 28-42 个中文字符；overview、advantage、weakness、careerGodText 每段 45-80 个中文字符。",
+            "timingItems 必须保持输入的 title、stars、tags 不变，只重写 body，每段 45-75 个中文字符，必须结合对应年份、命盘强弱、格局与事业主线。"
+          ].join("\n")
+        },
+        {
+          role: "user",
+          content: JSON.stringify(payload)
+        }
+      ]
+    })
+  });
+  const result = (await response.json()) as { content?: string };
+
+  if (!response.ok) {
+    throw new Error("AI 分析请求失败");
+  }
+
+  return parseCareerAiAnalysis(result.content, fallback);
+}
+
+function getCareerAiCacheKey(payload: unknown) {
+  return `bazi:career-ai:v2:${hashText(JSON.stringify(payload))}`;
+}
+
+function readCareerAiCache(key: string) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as CareerAiAnalysisData) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCareerAiCache(key: string, data: CareerAiAnalysisData) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(data));
+  } catch {
+    // Ignore storage quota or privacy mode failures.
+  }
+}
+
+function hashText(input: string) {
+  let hash = 0;
+
+  for (let index = 0; index < input.length; index += 1) {
+    hash = (hash * 31 + input.charCodeAt(index)) | 0;
+  }
+
+  return Math.abs(hash).toString(36);
+}
+
+function parseCareerAiAnalysis(content: string | undefined, fallback: CareerAiAnalysisData): CareerAiAnalysisData {
+  if (!content) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(extractJsonObjectText(content)) as Partial<CareerAiAnalysisData>;
+
+    return {
+      traitDescriptions: typeof parsed.traitDescriptions === "object" && parsed.traitDescriptions ? { ...fallback.traitDescriptions, ...parsed.traitDescriptions } : fallback.traitDescriptions,
+      overview: typeof parsed.overview === "string" && parsed.overview.trim() ? parsed.overview.trim() : fallback.overview,
+      advantage: typeof parsed.advantage === "string" && parsed.advantage.trim() ? parsed.advantage.trim() : fallback.advantage,
+      weakness: typeof parsed.weakness === "string" && parsed.weakness.trim() ? parsed.weakness.trim() : fallback.weakness,
+      careerGodText: typeof parsed.careerGodText === "string" && parsed.careerGodText.trim() ? parsed.careerGodText.trim() : fallback.careerGodText,
+      timingItems: parseCareerTimingItems(parsed.timingItems, fallback.timingItems)
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function parseCareerTimingItems(input: unknown, fallback: CareerTimingItem[]) {
+  if (!Array.isArray(input)) {
+    return fallback;
+  }
+
+  return fallback.map((item) => {
+    const matched = input.find((value): value is Partial<CareerTimingItem> => {
+      return typeof value === "object" && value !== null && "title" in value && (value as Partial<CareerTimingItem>).title === item.title;
+    });
+
+    return {
+      ...item,
+      body: typeof matched?.body === "string" && matched.body.trim() ? matched.body.trim() : item.body
+    };
+  });
+}
+
+function extractJsonObjectText(content: string) {
+  const trimmed = content.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenced?.[1]?.trim() ?? trimmed;
+  const start = candidate.indexOf("{");
+  const end = candidate.lastIndexOf("}");
+
+  return start >= 0 && end > start ? candidate.slice(start, end + 1) : candidate;
+}
+
+function CareerTimingForecast({ items }: { items: CareerTimingItem[] }) {
   return (
     <div className="mt-3 border-t border-[#f0e8dc] pt-3">
       <div className="space-y-3">

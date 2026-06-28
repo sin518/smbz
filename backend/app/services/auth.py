@@ -185,6 +185,7 @@ async def delete_user_session(connection: asyncpg.Connection, token: str | None)
 
 async def delete_account(connection: asyncpg.Connection, user_id: str, email: str | None) -> None:
     cleanup_tables = [
+        ('"AiQuickAnalysisCache"', '"userId" = $1'),
         ('"AiReport"', '"chartId" IN (SELECT id FROM "BaziChart" WHERE "profileId" IN (SELECT id FROM "BaziProfile" WHERE "userId" = $1))'),
         ('"BaziChart"', '"profileId" IN (SELECT id FROM "BaziProfile" WHERE "userId" = $1)'),
         ('"BaziProfile"', '"userId" = $1'),

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -9,6 +11,7 @@ const messageSchema = z.object({
 });
 
 const quickAnalysisSchema = z.object({
+  source: z.string().trim().min(1).max(80).optional(),
   messages: z.array(messageSchema).min(1).max(12),
   temperature: z.number().min(0).max(1).optional(),
   maxTokens: z.number().int().min(64).max(4000).optional(),
@@ -36,17 +39,31 @@ type AnthropicMessageResponse = {
   };
 };
 
+type SessionResponse = {
+  session?: unknown;
+  user?: {
+    id?: string;
+  } | null;
+};
+
+type CachedQuickAnalysisResponse = {
+  body: Record<string, unknown>;
+  status: number;
+};
+
+type PersistentQuickAnalysisCacheResponse = {
+  responseBody?: Record<string, unknown>;
+};
+
 const defaultAnthropicModel = "claude-haiku-4-5-20251001";
+const quickAnalysisResponseCache = new Map<string, Promise<CachedQuickAnalysisResponse>>();
 
 export async function POST(request: Request) {
-  const anyRouterApiKey = process.env.ANYROUTER_API_KEY;
-  const anyRouterBaseUrl = process.env.ANYROUTER_BASE_URL;
-  const anthropicApiKey = process.env.ANTHROPIC_AUTH_TOKEN;
-  const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL;
-  const model = process.env.ANYROUTER_MODEL ?? process.env.ANTHROPIC_MODEL ?? defaultAnthropicModel;
+  const cookieHeader = await getCookieHeader();
+  const userId = await getSignedInUserId(cookieHeader);
 
-  if ((!anyRouterApiKey || !anyRouterBaseUrl) && (!anthropicApiKey || !anthropicBaseUrl)) {
-    return NextResponse.json({ error: "AnyRouter 环境变量未配置" }, { status: 500 });
+  if (!userId) {
+    return NextResponse.json({ error: "请先登录后再进行 AI 分析" }, { status: 401 });
   }
 
   let rawInput: unknown;
@@ -63,25 +80,214 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "快速分析参数无效" }, { status: 400 });
   }
 
-  if (anthropicApiKey && anthropicBaseUrl) {
-    return callAnthropicMessages({
-      apiKey: anthropicApiKey,
-      baseUrl: anthropicBaseUrl,
-      model,
-      messages: parsed.data.messages,
-      maxTokens: parsed.data.maxTokens ?? 800
+  const { source = "bazi-quick-analysis", ...modelInput } = parsed.data;
+  const requestHash = getQuickAnalysisRequestHash(modelInput);
+  const cacheKey = getQuickAnalysisCacheKey(userId, source, requestHash);
+  const cachedResponse = quickAnalysisResponseCache.get(cacheKey);
+
+  if (cachedResponse) {
+    const cached = await cachedResponse;
+    return NextResponse.json(cached.body, { status: cached.status });
+  }
+
+  const persistentCache = await readPersistentQuickAnalysisCache(cookieHeader, source, requestHash);
+
+  if (persistentCache) {
+    quickAnalysisResponseCache.set(cacheKey, Promise.resolve({ body: persistentCache, status: 200 }));
+    return NextResponse.json(persistentCache);
+  }
+
+  const anyRouterApiKey = process.env.ANYROUTER_API_KEY;
+  const anyRouterBaseUrl = process.env.ANYROUTER_BASE_URL;
+  const anthropicApiKey = process.env.ANTHROPIC_AUTH_TOKEN;
+  const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL;
+  const model = process.env.ANYROUTER_MODEL ?? process.env.ANTHROPIC_MODEL ?? defaultAnthropicModel;
+
+  if ((!anyRouterApiKey || !anyRouterBaseUrl) && (!anthropicApiKey || !anthropicBaseUrl)) {
+    return NextResponse.json({ error: "AnyRouter 环境变量未配置" }, { status: 500 });
+  }
+
+  const responsePromise = resolveQuickAnalysisResponse({
+    useAnthropic: Boolean(anthropicApiKey && anthropicBaseUrl),
+    anthropicApiKey: anthropicApiKey ?? "",
+    anthropicBaseUrl: anthropicBaseUrl ?? "",
+    anyRouterApiKey: anyRouterApiKey ?? "",
+    anyRouterBaseUrl: anyRouterBaseUrl ?? "",
+    model,
+    input: modelInput,
+    source,
+    requestHash,
+    cookieHeader
+  });
+  quickAnalysisResponseCache.set(cacheKey, responsePromise);
+
+  const cached = await responsePromise;
+
+  if (cached.status >= 500) {
+    quickAnalysisResponseCache.delete(cacheKey);
+  }
+
+  return NextResponse.json(cached.body, { status: cached.status });
+}
+
+async function getCookieHeader() {
+  const cookieStore = await cookies();
+  return cookieStore
+    .getAll()
+    .map((cookie) => `${cookie.name}=${cookie.value}`)
+    .join("; ");
+}
+
+async function getSignedInUserId(cookieHeader: string) {
+  if (!cookieHeader) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${getBackendUrl()}/api/auth/get-session`, {
+      headers: { cookie: cookieHeader },
+      cache: "no-store"
+    });
+    const data = response.ok ? ((await response.json()) as SessionResponse | null) : null;
+
+    return data?.session && data.user?.id ? data.user.id : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readPersistentQuickAnalysisCache(cookieHeader: string, source: string, requestHash: string) {
+  if (!cookieHeader) {
+    return null;
+  }
+
+  try {
+    const params = new URLSearchParams({ source });
+    const response = await fetch(`${getBackendUrl()}/api/ai/quick-analysis-cache/${encodeURIComponent(requestHash)}?${params.toString()}`, {
+      headers: { cookie: cookieHeader },
+      cache: "no-store"
+    });
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    const data = response.ok ? ((await response.json()) as PersistentQuickAnalysisCacheResponse) : null;
+    return data?.responseBody ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function writePersistentQuickAnalysisCache({
+  cookieHeader,
+  source,
+  requestHash,
+  requestPayload,
+  responseBody
+}: {
+  cookieHeader: string;
+  source: string;
+  requestHash: string;
+  requestPayload: z.infer<typeof quickAnalysisModelSchema>;
+  responseBody: Record<string, unknown>;
+}) {
+  if (!cookieHeader) {
+    return;
+  }
+
+  try {
+    await fetch(`${getBackendUrl()}/api/ai/quick-analysis-cache/${encodeURIComponent(requestHash)}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: cookieHeader
+      },
+      body: JSON.stringify({
+        source,
+        requestPayload,
+        responseBody
+      })
+    });
+  } catch {
+    // Keep the AI response usable even if persistence is temporarily unavailable.
+  }
+}
+
+async function resolveQuickAnalysisResponse({
+  useAnthropic,
+  anthropicApiKey,
+  anthropicBaseUrl,
+  anyRouterApiKey,
+  anyRouterBaseUrl,
+  model,
+  input,
+  source,
+  requestHash,
+  cookieHeader
+}: {
+  useAnthropic: boolean;
+  anthropicApiKey: string;
+  anthropicBaseUrl: string;
+  anyRouterApiKey: string;
+  anyRouterBaseUrl: string;
+  model: string;
+  input: z.infer<typeof quickAnalysisModelSchema>;
+  source: string;
+  requestHash: string;
+  cookieHeader: string;
+}): Promise<CachedQuickAnalysisResponse> {
+  const response = useAnthropic
+    ? await callAnthropicMessages({
+        apiKey: anthropicApiKey,
+        baseUrl: anthropicBaseUrl,
+        model,
+        messages: input.messages,
+        maxTokens: input.maxTokens ?? 800
+      })
+    : await callOpenAICompatible({
+        apiKey: anyRouterApiKey,
+        baseUrl: anyRouterBaseUrl,
+        model,
+        messages: input.messages,
+        temperature: input.temperature ?? 0.35,
+        maxTokens: input.maxTokens ?? 800,
+        responseFormat: input.responseFormat
+      });
+  const body = (await response.clone().json().catch(() => ({ error: "AI 分析响应解析失败" }))) as Record<string, unknown>;
+
+  if (response.ok) {
+    await writePersistentQuickAnalysisCache({
+      cookieHeader,
+      source,
+      requestHash,
+      requestPayload: input,
+      responseBody: body
     });
   }
 
-  return callOpenAICompatible({
-    apiKey: anyRouterApiKey ?? "",
-    baseUrl: anyRouterBaseUrl ?? "",
-    model,
-    messages: parsed.data.messages,
-    temperature: parsed.data.temperature ?? 0.35,
-    maxTokens: parsed.data.maxTokens ?? 800,
-    responseFormat: parsed.data.responseFormat
-  });
+  return {
+    body,
+    status: response.status
+  };
+}
+
+const quickAnalysisModelSchema = quickAnalysisSchema.omit({ source: true });
+
+function getQuickAnalysisRequestHash(input: z.infer<typeof quickAnalysisModelSchema>) {
+  return hashText(JSON.stringify(input));
+}
+
+function hashText(input: string) {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+function getQuickAnalysisCacheKey(userId: string, source: string, requestHash: string) {
+  return `${userId}:${source}:${requestHash}`;
+}
+
+function getBackendUrl() {
+  return process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 }
 
 async function callOpenAICompatible({
