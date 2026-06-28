@@ -460,6 +460,16 @@ type CareerTimingItem = {
   body: string;
 };
 
+type MarriageTimingItem = {
+  tag: string;
+  body: string;
+};
+
+type WealthLossWarningItem = {
+  tag: string;
+  body: string;
+};
+
 type CareerAiAnalysisData = {
   traitDescriptions: Record<string, string>;
   overview: string;
@@ -707,9 +717,19 @@ function MarriagePatternDetails({ columns, profile, years }: { columns: ChartCol
   const strongestGroup = splitCareerCombo(profile.primaryCombo)[0] ?? profile.selectedPattern.replace("格", "");
   const spouseElementPercent = getElementPercentage(columns, spouseElement);
   const spouseTypeTags = buildSpouseTypeTags(spouseElement, spousePalaceGod, strongestGroup);
-  const risk = buildMarriageRisk(profile, dayColumn);
+  const risk = useMemo(() => buildMarriageRisk(profile, dayColumn), [dayColumn, profile]);
   const harmonyBranches = getHarmonyBranches(spouseBranch);
-  const timingItems = buildMarriageTimingItems(spouseBranch, years);
+  const fallbackTimingItems = useMemo(() => buildMarriageTimingItems(spouseBranch, years), [spouseBranch, years]);
+  const marriageAiAnalysis = useMarriageAiAnalysis({
+    columns,
+    profile,
+    spouseBranch,
+    spouseElement,
+    spousePalaceGod,
+    risk,
+    timingItems: fallbackTimingItems
+  });
+  const timingItems = marriageAiAnalysis.data?.timingItems ?? fallbackTimingItems;
 
   return (
     <section className="relative mt-3 rounded-[9px] bg-white px-3 py-3 text-[#6f6a62] shadow-[inset_0_0_0_1px_rgba(230,220,205,0.85)]">
@@ -815,15 +835,209 @@ function MarriageRiskDiagram({ risk }: { risk: ReturnType<typeof buildMarriageRi
   );
 }
 
+type MarriageAiAnalysisData = {
+  timingItems: MarriageTimingItem[];
+};
+
+const marriageAiRequestCache = new Map<string, Promise<MarriageAiAnalysisData>>();
+
+function useMarriageAiAnalysis({
+  columns,
+  profile,
+  spouseBranch,
+  spouseElement,
+  spousePalaceGod,
+  risk,
+  timingItems
+}: {
+  columns: ChartColumn[];
+  profile: PatternProfile;
+  spouseBranch: string;
+  spouseElement: ElementRole["element"];
+  spousePalaceGod: string;
+  risk: ReturnType<typeof buildMarriageRisk>;
+  timingItems: MarriageTimingItem[];
+}) {
+  const fallback = useMemo(() => ({ timingItems }), [timingItems]);
+  const [state, setState] = useState<{ status: "loading" | "ready" | "error"; data?: MarriageAiAnalysisData }>({ status: "loading" });
+  const payload = useMemo(
+    () => ({
+      pillars: columns.map((column) => ({
+        title: column.title,
+        stem: column.pillar.stem,
+        branch: column.pillar.branch,
+        mainStar: column.mainStar,
+        subStars: column.subStars,
+        hiddenStems: column.hiddenStems
+      })),
+      profile: {
+        strength: profile.strength,
+        selectedPattern: profile.selectedPattern,
+        primaryCombo: profile.primaryCombo,
+        activeCombos: profile.activeCombos
+      },
+      marriage: {
+        spouseBranch,
+        spouseElement,
+        spousePalaceGod,
+        risk,
+        timingItems
+      }
+    }),
+    [columns, profile.activeCombos, profile.primaryCombo, profile.selectedPattern, profile.strength, risk, spouseBranch, spouseElement, spousePalaceGod, timingItems]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const cacheKey = getMarriageAiCacheKey(payload);
+
+    async function loadAnalysis() {
+      setState({ status: "loading" });
+
+      try {
+        const cached = readMarriageAiCache(cacheKey);
+        if (cached) {
+          setState({ status: "ready", data: cached });
+          return;
+        }
+
+        const request = marriageAiRequestCache.get(cacheKey) ?? requestMarriageAiAnalysis(payload, fallback);
+        marriageAiRequestCache.set(cacheKey, request);
+
+        const parsed = await request;
+
+        if (!cancelled) {
+          writeMarriageAiCache(cacheKey, parsed);
+          setState({ status: "ready", data: parsed });
+        }
+      } catch {
+        marriageAiRequestCache.delete(cacheKey);
+        if (!cancelled) {
+          setState({ status: "error", data: fallback });
+        }
+      }
+    }
+
+    void loadAnalysis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fallback, payload]);
+
+  return state;
+}
+
+async function requestMarriageAiAnalysis(payload: unknown, fallback: MarriageAiAnalysisData) {
+  const response = await fetch("/api/ai/quick-analysis", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source: "bazi-marriage",
+      responseFormat: "json_object",
+      maxTokens: 900,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "你是八字婚恋年份提示助手，只能基于用户提供的结构化命盘、夫妻宫、配偶星、风险结构与候选流年生成话术。",
+            "不要重新判盘，不要编造未提供的神煞或年份，不要给绝对化断语。",
+            "返回严格 JSON，不要 Markdown。",
+            "JSON 字段：timingItems。",
+            "timingItems 必须保持输入的 tag 不变，只重写 body；每段 45-75 个中文字符，必须结合对应年份、夫妻宫牵引、关系互动与沟通节奏。"
+          ].join("\n")
+        },
+        {
+          role: "user",
+          content: JSON.stringify(payload)
+        }
+      ]
+    })
+  });
+  const result = (await response.json()) as { content?: string };
+
+  if (!response.ok) {
+    throw new Error("AI 婚恋年份分析请求失败");
+  }
+
+  return parseMarriageAiAnalysis(result.content, fallback);
+}
+
+function parseMarriageAiAnalysis(content: string | undefined, fallback: MarriageAiAnalysisData): MarriageAiAnalysisData {
+  if (!content) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(extractJsonObjectText(content)) as Partial<MarriageAiAnalysisData>;
+    return {
+      timingItems: parseMarriageTimingItems(parsed.timingItems, fallback.timingItems)
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function parseMarriageTimingItems(input: unknown, fallback: MarriageTimingItem[]) {
+  if (!Array.isArray(input)) {
+    return fallback;
+  }
+
+  return fallback.map((item) => {
+    const matched = input.find((value): value is Partial<MarriageTimingItem> => {
+      return typeof value === "object" && value !== null && "tag" in value && (value as Partial<MarriageTimingItem>).tag === item.tag;
+    });
+
+    return {
+      ...item,
+      body: typeof matched?.body === "string" && matched.body.trim() ? matched.body.trim() : item.body
+    };
+  });
+}
+
+function getMarriageAiCacheKey(payload: unknown) {
+  return `bazi:marriage-ai:v1:${hashText(JSON.stringify(payload))}`;
+}
+
+function readMarriageAiCache(key: string) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as MarriageAiAnalysisData) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeMarriageAiCache(key: string, data: MarriageAiAnalysisData) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(data));
+  } catch {
+    // Ignore storage quota or privacy mode failures.
+  }
+}
+
 function WealthPatternDetails({ columns, profile, luckCycles, years }: { columns: ChartColumn[]; profile: PatternProfile; luckCycles: LuckColumn[]; years: LuckColumn[] }) {
   const dayColumn = columns.find((column) => column.title === "日柱") ?? columns[2];
   const dayElement = dayColumn ? stemElements[dayColumn.pillar.stem] : "土";
   const wealthElement = controls[dayElement];
   const wealthPercent = getElementPercentage(columns, wealthElement);
   const earningPercent = Math.min(96, Math.max(8, wealthPercent + getUsefulSupportScore(profile)));
-  const wealthYears = buildWealthYears(wealthElement, luckCycles, years);
-  const wealthSources = buildWealthSources(columns, wealthElement);
-  const lossWarnings = buildLossWarnings(dayElement, wealthElement, years);
+  const wealthYears = useMemo(() => buildWealthYears(wealthElement, luckCycles, years), [luckCycles, wealthElement, years]);
+  const wealthSources = useMemo(() => buildWealthSources(columns, wealthElement), [columns, wealthElement]);
+  const fallbackLossWarnings = useMemo(() => buildLossWarnings(dayElement, wealthElement, years), [dayElement, wealthElement, years]);
+  const wealthAiAnalysis = useWealthAiAnalysis({
+    columns,
+    profile,
+    dayElement,
+    wealthElement,
+    wealthPercent,
+    earningPercent,
+    wealthYears,
+    wealthSources,
+    lossWarnings: fallbackLossWarnings
+  });
+  const displayWealthYears = wealthAiAnalysis.data?.wealthYears ?? wealthYears;
+  const lossWarnings = wealthAiAnalysis.data?.lossWarnings ?? fallbackLossWarnings;
 
   return (
     <section className="relative mt-3 rounded-[9px] bg-white px-3 py-3 text-[#6f6a62] shadow-[inset_0_0_0_1px_rgba(230,220,205,0.85)]">
@@ -845,7 +1059,7 @@ function WealthPatternDetails({ columns, profile, luckCycles, years }: { columns
           ))}
         </div>
         <p className="text-[12px] leading-5 text-[#6f6a62]">
-          {wealthYears.map((item) => item.body).join(" ")}
+          {displayWealthYears.map((item) => item.body).join(" ")}
         </p>
       </div>
 
@@ -898,6 +1112,196 @@ function WealthRing({ title, value }: { title: string; value: number }) {
       <p className="max-w-[120px] text-[10px] leading-4 text-[#8d857b]">{title}</p>
     </div>
   );
+}
+
+type WealthAiAnalysisData = {
+  wealthYears: WealthLossWarningItem[];
+  lossWarnings: WealthLossWarningItem[];
+};
+
+const wealthAiRequestCache = new Map<string, Promise<WealthAiAnalysisData>>();
+
+function useWealthAiAnalysis({
+  columns,
+  profile,
+  dayElement,
+  wealthElement,
+  wealthPercent,
+  earningPercent,
+  wealthYears,
+  wealthSources,
+  lossWarnings
+}: {
+  columns: ChartColumn[];
+  profile: PatternProfile;
+  dayElement: ElementRole["element"];
+  wealthElement: ElementRole["element"];
+  wealthPercent: number;
+  earningPercent: number;
+  wealthYears: WealthLossWarningItem[];
+  wealthSources: Array<{ title: string; body: string }>;
+  lossWarnings: WealthLossWarningItem[];
+}) {
+  const fallback = useMemo(() => ({ wealthYears, lossWarnings }), [lossWarnings, wealthYears]);
+  const [state, setState] = useState<{ status: "loading" | "ready" | "error"; data?: WealthAiAnalysisData }>({ status: "loading" });
+  const payload = useMemo(
+    () => ({
+      pillars: columns.map((column) => ({
+        title: column.title,
+        stem: column.pillar.stem,
+        branch: column.pillar.branch,
+        mainStar: column.mainStar,
+        subStars: column.subStars,
+        hiddenStems: column.hiddenStems
+      })),
+      profile: {
+        strength: profile.strength,
+        selectedPattern: profile.selectedPattern,
+        primaryCombo: profile.primaryCombo,
+        activeCombos: profile.activeCombos
+      },
+      wealth: {
+        dayElement,
+        wealthElement,
+        wealthPercent,
+        earningPercent,
+        wealthYears,
+        wealthSources,
+        lossWarnings
+      }
+    }),
+    [columns, dayElement, earningPercent, lossWarnings, profile.activeCombos, profile.primaryCombo, profile.selectedPattern, profile.strength, wealthElement, wealthPercent, wealthSources, wealthYears]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const cacheKey = getWealthAiCacheKey(payload);
+
+    async function loadAnalysis() {
+      setState({ status: "loading" });
+
+      try {
+        const cached = readWealthAiCache(cacheKey);
+        if (cached) {
+          setState({ status: "ready", data: cached });
+          return;
+        }
+
+        const request = wealthAiRequestCache.get(cacheKey) ?? requestWealthAiAnalysis(payload, fallback);
+        wealthAiRequestCache.set(cacheKey, request);
+
+        const parsed = await request;
+
+        if (!cancelled) {
+          writeWealthAiCache(cacheKey, parsed);
+          setState({ status: "ready", data: parsed });
+        }
+      } catch {
+        wealthAiRequestCache.delete(cacheKey);
+        if (!cancelled) {
+          setState({ status: "error", data: fallback });
+        }
+      }
+    }
+
+    void loadAnalysis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fallback, payload]);
+
+  return state;
+}
+
+async function requestWealthAiAnalysis(payload: unknown, fallback: WealthAiAnalysisData) {
+  const response = await fetch("/api/ai/quick-analysis", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source: "bazi-wealth",
+      responseFormat: "json_object",
+      maxTokens: 900,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "你是八字财运风险提示助手，只能基于用户提供的命盘、财星、赚钱能力、近十年财运和破财候选年份生成话术。",
+            "不要重新判盘，不要编造未提供的神煞或年份，不要给投资建议或绝对化断语。",
+            "返回严格 JSON，不要 Markdown。",
+            "JSON 字段：wealthYears, lossWarnings。",
+            "wealthYears 必须保持输入的 tag 不变，只重写 body；每段 45-75 个中文字符，必须结合近十年财运、财星状态、收入机会与稳健策略。",
+            "lossWarnings 必须保持输入的 tag 不变，只重写 body；每段 45-75 个中文字符，必须结合对应年份、财星状态、日主强弱和风险缓冲建议。"
+          ].join("\n")
+        },
+        {
+          role: "user",
+          content: JSON.stringify(payload)
+        }
+      ]
+    })
+  });
+  const result = (await response.json()) as { content?: string };
+
+  if (!response.ok) {
+    throw new Error("AI 破财提示分析请求失败");
+  }
+
+  return parseWealthAiAnalysis(result.content, fallback);
+}
+
+function parseWealthAiAnalysis(content: string | undefined, fallback: WealthAiAnalysisData): WealthAiAnalysisData {
+  if (!content) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(extractJsonObjectText(content)) as Partial<WealthAiAnalysisData>;
+    return {
+      wealthYears: parseWealthLossWarnings(parsed.wealthYears, fallback.wealthYears),
+      lossWarnings: parseWealthLossWarnings(parsed.lossWarnings, fallback.lossWarnings)
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function parseWealthLossWarnings(input: unknown, fallback: WealthLossWarningItem[]) {
+  if (!Array.isArray(input)) {
+    return fallback;
+  }
+
+  return fallback.map((item) => {
+    const matched = input.find((value): value is Partial<WealthLossWarningItem> => {
+      return typeof value === "object" && value !== null && "tag" in value && (value as Partial<WealthLossWarningItem>).tag === item.tag;
+    });
+
+    return {
+      ...item,
+      body: typeof matched?.body === "string" && matched.body.trim() ? matched.body.trim() : item.body
+    };
+  });
+}
+
+function getWealthAiCacheKey(payload: unknown) {
+  return `bazi:wealth-ai:v2:${hashText(JSON.stringify(payload))}`;
+}
+
+function readWealthAiCache(key: string) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as WealthAiAnalysisData) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeWealthAiCache(key: string, data: WealthAiAnalysisData) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(data));
+  } catch {
+    // Ignore storage quota or privacy mode failures.
+  }
 }
 
 function StarRating({ value }: { value: number }) {
@@ -1096,7 +1500,7 @@ function buildMarriageRisk(profile: PatternProfile, dayColumn?: ChartColumn) {
   };
 }
 
-function buildMarriageTimingItems(spouseBranch: string, years: LuckColumn[]) {
+function buildMarriageTimingItems(spouseBranch: string, years: LuckColumn[]): MarriageTimingItem[] {
   const futureYears = getFutureLuckYears(years);
   const harmonyBranches = getHarmonyBranches(spouseBranch);
   const opposite = getOppositeBranch(spouseBranch);
@@ -1182,7 +1586,7 @@ function buildWealthSources(columns: ChartColumn[], wealthElement: ElementRole["
   return sources;
 }
 
-function buildLossWarnings(dayElement: ElementRole["element"], wealthElement: ElementRole["element"], years: LuckColumn[]) {
+function buildLossWarnings(dayElement: ElementRole["element"], wealthElement: ElementRole["element"], years: LuckColumn[]): WealthLossWarningItem[] {
   const futureYears = getFutureLuckYears(years);
   const peerYear = pickLuckYear(futureYears, (item) => getLuckElement(item) === dayElement) ?? futureYears[0];
   const pressureYear = pickLuckYear(futureYears, (item) => {
