@@ -178,8 +178,9 @@ function PalaceCell({
           {upperLeftStars.length > 0 ? upperLeftStars.map((star, index) => {
             const mainStarIndex = palace.mainStars.indexOf(star);
             const isMainStar = mainStarIndex !== -1;
-            const hasBrightness = isMainStar || STAR_BRIGHTNESS[star]?.[palace.branch];
-            const transformation = getStarTransformation(star, sihua);
+            const starInfo = parseStarInfo(star);
+            const hasBrightness = Boolean(starInfo.brightness) || isMainStar || STAR_BRIGHTNESS[starInfo.name]?.[palace.branch];
+            const transformation = starInfo.transformation ?? getStarTransformation(starInfo.name, sihua);
 
             return (
               <span
@@ -187,13 +188,13 @@ function PalaceCell({
                 className={cn(
                   "flex flex-col items-start whitespace-nowrap",
                   getStarSize(index),
-                  getStarTone(star, index, sihua)
+                  getStarTone(starInfo.name, index, sihua)
                 )}
               >
-                <span className="[writing-mode:vertical-rl]">{star}</span>
+                <span className="[writing-mode:vertical-rl]">{starInfo.name}</span>
                 {hasBrightness ? (
                   <>
-                    <span className="text-[9px] leading-[10px] text-[#8b806d]">{getStarBrightness(star, palace.branch)}</span>
+                    <span className="text-[9px] leading-[10px] text-[#8b806d]">{starInfo.brightness ?? getStarBrightness(starInfo.name, palace.branch)}</span>
                     <TransformationMark transformation={transformation} />
                   </>
                 ) : transformation ? <TransformationMark transformation={transformation} /> : null}
@@ -250,6 +251,16 @@ function getStarTransformation(star: string, sihua: ZiweiChart["sihua"]) {
   return (Object.keys(sihua) as Array<keyof ZiweiChart["sihua"]>).find((key) => sihua[key] === star);
 }
 
+function parseStarInfo(star: string) {
+  const match = star.match(/^(.+?)(?:\(([^)]+)\))?(?:化([禄权科忌]))?$/u);
+
+  return {
+    name: match?.[1] ?? star,
+    brightness: match?.[2],
+    transformation: match?.[3]
+  };
+}
+
 function getStarBrightness(star: string, branch: string) {
   const brightness = STAR_BRIGHTNESS[star]?.[branch];
 
@@ -273,25 +284,27 @@ function getLowerLeftStars(palace: ZiweiPalace) {
 }
 
 function isUpperLeftStar(star: string) {
-  return UPPER_LEFT_STARS.includes(star);
+  return UPPER_LEFT_STARS.includes(parseStarInfo(star).name);
 }
 
 function isLowerLeftStar(star: string) {
-  return !isUpperLeftStar(star) && LOWER_LEFT_STARS.includes(star);
+  return !isUpperLeftStar(star) && LOWER_LEFT_STARS.includes(parseStarInfo(star).name);
 }
 
 function getLowerLeftStarPriority(star: string) {
-  const index = LOWER_LEFT_PRIORITY.indexOf(star);
+  const index = LOWER_LEFT_PRIORITY.indexOf(parseStarInfo(star).name);
 
   return index === -1 ? LOWER_LEFT_PRIORITY.length : index;
 }
 
 function getLowerLeftStarTone(star: string) {
-  if (["劫煞", "孤辰", "天空", "天伤", "大耗", "小耗"].includes(star)) {
+  const starName = parseStarInfo(star).name;
+
+  if (["劫煞", "孤辰", "天空", "天伤", "大耗", "小耗"].includes(starName)) {
     return "text-[#2f72b8]";
   }
 
-  if (["天喜", "月德", "天德"].includes(star)) {
+  if (["天喜", "月德", "天德"].includes(starName)) {
     return "text-[#c9432f]";
   }
 

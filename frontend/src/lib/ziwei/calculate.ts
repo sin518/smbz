@@ -67,7 +67,7 @@ export interface ZiweiChart {
 
 type HeavenlyStem = "甲" | "乙" | "丙" | "丁" | "戊" | "己" | "庚" | "辛" | "壬" | "癸";
 type EarthlyBranch = "子" | "丑" | "寅" | "卯" | "辰" | "巳" | "午" | "未" | "申" | "酉" | "戌" | "亥";
-type PalaceName = "命宫" | "兄弟" | "夫妻" | "子女" | "财帛" | "疾厄" | "迁移" | "交友" | "官禄" | "田宅" | "福德" | "父母";
+type PalaceName = "命宫" | "兄弟" | "夫妻" | "子女" | "财帛" | "疾厄" | "迁移" | "交友" | "仆役" | "官禄" | "田宅" | "福德" | "父母";
 type Transformation = "禄" | "权" | "科" | "忌";
 
 type ParsedBirthTime = {
@@ -108,6 +108,7 @@ function toZiweiChart(
   const lifePalace = output.palaces.find((palace) => palace.name === "命宫");
   const bodyPalace = output.palaces.find((palace) => palace.isBodyPalace) ?? lifePalace;
   const firstDecadal = output.decadalList[0];
+  const currentSmallLimitBranch = getCurrentSmallLimitBranch(output, birth, lifePalace);
   const majorLimitItems = output.decadalList.map((item) => ({
     stemBranch: `${item.heavenlyStem}${item.palace.earthlyBranch}`,
     ageText: `${item.startAge}-${item.endAge}岁`,
@@ -128,7 +129,7 @@ function toZiweiChart(
       lifeBranch: toBranch(lifePalace?.earthlyBranch),
       bodyBranch: toBranch(bodyPalace?.earthlyBranch),
       annualBranch: getCurrentAnnualBranch(),
-      smallLimitBranch: toBranch(output.smallLimit?.[0]?.palaceName ?? lifePalace?.earthlyBranch),
+      smallLimitBranch: currentSmallLimitBranch,
       luckStartText: firstDecadal ? `${firstDecadal.startAge}岁起` : "以十二宫大限为准",
       luckStemBranch: firstDecadal ? `${firstDecadal.heavenlyStem}${firstDecadal.palace.earthlyBranch}` : "",
       luckAgeText: firstDecadal ? `${firstDecadal.startAge}-${firstDecadal.endAge}岁` : "",
@@ -190,6 +191,14 @@ function getCurrentAnnualBranch() {
   const now = getShanghaiDateParts();
   const yearGanZhi = Solar.fromYmdHms(now.year, now.month, now.day, now.hour, now.minute, 0).getLunar().getYearInGanZhi();
   return toBranch(yearGanZhi.charAt(1));
+}
+
+function getCurrentSmallLimitBranch(output: ZiweiOutput, birth: ParsedBirthTime, fallbackPalace?: ZiweiOutput["palaces"][number]) {
+  const nominalAge = getShanghaiDateParts().year - birth.year + 1;
+  const smallLimit = output.smallLimit?.find((item) => item.ages.includes(nominalAge));
+  const palace = output.palaces.find((item) => item.name === smallLimit?.palaceName);
+
+  return toBranch(palace?.earthlyBranch ?? fallbackPalace?.earthlyBranch);
 }
 
 function getShanghaiDateParts() {
@@ -257,5 +266,5 @@ function isBranch(value?: string): value is EarthlyBranch {
 }
 
 function isPalaceName(value?: string): value is PalaceName {
-  return Boolean(value && ["命宫", "兄弟", "夫妻", "子女", "财帛", "疾厄", "迁移", "交友", "官禄", "田宅", "福德", "父母"].includes(value));
+  return Boolean(value && ["命宫", "兄弟", "夫妻", "子女", "财帛", "疾厄", "迁移", "交友", "仆役", "官禄", "田宅", "福德", "父母"].includes(value));
 }
