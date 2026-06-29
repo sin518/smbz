@@ -117,6 +117,26 @@ export function deleteUnifiedBaziRecord(id: string) {
   return getUnifiedBaziRecords().filter((record) => record.id !== id && record.serverId !== id);
 }
 
+export async function deleteUnifiedBaziRecordWithRemote(id: string) {
+  const deletedLocalRecord = getLocalBaziRecords().find((record) => record.id === id || record.serverId === id);
+  const remoteId = deletedLocalRecord?.serverId ?? (deletedLocalRecord?.syncStatus === "synced" ? deletedLocalRecord.id : undefined);
+
+  if (remoteId) {
+    const response = await fetchWithTimeout(`/api/bazi/charts/${encodeURIComponent(remoteId)}`, {
+      method: "DELETE",
+      credentials: "include"
+    });
+
+    if (!response.ok && response.status !== 404) {
+      throw new Error("云端删除失败");
+    }
+  }
+
+  deleteLocalBaziRecord(id);
+  deleteSharedProfileByRecordId(id, deletedLocalRecord);
+  return getUnifiedBaziRecords().filter((record) => record.id !== id && record.serverId !== id);
+}
+
 export function scheduleBaziRecordAutoSync() {
   if (typeof window === "undefined") {
     return;

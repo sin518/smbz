@@ -30,7 +30,6 @@ export function LiuyaoResultClient() {
   const adminAnalysisAbortRef = useRef<AbortController | null>(null);
   const pathname = usePathname();
   const aiCommandText = useMemo(() => (chart ? buildLiuyaoAiCommandText(chart) : ""), [chart]);
-  const adminAiCommandText = useMemo(() => (chart ? buildAdminLiuyaoAiAnalysisCommandText(chart, aiCommandText) : ""), [chart, aiCommandText]);
 
   useEffect(() => {
     const input = readJson<LiuyaoStoredInput>("sm1:current-liuyao-input");
@@ -154,7 +153,7 @@ export function LiuyaoResultClient() {
         credentials: "include",
         signal: controller.signal,
         body: JSON.stringify({
-          prompt: adminAiCommandText,
+          prompt: aiCommandText,
           maxTokens: 3600
         })
       });
@@ -166,6 +165,7 @@ export function LiuyaoResultClient() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let pendingSseText = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -174,9 +174,21 @@ export function LiuyaoResultClient() {
           break;
         }
 
-        const chunk = decoder.decode(value, { stream: true });
-        if (chunk) {
-          setAdminAnalysisText((current) => `${current}${chunk}`);
+        pendingSseText += decoder.decode(value, { stream: true });
+        const parsed = parseSseText(pendingSseText);
+        pendingSseText = parsed.pending;
+
+        for (const event of parsed.events) {
+          if (event.event === "delta" && typeof event.data.content === "string") {
+            setAdminAnalysisText((current) => `${current}${event.data.content}`);
+          }
+        }
+      }
+
+      const parsed = parseSseText(pendingSseText);
+      for (const event of parsed.events) {
+        if (event.event === "delta" && typeof event.data.content === "string") {
+          setAdminAnalysisText((current) => `${current}${event.data.content}`);
         }
       }
 
@@ -355,7 +367,7 @@ export function LiuyaoResultClient() {
             </header>
             <div className="px-4 py-4">
               <p className="text-[13px] leading-5 text-[#6d6254]">
-                已将上方 AI 指令作为提示词提交给大模型，分析内容会在此实时显示。
+                仅将上方 AI 指令作为提示词提交给大模型，分析内容会在此实时显示。
               </p>
               <div className="mt-3 min-h-[240px] whitespace-pre-wrap rounded-[14px] border border-[#eee4d2] bg-[#fffdf8] p-3 text-[13px] leading-6 text-[#554f47]">
                 {adminAnalysisText ? adminAnalysisText : null}
@@ -396,33 +408,6 @@ export function LiuyaoResultClient() {
   );
 }
 
-function buildAdminLiuyaoAiAnalysisCommandText(chart: LiuyaoChart, publicCommandText: string) {
-  return `# 六爻后台AI分析指令
-
-你是后台管理员使用的六爻分析助手。请基于下方排盘与公开AI指令，输出一份可审核的分析草稿。
-
-## 管理员要求
-1. 先给明确结论，再列卦理证据。
-2. 标注用神取法、旺衰依据、动变影响、世应关系、应期依据。
-3. 单独列出“需要人工复核”的点，尤其是用神不确定、问题过宽、空亡/伏神/日破存在争议的情况。
-4. 不输出恐吓、医疗/投资/法律保证、玄学化解、付费引导。
-5. 若卦象信息不足，必须写明“不足以定论”的原因。
-
-## 本次排盘摘要
-- 求测方向：${chart.profile.direction}
-- 求测事项：${chart.profile.question}
-- 起卦时间：${chart.profile.castingText}
-- 干支：${chart.ganzhiText}
-- 系统用神目标：${chart.skillWorkflow.yongShenTargets.join("、")}
-
-## 规范排盘文本
-${chart.canonicalText}
-
-## 公开AI指令基线
-${publicCommandText}
-`;
-}
-
 function LineSymbol({ symbol, changing }: { symbol: "yang" | "yin"; changing: boolean }) {
   return (
     <span className={changing ? "relative block h-[9px] w-[34px] bg-[#c23521]" : "relative block h-[9px] w-[34px] bg-[#333]"}>
@@ -455,6 +440,36 @@ async function getSignedIn() {
     return Boolean(data?.session && data.user);
   } catch {
     return false;
+  }
+}
+
+function parseSseText(text: string) {
+  const parts = text.split("\n\n");
+  const pending = parts.pop() ?? "";
+  const events = parts
+    .map((part) => parseSseEvent(part))
+    .filter((event): event is { event: string; data: Record<string, unknown> } => Boolean(event));
+
+  return { events, pending };
+}
+
+function parseSseEvent(rawEvent: string) {
+  const lines = rawEvent.split("\n");
+  const event = lines.find((line) => line.startsWith("event:"))?.slice("event:".length).trim() ?? "message";
+  const dataText = lines
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice("data:".length).trim())
+    .join("\n");
+
+  if (!dataText) {
+    return null;
+  }
+
+  try {
+    const data = JSON.parse(dataText) as Record<string, unknown>;
+    return { event, data };
+  } catch {
+    return null;
   }
 }
 

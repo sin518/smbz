@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Cloud, CloudOff, RefreshCw, Search, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Cloud, CloudOff, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppBottomNav } from "@/components/app-bottom-nav";
 import {
-  deleteUnifiedBaziRecord,
+  deleteUnifiedBaziRecordWithRemote,
   getUnifiedBaziRecords,
   scheduleBaziRecordAutoSync,
   syncPendingBaziRecords,
@@ -29,10 +29,25 @@ type RecordsPageItem =
   | { kind: "bazi"; record: LocalBaziRecord; createdAt: string }
   | { kind: "divination"; record: LocalDivinationRecord; createdAt: string };
 
+type RecordGroupKey = "bazi" | "liuyao" | "qimen";
+
+type RecordGroup = {
+  key: RecordGroupKey;
+  title: string;
+  description: string;
+  items: RecordsPageItem[];
+};
+
 export default function RecordsPage() {
   const [records, setRecords] = useState<RecordsPageItem[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+  const [deletingRecordKey, setDeletingRecordKey] = useState<string | null>(null);
+  const [openGroups, setOpenGroups] = useState<Record<RecordGroupKey, boolean>>({
+    bazi: true,
+    liuyao: true,
+    qimen: true
+  });
 
   useEffect(() => {
     setRecords(getRecordsPageItems());
@@ -78,20 +93,37 @@ export default function RecordsPage() {
     }
   }
 
-  function handleDeleteRecord(item: RecordsPageItem) {
-    const confirmed = window.confirm("删除后仅会移除本机记录，无法从当前浏览器恢复。确定删除吗？");
+  async function handleDeleteRecord(item: RecordsPageItem) {
+    const deleteMessage =
+      item.kind === "bazi" && item.record.serverId
+        ? "删除后会同时删除数据库里的云端排盘记录，无法从当前浏览器恢复。确定删除吗？"
+        : "删除后会移除本机记录，无法从当前浏览器恢复。确定删除吗？";
+    const confirmed = window.confirm(deleteMessage);
     if (!confirmed) {
       return;
     }
 
-    if (item.kind === "bazi") {
-      deleteUnifiedBaziRecord(item.record.id);
-    } else {
-      deleteLocalDivinationRecord(item.record.id);
-    }
+    const recordKey = getRecordKey(item);
+    setDeletingRecordKey(recordKey);
+    setSyncMessage("");
 
-    setRecords(getRecordsPageItems());
+    try {
+      if (item.kind === "bazi") {
+        await deleteUnifiedBaziRecordWithRemote(item.record.id);
+      } else {
+        deleteLocalDivinationRecord(item.record.id);
+      }
+
+      setRecords(getRecordsPageItems());
+    } catch {
+      setSyncMessage("删除失败：云端记录没有删除成功，本机记录已保留。请稍后重试。");
+      window.setTimeout(() => setSyncMessage(""), 3600);
+    } finally {
+      setDeletingRecordKey(null);
+    }
   }
+
+  const groupedRecords = getRecordGroups(records);
 
   return (
     <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-paper pb-28 text-ink shadow-soft">
@@ -147,64 +179,42 @@ export default function RecordsPage() {
       </section>
 
       {records.length > 0 ? (
-        <section className="space-y-3 px-4 pt-5">
-          {records.map((item) => (
-            <div key={`${item.kind}-${item.record.id}`} className="rounded-[22px] bg-white p-4 shadow-soft">
-              <div className="flex items-start justify-between gap-3">
-                <Link
-                  href={getRecordHref(item)}
-                  onClick={() => handleOpenRecord(item)}
-                  className="min-w-0 flex-1"
-                >
-                  <div className="flex items-center gap-2">
-                    <h2 className="truncate text-[21px] font-semibold">{getRecordTitle(item)}</h2>
-                    {item.kind === "bazi" ? (
-                      <>
-                        <span className="rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[12px] font-semibold text-[#a58024]">
-                          {item.record.gender === "female" ? "女" : "男"}
-                        </span>
-                        <SyncBadge status={item.record.syncStatus} />
-                        {item.record.origin === "profile" ? (
-                          <span className="rounded-full bg-[#f2f2f0] px-2 py-0.5 text-[11px] font-semibold text-[#77736b]">档案</span>
-                        ) : null}
-                      </>
-                    ) : (
-                      <>
-                        <span className="rounded-full bg-[#e7f0ff] px-2 py-0.5 text-[12px] font-semibold text-[#4e85c7]">
-                          {formatDivinationType(item.record.type)}
-                        </span>
-                        <LocalBadge />
-                      </>
-                    )}
-                  </div>
-                  <p className="mt-2 truncate text-[14px] font-semibold text-[#55514a]">{getRecordSummary(item)}</p>
-                  <p className="mt-1 truncate text-[13px] leading-6 text-mutedInk">
-                    {getRecordDetail(item)}
-                  </p>
-                  <p className="text-[13px] leading-6 text-mutedInk">
-                    {getRecordMeta(item)}
-                  </p>
-                </Link>
-                <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteRecord(item)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-[#b07a69] transition-colors hover:bg-[#f8eee9]"
-                    aria-label={`删除${getRecordTitle(item)}记录`}
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                  <Link
-                    href={getRecordHref(item)}
-                    onClick={() => handleOpenRecord(item)}
-                    className="flex h-9 w-7 items-center justify-center"
-                    aria-label={`打开${getRecordTitle(item)}记录`}
-                  >
-                    <ChevronRight size={22} className="text-[#b7b1a5]" />
-                  </Link>
+        <section className="space-y-4 px-4 pt-5">
+          {groupedRecords.map((group) => (
+            <section key={group.key} className="space-y-3" aria-labelledby={`record-group-${group.key}`}>
+              <button
+                type="button"
+                onClick={() => setOpenGroups((current) => ({ ...current, [group.key]: !current[group.key] }))}
+                className="flex w-full items-center justify-between gap-3 rounded-[18px] bg-white px-4 py-3 text-left shadow-soft"
+                aria-expanded={openGroups[group.key]}
+                aria-controls={`record-group-panel-${group.key}`}
+              >
+                <span className="min-w-0">
+                  <span id={`record-group-${group.key}`} className="block text-[18px] font-semibold text-ink">
+                    {group.title}
+                  </span>
+                  <span className="mt-1 block text-[13px] leading-5 text-mutedInk">{group.description}</span>
+                </span>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f6f0e2] text-[#a58024]">
+                  <ChevronDown
+                    size={20}
+                    className={openGroups[group.key] ? "rotate-180 transition-transform" : "transition-transform"}
+                  />
+                </span>
+              </button>
+              {openGroups[group.key] ? (
+                <div id={`record-group-panel-${group.key}`} className="space-y-3">
+                  {group.items.map((item) => (
+                    <RecordCard
+                      key={getRecordKey(item)}
+                      item={item}
+                      deleting={deletingRecordKey === getRecordKey(item)}
+                      onDelete={() => void handleDeleteRecord(item)}
+                    />
+                  ))}
                 </div>
-              </div>
-            </div>
+              ) : null}
+            </section>
           ))}
         </section>
       ) : (
@@ -224,6 +234,76 @@ export default function RecordsPage() {
 
       <AppBottomNav active="records" />
     </main>
+  );
+}
+
+function RecordCard({
+  item,
+  deleting,
+  onDelete
+}: {
+  item: RecordsPageItem;
+  deleting: boolean;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="rounded-[22px] bg-white p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <Link
+          href={getRecordHref(item)}
+          onClick={() => handleOpenRecord(item)}
+          className="min-w-0 flex-1"
+        >
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h2 className="truncate text-[21px] font-semibold">{getRecordTitle(item)}</h2>
+            {item.kind === "bazi" ? (
+              <>
+                <span className="rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[12px] font-semibold text-[#a58024]">
+                  {item.record.gender === "female" ? "女" : "男"}
+                </span>
+                <SyncBadge status={item.record.syncStatus} />
+                {item.record.origin === "profile" ? (
+                  <span className="rounded-full bg-[#f2f2f0] px-2 py-0.5 text-[11px] font-semibold text-[#77736b]">档案</span>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <span className="rounded-full bg-[#e7f0ff] px-2 py-0.5 text-[12px] font-semibold text-[#4e85c7]">
+                  {formatDivinationType(item.record.type)}
+                </span>
+                <LocalBadge />
+              </>
+            )}
+          </div>
+          <p className="mt-2 truncate text-[14px] font-semibold text-[#55514a]">{getRecordSummary(item)}</p>
+          <p className="mt-1 truncate text-[13px] leading-6 text-mutedInk">
+            {getRecordDetail(item)}
+          </p>
+          <p className="text-[13px] leading-6 text-mutedInk">
+            {getRecordMeta(item)}
+          </p>
+        </Link>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[#b07a69] transition-colors hover:bg-[#f8eee9] disabled:opacity-50"
+            aria-label={`删除${getRecordTitle(item)}记录`}
+          >
+            {deleting ? <RefreshCw size={18} className="animate-spin" /> : <Trash2 size={18} />}
+          </button>
+          <Link
+            href={getRecordHref(item)}
+            onClick={() => handleOpenRecord(item)}
+            className="flex h-9 w-7 items-center justify-center"
+            aria-label={`打开${getRecordTitle(item)}记录`}
+          >
+            <ChevronRight size={22} className="text-[#b7b1a5]" />
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -276,6 +356,49 @@ function getRecordsPageItems(): RecordsPageItem[] {
   }));
 
   return [...baziRecords, ...divinationRecords].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+}
+
+function getRecordGroups(records: RecordsPageItem[]): RecordGroup[] {
+  const groups: RecordGroup[] = [
+    {
+      key: "bazi",
+      title: "八字排盘",
+      description: "本机保存，已同步的记录删除时会同步删除云端。",
+      items: []
+    },
+    {
+      key: "liuyao",
+      title: "六爻断事",
+      description: "当前为本地记录，删除会移除本机浏览器里的排盘。",
+      items: []
+    },
+    {
+      key: "qimen",
+      title: "奇门遁甲",
+      description: "当前为本地记录，删除会移除本机浏览器里的排盘。",
+      items: []
+    }
+  ];
+  const groupMap = new Map(groups.map((group) => [group.key, group]));
+
+  records.forEach((item) => {
+    const key = getRecordGroupKey(item);
+    groupMap.get(key)?.items.push(item);
+  });
+
+  return groups.filter((group) => group.items.length > 0);
+}
+
+function getRecordGroupKey(item: RecordsPageItem): RecordGroupKey {
+  if (item.kind === "bazi") {
+    return "bazi";
+  }
+
+  return item.record.type === "qimen" ? "qimen" : "liuyao";
+}
+
+function getRecordKey(item: RecordsPageItem) {
+  return `${item.kind}-${item.record.id}`;
 }
 
 function getRecordTitle(item: RecordsPageItem) {

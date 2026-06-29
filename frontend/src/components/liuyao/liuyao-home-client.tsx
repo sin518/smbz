@@ -13,7 +13,8 @@ import { castLiuyaoLine, type LiuyaoLine } from "@/lib/liuyao/casting";
 import { cn } from "@/lib/utils";
 
 const liuyaoFormSchema = z.object({
-  yongShenTargets: z.array(z.enum(["妻财", "官鬼", "父母", "子孙", "兄弟"])).min(1, "请选择分析目标"),
+  yongShenMode: z.enum(["general", "specific"]),
+  yongShenTargets: z.array(z.enum(["妻财", "官鬼", "父母", "子孙", "兄弟"])),
   question: z.string().trim().min(1, "请填写求测问题").max(80, "问题不能超过 80 个字"),
   castingMethod: z.enum(["shake", "number", "manual", "time", "text"]),
   numberMode: z.enum(["two", "three"]),
@@ -28,6 +29,14 @@ const liuyaoFormSchema = z.object({
   castingCalendar: z.enum(["solar", "lunar"]),
   castingTime: z.string().min(1, "请选择起卦时间")
 }).superRefine((values, context) => {
+  if (values.yongShenMode === "specific" && values.yongShenTargets.length < 1) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["yongShenTargets"],
+      message: "请选择分析目标"
+    });
+  }
+
   if (values.castingMethod === "number") {
     validateCastingNumber(values.numberFirst, ["numberFirst"], context);
     validateCastingNumber(values.numberSecond, ["numberSecond"], context);
@@ -62,8 +71,10 @@ type CastingMethodValue = LiuyaoFormValues["castingMethod"];
 type ManualLineValue = NonNullable<LiuyaoFormValues["manualLines"][number]>;
 type YongShenValue = LiuyaoFormValues["yongShenTargets"][number];
 type YongShenOptionValue = YongShenValue | "通用";
+type YongShenMode = LiuyaoFormValues["yongShenMode"];
 
 const defaultValues: LiuyaoFormValues = {
+  yongShenMode: "general",
   yongShenTargets: [],
   question: "",
   castingMethod: "shake",
@@ -79,8 +90,6 @@ const defaultValues: LiuyaoFormValues = {
   castingCalendar: "solar",
   castingTime: ""
 };
-
-const allYongShenTargets: YongShenValue[] = ["妻财", "官鬼", "父母", "子孙", "兄弟"];
 
 const yongShenOptions: ReadonlyArray<{ label: YongShenOptionValue; title: string; description: string }> = [
   { label: "通用", title: "综合判断", description: "不清楚如何取用神时选择，由系统结合问题与全卦综合判断" },
@@ -167,6 +176,7 @@ export function LiuyaoHomeClient() {
     defaultValues
   });
   const yongShenTargets = useWatch({ control, name: "yongShenTargets" });
+  const yongShenMode = useWatch({ control, name: "yongShenMode" });
   const castingMethod = useWatch({ control, name: "castingMethod" });
   const numberMode = useWatch({ control, name: "numberMode" });
   const textMode = useWatch({ control, name: "textMode" });
@@ -185,6 +195,7 @@ export function LiuyaoHomeClient() {
     const payload = {
       input: {
         ...values,
+        yongShenTargets: values.yongShenMode === "general" ? [] : values.yongShenTargets,
         question: values.question.trim()
       },
       savedAt: new Date().toISOString()
@@ -246,7 +257,7 @@ export function LiuyaoHomeClient() {
                     className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
                     aria-label="选择分析目标"
                   >
-                    {formatYongShenTriggerLabel(field.value)}
+                    {formatYongShenTriggerLabel(yongShenMode, field.value)}
                     <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
                   </button>
                 </SharedFieldRow>
@@ -411,10 +422,12 @@ export function LiuyaoHomeClient() {
       <YongShenSheet
         open={directionPickerOpen}
         title="选择分析目标"
+        mode={yongShenMode}
         value={yongShenTargets}
         onClose={() => setDirectionPickerOpen(false)}
-        onConfirm={(value) => {
-          setValue("yongShenTargets", value, { shouldDirty: true, shouldValidate: true });
+        onConfirm={(nextValue) => {
+          setValue("yongShenMode", nextValue.mode, { shouldDirty: true, shouldValidate: true });
+          setValue("yongShenTargets", nextValue.targets, { shouldDirty: true, shouldValidate: true });
           setDirectionPickerOpen(false);
         }}
       />
@@ -522,40 +535,47 @@ function NoticeSection({ title, lines }: { title: string; lines: readonly string
 function YongShenSheet({
   open,
   title,
+  mode,
   value,
   onClose,
   onConfirm
 }: {
   open: boolean;
   title: string;
+  mode: YongShenMode;
   value: YongShenValue[];
   onClose: () => void;
-  onConfirm: (value: YongShenValue[]) => void;
+  onConfirm: (value: { mode: YongShenMode; targets: YongShenValue[] }) => void;
 }) {
+  const [draftMode, setDraftMode] = useState<YongShenMode>(mode);
   const [draftValue, setDraftValue] = useState<YongShenValue[]>(value);
 
   useEffect(() => {
     if (open) {
+      setDraftMode(mode);
       setDraftValue(value);
     }
-  }, [open, value]);
+  }, [mode, open, value]);
 
   if (!open) {
     return null;
   }
 
   function toggleOption(nextValue: YongShenOptionValue) {
-    setDraftValue((current) => {
-      if (nextValue === "通用") {
-        return isGeneralYongShenSelection(current) ? [] : allYongShenTargets;
-      }
+    if (nextValue === "通用") {
+      setDraftMode("general");
+      setDraftValue([]);
+      return;
+    }
 
+    setDraftMode("specific");
+    setDraftValue((current) => {
       return current.length === 1 && current[0] === nextValue ? [] : [nextValue];
     });
   }
 
   function handleConfirm() {
-    onConfirm(draftValue);
+    onConfirm({ mode: draftMode, targets: draftMode === "general" ? [] : draftValue });
   }
 
   return (
@@ -571,7 +591,7 @@ function YongShenSheet({
 
         <div className="space-y-2 px-3 py-3">
           {yongShenOptions.map((option) => {
-            const generalSelected = isGeneralYongShenSelection(draftValue);
+            const generalSelected = draftMode === "general";
             const selected = option.label === "通用" ? generalSelected : !generalSelected && draftValue.includes(option.label);
             return (
               <button
@@ -600,9 +620,16 @@ function YongShenSheet({
         </div>
 
         <footer className="flex h-14 items-center justify-between border-t border-[var(--liuyao-sheet-border)] px-4">
-          <p className="min-w-0 truncate text-[12px] text-[var(--liuyao-sheet-muted)]">已选：{formatYongShenLabel(draftValue)}</p>
+          <p className="min-w-0 truncate text-[12px] text-[var(--liuyao-sheet-muted)]">已选：{formatYongShenLabel(draftMode, draftValue)}</p>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setDraftValue([])} className="h-9 rounded-md border border-[var(--liuyao-sheet-border)] px-4 text-[13px] font-semibold">
+            <button
+              type="button"
+              onClick={() => {
+                setDraftMode("specific");
+                setDraftValue([]);
+              }}
+              className="h-9 rounded-md border border-[var(--liuyao-sheet-border)] px-4 text-[13px] font-semibold"
+            >
               清空
             </button>
             <button type="button" onClick={handleConfirm} className="h-9 rounded-md bg-[#d4ad28] px-4 text-[13px] font-semibold text-white">
@@ -615,32 +642,24 @@ function YongShenSheet({
   );
 }
 
-function formatYongShenLabel(value: readonly YongShenValue[]) {
-  if (!value.length) {
-    return "未选择";
+function formatYongShenLabel(mode: YongShenMode, value: readonly YongShenValue[]) {
+  if (mode === "general") {
+    return "通用";
   }
 
-  if (isGeneralYongShenSelection(value)) {
-    return "通用";
+  if (!value.length) {
+    return "未选择";
   }
 
   return value.join("、");
 }
 
-function formatYongShenTriggerLabel(value: readonly YongShenValue[]) {
-  if (!value.length) {
-    return "选择分析目标";
-  }
-
-  if (isGeneralYongShenSelection(value)) {
+function formatYongShenTriggerLabel(mode: YongShenMode, value: readonly YongShenValue[]) {
+  if (mode === "general") {
     return "通用分析";
   }
 
-  return `分析目标 ${value.length} 项`;
-}
-
-function isGeneralYongShenSelection(value: readonly YongShenValue[]) {
-  return allYongShenTargets.every((target) => value.includes(target));
+  return value.length ? `分析目标 ${value.length} 项` : "选择分析目标";
 }
 
 function getOptionLabel<TValue extends string>(options: ReadonlyArray<{ label: string; value: TValue }>, value: TValue) {

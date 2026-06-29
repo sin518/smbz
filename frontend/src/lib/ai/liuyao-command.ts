@@ -9,6 +9,9 @@ export function buildLiuyaoAiCommandText(chart: LiuyaoChart) {
         .map((item) => `- ${item}`)
         .join("\n")
     : "- 系统暂未给出明确时间窗口，请基于用神、世应、动爻谨慎判断。";
+  const yongShenTargetText = chart.skillWorkflow.yongShenTargets.length
+    ? chart.skillWorkflow.yongShenTargets.join("、")
+    : "通用分析，请根据求测问题独立取用神";
 
   return `
   ## 安全红线
@@ -30,7 +33,7 @@ export function buildLiuyaoAiCommandText(chart: LiuyaoChart) {
 
     1. **月建为纲，日辰为领**：月建主宰爻的旺衰，日辰可生克冲合。直言旺衰，不美化。
     2. **旺相休囚死**：爻在月令的五种状态决定其根本力量。休囚死即为弱势，不强行解释为“有潜力”。
-    3. **暗动与日破**：静爻旺相逢日冲为暗动（有力），静爻休囚逢日冲为日破（无力）。日破即无用，不必粉饰。
+    3. **暗动与日破**：日破必须同时满足三项：①本爻为静爻；②本爻休囚/无力；③本爻地支被日建六冲（子午冲、丑未冲、寅申冲、卯酉冲、辰戌冲、巳亥冲）。静爻旺相逢日建六冲为暗动（有力），动爻逢日冲不得直接称日破。日破即无用，不必粉饰。
     4. **空亡论断**：静空、动空、冲空、临建都要结合月日与动变，不得单凭一条征象定吉凶。空亡若为忌神凶爻，反为好事；若为用神，则为虚像、不成之兆。
     5. **用神为核心**：先定用神，再看旺衰、生克、动静、空实与世应。用神休囚受克，直接断凶，不必迂回。
     6. **取用顺序**：本卦明现优先；本卦无用神而变爻化出者，先取变爻；本卦与变爻俱无，再看月建日辰是否可代用；仍无稳定落点时才转伏神。取不到用神，明确告知“无法判断”。
@@ -43,7 +46,7 @@ export function buildLiuyaoAiCommandText(chart: LiuyaoChart) {
 - 当前时间：${formatCurrentDateTime()}
 - 求测方向：${chart.profile.direction}
 - 求测事项：${chart.profile.question}
-- 已判定用神目标：${chart.skillWorkflow.yongShenTargets.join("、")}
+- 已判定用神目标：${yongShenTargetText}
 - 若问题不够单一或时间/目标不明确，先在“风险与边界”里说明，不要把多个问题混断。
 
 ## 取用神复核方法（必须先做，且独立于用户输入）
@@ -127,7 +130,7 @@ ${timeRecommendations}
 
 - **看旺衰（先论凶）**：
   - 分析用神在月建的状态（旺相/休囚/被克/月破）。
-  - 分析用神在日辰的状态（生扶/墓绝/值日/日破）。
+  - 分析用神在日辰的状态（生扶/墓绝/值日/日破）。判断日破时必须核对：用神是否为静爻、是否休囚/无力、是否被日建六冲；缺一不可。
   - **若用神休囚、月破、日破、被克，直接判定为“用神无力，事难成”**，不再纠缠于其他生扶。
   - 综合得出用神整体旺衰结论。
 

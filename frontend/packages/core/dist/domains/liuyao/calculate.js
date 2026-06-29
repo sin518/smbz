@@ -37,6 +37,13 @@ export const MOVEMENT_LABELS = {
     hidden_moving: '暗动',
     day_break: '日破',
 };
+function getYaoMovementLabel(movementState, specialStatus) {
+    if (specialStatus === 'yuePo')
+        return SPECIAL_STATUS_LABELS.yuePo;
+    if (specialStatus === 'riPo')
+        return SPECIAL_STATUS_LABELS.riPo;
+    return MOVEMENT_LABELS[movementState];
+}
 export const HUA_TYPE_LABELS = {
     huaJin: '化进',
     huaTui: '化退',
@@ -1575,12 +1582,13 @@ export function performFullAnalysis(yaos, hexagramCode, changedCode, question, d
         const kongWangState = checkYaoKongWang(yao.naJia, kongWang, monthZhi, dayZhi, yao.change === 'changing');
         const strength = calculateYaoStrength(yao.wuXing, monthZhi, yao.change === 'changing', kongWangState, influence, yao.naJia);
         const movementState = getYaoMovementState(yao, strength);
+        const movementLabel = getYaoMovementLabel(movementState, strength.specialStatus);
         const changSheng = getChangSheng(yao.wuXing, monthZhi);
         return {
             ...yao,
             isChanging: yao.change === 'changing',
             movementState,
-            movementLabel: MOVEMENT_LABELS[movementState],
+            movementLabel,
             kongWangState,
             influence,
             strength,

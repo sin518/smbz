@@ -4,7 +4,7 @@ import asyncpg
 from app.db import get_connection
 from app.schemas.bazi import BaziChartInput, BaziChartResponse, BaziChartsResponse
 from app.services.auth import get_user_by_session_token
-from app.services.bazi import create_bazi_chart, get_bazi_chart, list_bazi_charts
+from app.services.bazi import create_bazi_chart, delete_bazi_chart, get_bazi_chart, list_bazi_charts
 
 
 router = APIRouter()
@@ -35,6 +35,17 @@ async def get_chart(chart_id: str, request: Request, connection: asyncpg.Connect
         raise HTTPException(status_code=404, detail="未找到该八字排盘记录")
 
     return {"chart": chart}
+
+
+@router.delete("/charts/{chart_id}")
+async def delete_chart(chart_id: str, request: Request, connection: asyncpg.Connection = Depends(get_connection)) -> dict[str, bool]:
+    user_id = await require_user_id(connection, request)
+    deleted = await delete_bazi_chart(connection, user_id, chart_id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="未找到该八字排盘记录")
+
+    return {"ok": True}
 
 
 async def require_user_id(connection: asyncpg.Connection, request: Request) -> str:

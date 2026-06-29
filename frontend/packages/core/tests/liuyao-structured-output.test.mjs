@@ -169,6 +169,24 @@ test('liuyao can identify hidden_moving and day_break in sampled cases', async (
   assert.ok(seen.has('day_break'), 'expected at least one day_break case');
 });
 
+test('liuyao labels month break as 月破 instead of 日破', async () => {
+  const result = await mcpCore.calculateLiuyao({
+    question: '今年财运如何',
+    yongShenTargets: ['妻财'],
+    method: 'select',
+    hexagramName: '雷天大壮',
+    date: '2026-06-29T08:39:00+08:00',
+  });
+
+  const wealth = result.yongShen.find((item) => item.targetLiuQin === '妻财')?.selected;
+  assert.ok(wealth, 'missing selected 妻财');
+  assert.equal(wealth.naJia, '子');
+  assert.equal(wealth.movementLabel, '月破');
+  assert.notEqual(wealth.movementLabel, '日破');
+  assert.match((wealth.evidence || []).join('、'), /月破/u);
+  assert.doesNotMatch((wealth.evidence || []).join('、'), /日破/u);
+});
+
 test('liuyao relation uses 伏吟 when changed branch stays the same', async () => {
   const result = await mcpCore.calculateLiuyao({
     question: '测试伏吟关系',

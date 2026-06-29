@@ -117,6 +117,35 @@ async def get_bazi_chart(connection: asyncpg.Connection, user_id: str, chart_id:
     return chart_detail_from_row(row) if row else None
 
 
+async def delete_bazi_chart(connection: asyncpg.Connection, user_id: str, chart_id: str) -> bool:
+    await ensure_bazi_tables(connection)
+    row = await connection.fetchrow(
+        '''
+        SELECT c."profileId"
+        FROM "BaziChart" c
+        INNER JOIN "BaziProfile" p ON p.id = c."profileId"
+        WHERE c.id = $1 AND p."userId" = $2
+        LIMIT 1
+        ''',
+        chart_id,
+        user_id,
+    )
+
+    if not row:
+        return False
+
+    profile_id = row["profileId"]
+
+    async with connection.transaction():
+        await connection.execute('DELETE FROM "BaziChart" WHERE id = $1', chart_id)
+        remaining_count = await connection.fetchval('SELECT COUNT(*) FROM "BaziChart" WHERE "profileId" = $1', profile_id)
+
+        if int(remaining_count or 0) == 0:
+            await connection.execute('DELETE FROM "BaziProfile" WHERE id = $1 AND "userId" = $2', profile_id, user_id)
+
+    return True
+
+
 def chart_detail_from_parts(row: asyncpg.Record, body: BaziChartInput, profile_id: str) -> BaziChartDetail:
     return BaziChartDetail(
         id=row["id"],
