@@ -423,7 +423,7 @@ function CenterPalace({ chart }: { chart: ZiweiChart }) {
               <span className={getStemBranchTextTone(item.stemBranch[1])}>{item.stemBranch[1]}</span>
             </div>
             <p className="mt-1 text-[6px] text-[#6f6a63]">{item.ageText}</p>
-            <p className="mt-0.5 text-[6px] text-[#9a8666]">{item.startYear}</p>
+            {item.startYear ? <p className="mt-0.5 text-[6px] text-[#9a8666]">{item.startYear}</p> : null}
           </div>
         ))}
       </div>

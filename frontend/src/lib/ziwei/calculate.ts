@@ -1,3 +1,4 @@
+import { Solar } from "lunar-javascript";
 import { calculateZiwei, toZiweiText, type ZiweiOutput } from "taibu-core/ziwei";
 
 export type ZiweiGender = "male" | "female";
@@ -126,7 +127,7 @@ function toZiweiChart(
       body: output.body,
       lifeBranch: toBranch(lifePalace?.earthlyBranch),
       bodyBranch: toBranch(bodyPalace?.earthlyBranch),
-      annualBranch: toBranch(output.fourPillars.year.zhi),
+      annualBranch: getCurrentAnnualBranch(),
       smallLimitBranch: toBranch(output.smallLimit?.[0]?.palaceName ?? lifePalace?.earthlyBranch),
       luckStartText: firstDecadal ? `${firstDecadal.startAge}岁起` : "以十二宫大限为准",
       luckStemBranch: firstDecadal ? `${firstDecadal.heavenlyStem}${firstDecadal.palace.earthlyBranch}` : "",
@@ -183,6 +184,34 @@ function parseBirthTime(value: string): ParsedBirthTime {
 
 function formatBirthTime(birth: ParsedBirthTime) {
   return `${birth.year}-${String(birth.month).padStart(2, "0")}-${String(birth.day).padStart(2, "0")} ${String(birth.hour).padStart(2, "0")}:${String(birth.minute).padStart(2, "0")}`;
+}
+
+function getCurrentAnnualBranch() {
+  const now = getShanghaiDateParts();
+  const yearGanZhi = Solar.fromYmdHms(now.year, now.month, now.day, now.hour, now.minute, 0).getLunar().getYearInGanZhi();
+  return toBranch(yearGanZhi.charAt(1));
+}
+
+function getShanghaiDateParts() {
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(new Date());
+
+  const getPart = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
+
+  return {
+    year: getPart("year"),
+    month: getPart("month"),
+    day: getPart("day"),
+    hour: getPart("hour"),
+    minute: getPart("minute")
+  };
 }
 
 function formatStar(star: { name: string; brightness?: string; mutagen?: string }) {
