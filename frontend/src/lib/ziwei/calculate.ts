@@ -95,7 +95,63 @@ export function calculateZiweiChart(input: ZiweiCalculationInput): ZiweiChart {
     birthMinute: birth.minute,
     calendarType: "solar"
   });
+
+  // 数据完整性验证
+  console.log('[ZiweiChart] Validating output data...');
+
+  // 验证基础字段
+  if (!output.soul || !output.body || !output.fiveElement) {
+    console.warn('[ZiweiChart] Missing basic fields:', {
+      soul: output.soul,
+      body: output.body,
+      fiveElement: output.fiveElement
+    });
+  }
+
+  // 验证宫位数据完整性
+  output.palaces.forEach((palace, index) => {
+    const issues: string[] = [];
+
+    if (!palace.heavenlyStem) issues.push('heavenlyStem');
+    if (!palace.earthlyBranch) issues.push('earthlyBranch');
+    if (!palace.name) issues.push('name');
+    if (!palace.majorStars) issues.push('majorStars');
+    if (!palace.minorStars) issues.push('minorStars');
+
+    if (issues.length > 0) {
+      console.error(`[ZiweiChart] Palace ${index} (${palace.name || 'unnamed'}) has incomplete data:`, {
+        missingFields: issues,
+        palace: {
+          name: palace.name,
+          stem: palace.heavenlyStem,
+          branch: palace.earthlyBranch,
+          majorStars: palace.majorStars?.length || 0,
+          minorStars: palace.minorStars?.length || 0
+        }
+      });
+    }
+  });
+
+  // 验证大限数据
+  if (!output.decadalList || output.decadalList.length === 0) {
+    console.warn('[ZiweiChart] No decadal limit data found');
+  }
+
   const canonicalText = toZiweiText(output, { detailLevel: "full" });
+
+  // 检查生成的文本是否包含乱码
+  if (canonicalText.includes('�')) {
+    console.error('[ZiweiChart] canonicalText contains corrupted characters (�)');
+    console.error('[ZiweiChart] Sample of corrupted text:',
+      canonicalText.substring(
+        Math.max(0, canonicalText.indexOf('�') - 50),
+        canonicalText.indexOf('�') + 50
+      )
+    );
+  }
+
+  console.log('[ZiweiChart] Validation complete. Palaces count:', output.palaces.length);
+
   return toZiweiChart(input, birth, output, canonicalText);
 }
 

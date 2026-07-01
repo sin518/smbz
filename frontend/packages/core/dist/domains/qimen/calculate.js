@@ -255,18 +255,10 @@ export function calculateQimenData(input) {
                     const heavenStem = heavenStems?.[0] || '';
                     const starName = Array.isArray(stars) ? stars[0] || '' : (stars || '');
                     const palaceName = PALACE_NAMES[i];
-                    // 格局判断
+                    // 格局判断（只判断单宫格局，不包括伏吟反吟）
                     const formations = [];
                     if (heavenStem && earthStem && i !== 4) {
                         formations.push(...getFormations(heavenStem, earthStem));
-                    }
-                    // 伏吟判断：天盘星回到原始宫位
-                    if (starName && STAR_ORIGINAL_PALACE[starName] === i) {
-                        formations.push('伏吟');
-                    }
-                    // 反吟判断：天盘星到对冲宫位
-                    if (starName && OPPOSITE_PALACE[STAR_ORIGINAL_PALACE[starName]] === i) {
-                        formations.push('反吟');
                     }
                     // 旺衰
                     const stemElement = GAN_WUXING[heavenStem] || '';
@@ -304,6 +296,41 @@ export function calculateQimenData(input) {
                         isYiMa,
                         isRuMu,
                     });
+                }
+                // 全局格局判断：伏吟和反吟
+                let hasFuYin = false;
+                let hasFanYin = false;
+                // 检查是否所有九星都回到原始宫位（伏吟）或对冲宫位（反吟）
+                let fuYinCount = 0;
+                let fanYinCount = 0;
+                for (let i = 0; i < 9; i++) {
+                    const starName = palaces[i].star;
+                    if (starName && STAR_ORIGINAL_PALACE[starName] === i) {
+                        fuYinCount++;
+                    }
+                    if (starName && OPPOSITE_PALACE[STAR_ORIGINAL_PALACE[starName]] === i) {
+                        fanYinCount++;
+                    }
+                }
+                // 判断标准：至少8个宫位符合（中宫可能特殊处理）
+                if (fuYinCount >= 8) {
+                    hasFuYin = true;
+                    globalFormations.unshift('全局伏吟');
+                }
+                if (fanYinCount >= 8) {
+                    hasFanYin = true;
+                    globalFormations.unshift('全局反吟');
+                }
+                // 如果是伏吟或反吟，标记到各宫formations中
+                if (hasFuYin || hasFanYin) {
+                    for (const palace of palaces) {
+                        if (hasFuYin && palace.palaceIndex !== 5) { // 中宫不标记
+                            palace.formations.push('伏吟');
+                        }
+                        if (hasFanYin && palace.palaceIndex !== 5) {
+                            palace.formations.push('反吟');
+                        }
+                    }
                 }
                 return {
                     dateInfo: {

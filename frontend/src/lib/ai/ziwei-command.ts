@@ -73,14 +73,54 @@ export function getZiweiAiCommandFocusDescription(focus: ZiweiAiCommandFocus) {
 }
 
 export function buildZiweiAiCommandText({ chart, focus }: ZiweiAiCommandInput) {
+  // 数据防御：确保关键字段不为空
+  const safeChart = {
+    ...chart,
+    profile: {
+      ...chart.profile,
+      name: chart.profile.name || "未填写",
+      gender: chart.profile.gender || "未知",
+      solarText: chart.profile.solarText || "",
+      lunarText: chart.profile.lunarText || "",
+      location: chart.profile.location || "未知地",
+      yinYangGender: chart.profile.yinYangGender || "",
+      fiveElementClass: chart.profile.fiveElementClass || "",
+      soul: chart.profile.soul || "",
+      body: chart.profile.body || "",
+      lifeBranch: chart.profile.lifeBranch || "寅",
+      bodyBranch: chart.profile.bodyBranch || "寅",
+      annualBranch: chart.profile.annualBranch || "寅",
+      smallLimitBranch: chart.profile.smallLimitBranch || "寅",
+      luckStartText: chart.profile.luckStartText || "",
+      luckAgeText: chart.profile.luckAgeText || "",
+      majorLimitItems: chart.profile.majorLimitItems || []
+    },
+    pillars: {
+      year: chart.pillars.year || "",
+      month: chart.pillars.month || "",
+      day: chart.pillars.day || "",
+      hour: chart.pillars.hour || ""
+    },
+    palaces: (chart.palaces || []).filter(p => p && p.branch && p.palaceName),
+    sihua: {
+      禄: chart.sihua?.禄 || "未标注",
+      权: chart.sihua?.权 || "未标注",
+      科: chart.sihua?.科 || "未标注",
+      忌: chart.sihua?.忌 || "未标注"
+    },
+    canonicalText: (chart.canonicalText || "")
+      .replace(/�/g, "[数据缺失]")
+      .replace(/\s+$/, "") // 移除尾部空白
+  };
+
   return `
 请你以理性、专业、诚实客观的紫微斗数分析师身份，严格按紫微斗数固定解读流程进行命盘分析。
 
 【数据自纠偏规则（最高优先级，覆盖盘面个别标签）】
-1. 宫位定义以【规范排盘文本】一级表格中的”十二宫位全盘”为准。若【十二宫盘面】中某一宫位的名称与表格定义不符（如戌宫误标为”命宫”），强制以表格中的标准宫名（如”仆役”）为准进行解读。
+1. 宫位定义以【规范排盘文本】为准。若发现【十二宫盘面】某宫位名称与【规范排盘文本】不符（如戌宫盘面标记为”命宫”，但规范文本定义为”仆役”），强制以【规范排盘文本】的标准宫名为准进行解读。
 2. 流年命宫以【0.Input Check】中的”当前时间”所在农历年之太岁地支为准。若系统输出的”流年命宫”地支与该地支不符，则自动作废，以当前时间对应的地支作为实际流年命宫。
 3. 生年四化以【规范排盘文本】中的”生年天干”为准。盘面中主星旁若出现与该天干四化不符的化曜符号（例如非本命四化的自化或飞化标记），一律视为无效的流年飞化标记，不具本命四化效力，解读时直接忽略。
-4. 命主星与身主星以【规范排盘文本】中【基本信息】顶部的”命主/身主”字段为准（即”命主：禄存 / 身主：火星”）。若下文出现”命主星/身主星”等不同标签，强制以顶部”命主/身主”为准，差异标签直接作废并忽略，解读时不得引用。
+4. 命主与身主以【规范排盘文本】中【基本信息】顶部的”命主/身主”字段为准（即”命主：禄存 / 身主：火星”）。若下文出现其他不同标签或标注，强制以顶部”命主/身主”为准，差异标签直接作废并忽略，解读时不得引用。
 遇到上述显性笔误时，在【核心依据】中可备注”按自纠规则归位”，不得强行圆说，也不得写成资料矛盾或逻辑存疑。
 
 你只负责解释本系统已经生成的命盘结构，不负责重新排盘、校验排盘、质疑排盘顺序，也不要建议用户另找老师复核。
@@ -92,49 +132,49 @@ ${focusInstructions[focus].join("\n")}
 
 【0. Input Check】
 当前时间：${formatCurrentDateTime()}
-姓名：${chart.profile.name}
-性别：${chart.profile.gender}
-出生时间：${chart.profile.solarText}
-农历：${chart.profile.lunarText}
-出生地点：${chart.profile.location}
-阴阳性别与五行局：${chart.profile.yinYangGender} ${chart.profile.fiveElementClass}
-四柱：年${chart.pillars.year} 月${chart.pillars.month} 日${chart.pillars.day} 时${chart.pillars.hour}
+姓名：${safeChart.profile.name}
+性别：${safeChart.profile.gender}
+出生时间：${safeChart.profile.solarText}
+农历：${safeChart.profile.lunarText}
+出生地点：${safeChart.profile.location}
+阴阳性别与五行局：${safeChart.profile.yinYangGender} ${safeChart.profile.fiveElementClass}
+四柱：年${safeChart.pillars.year} 月${safeChart.pillars.month} 日${safeChart.pillars.day} 时${safeChart.pillars.hour}
 必要输入已由前端排盘流程提供；若你发现字段缺失，只能说明缺失对判断的影响，不要编造数据。
 
 【规范排盘文本】
-${chart.canonicalText}
+${safeChart.canonicalText}
 
 【1. 命盘骨架层】
-命主：${chart.profile.soul}
-身主：${chart.profile.body}
-五行局：${chart.profile.fiveElementClass}
-命宫：${chart.profile.lifeBranch}
-身宫：${chart.profile.bodyBranch}
-系统输出流年命宫：${chart.profile.annualBranch}（注：若与当前时间太岁地支不符，按【数据自纠偏规则】以当前时间为准覆盖）
-小限命宫：${chart.profile.smallLimitBranch}
-起运：${chart.profile.luckStartText}，起运岁数：${chart.profile.luckAgeText}
+命主：${safeChart.profile.soul}
+身主：${safeChart.profile.body}
+五行局：${safeChart.profile.fiveElementClass}
+命宫：${safeChart.profile.lifeBranch}
+身宫：${safeChart.profile.bodyBranch}
+系统输出流年命宫：${safeChart.profile.annualBranch}（注：若与当前时间太岁地支不符，按【数据自纠偏规则】以当前时间为准覆盖）
+小限命宫：${safeChart.profile.smallLimitBranch}
+起运：${safeChart.profile.luckStartText}，起运岁数：${safeChart.profile.luckAgeText}
 请先看命宫/身宫定位，再看主星组合与四化分布；命宫无主星时参考迁移宫，但不可越过命宫直接定论。
 
 【四化】（以下为生年四化，具本命效力）
-化禄：${chart.sihua.禄}
-化权：${chart.sihua.权}
-化科：${chart.sihua.科}
-化忌：${chart.sihua.忌}
-【四化标记降噪说明】盘面中主星旁若出现与上述生年四化不符的化曜符号（如非本命四化的↑↓标记），一律视为无效的流年飞化标记，不具本命四化效力，解读时忽略。
+化禄：${safeChart.sihua.禄}
+化权：${safeChart.sihua.权}
+化科：${safeChart.sihua.科}
+化忌：${safeChart.sihua.忌}
+请严格按照上述生年四化解读，盘面中与生年天干不符的化曜符号按【数据自纠偏规则】第 3 条处理。
 
 【2. 宫位主题层（Mandatory）】
 必查宫位：命宫、官禄宫、财帛宫、夫妻宫、疾厄宫；同时结合身宫、福德宫、迁移宫与三方四正。
 每宫需关注宫名、主星亮度、辅星/杂曜、四化、是否身宫；每条判断至少绑定一个宫位或星曜依据。
 
-【十二宫盘面】（注：宫位名称如与【规范排盘文本】冲突，以表格定义为准）
-${chart.palaces.map(formatPalace).join("\n")}
+【十二宫盘面】（注：宫位名称如与【规范排盘文本】冲突，按【数据自纠偏规则】第 1 条处理）
+${safeChart.palaces.map(formatPalace).join("\n")}
 
 【3. 大限层（Mandatory）】
 请根据【0.Input Check】中的当前时间和用户年龄定位当前大限；先看当前大限宫位与主导星曜，再判断该十年主题是扩张、沉淀、转型还是防守，并映射到事业、关系、财务优先级。
 
 【十年运干支参考】
-说明：以下为中宫显示的十年运干支与年龄段参考；如存在起运年份则一并列出。不等同于十二宫盘面中的宫位大限年龄。分析具体大限落宫时，以【十二宫盘面】里每宫的“大限年龄”为准；不要比较不同流派排法，也不要提示存在矛盾。
-${chart.profile.majorLimitItems.map(formatMajorLimitItem).join("\n")}
+说明：以下为中宫显示的十年运干支与年龄段参考；如存在起运年份则一并列出。具体大限落宫分析请参照【结论层】第3条。
+${safeChart.profile.majorLimitItems.map(formatMajorLimitItem).join("\n")}
 
 【4. 冲突与补偿层】
 请找出可放大的优势结构、需要补偿的结构短板，并给出可执行补偿策略；避免空泛标签。
@@ -158,7 +198,7 @@ ${getZiweiAiCommandFocusDescription(focus)}
 【输出结构】
 1. 结论摘要：3-5行，包含命盘主轴、当前大限主题和本次分析重点。
 2. 核心依据：列出4-8条证据，必须引用命宫/身宫、主星、四化、宫位、大限或三方四正数据。
-3. 分步解读：按紫微斗数固定解读流程的命盘骨架层、宫位主题层、大限层、冲突与补偿层依次展开，不得跳步。
+3. 分步解读：按紫微斗数固定解读流程的命盘骨架层、宫位主题层、大限层、冲突与补偿层依次展开。专项分析可根据【当前选择】中的任务类型调整各层级篇幅，但不得遗漏核心层级。
 4. 时间节奏：说明当前十年主题、未来几年重点、近中远期取舍。
 5. 行动建议：给出事业、关系、财务或健康中与本次重点相关的具体执行建议。
 6. 风险与边界：说明哪些信息不能仅凭命盘确定，提醒仅供传统文化研究与自我观察参考。
@@ -166,29 +206,30 @@ ${getZiweiAiCommandFocusDescription(focus)}
 }
 
 function formatPalace(palace: ZiweiPalace) {
+  // 数据防御：确保所有字段有默认值
   const palaceTitle = palace.isBodyPalace
-    ? `身｜${palace.palaceName}`
-    : palace.palaceName;
-  const mainStars = palace.mainStars.length
+    ? `身｜${palace.palaceName || "未知"}`
+    : (palace.palaceName || "未知");
+  const mainStars = (palace.mainStars && palace.mainStars.length)
     ? palace.mainStars.join("、")
     : "空宫";
-  const minorStars = palace.minorStars.length
+  const minorStars = (palace.minorStars && palace.minorStars.length)
     ? palace.minorStars.join("、")
     : "无";
-  const transformations = palace.transformations.length
+  const transformations = (palace.transformations && palace.transformations.length)
     ? palace.transformations.join("、")
     : "无";
 
   return [
-    `${palace.branch}宫 ${palace.stem}${palace.branch} ${palaceTitle}`,
+    `${palace.branch || ""}宫 ${palace.stem || ""}${palace.branch || ""} ${palaceTitle}`,
     `主星：${mainStars}`,
     `辅杂星：${minorStars}`,
     `四化：${transformations}`,
-    `长生：${palace.changSheng}`,
-    `大限年龄：${palace.ageRange}`,
-    `流年年龄：${formatAgeList(palace.annualAges)}`,
-    `小限年龄：${formatAgeList(palace.smallLimitAges)}`,
-    `会照星曜摘要：${palace.sanfangImpact}`,
+    `长生：${palace.changSheng || "无"}`,
+    `大限年龄：${palace.ageRange || ""}`,
+    `流年年龄：${formatAgeList(palace.annualAges || [])}`,
+    `小限年龄：${formatAgeList(palace.smallLimitAges || [])}`,
+    `会照星曜摘要：${palace.sanfangImpact || "无"}`,
   ].join("；");
 }
 
@@ -196,8 +237,9 @@ function formatMajorLimitItem(
   item: ZiweiChart["profile"]["majorLimitItems"][number],
   index: number,
 ) {
+  if (!item) return `${index + 1}. 数据缺失`;
   const startYearText = item.startYear ? `，${item.startYear}年起` : "";
-  return `${index + 1}. ${item.stemBranch}，${item.ageText}${startYearText}`;
+  return `${index + 1}. ${item.stemBranch || ""}，${item.ageText || ""}${startYearText}`;
 }
 
 function formatCurrentDateTime() {
@@ -213,5 +255,6 @@ function formatCurrentDateTime() {
 }
 
 function formatAgeList(ages: number[]) {
+  if (!ages || ages.length === 0) return "无";
   return ages.join("、");
 }
