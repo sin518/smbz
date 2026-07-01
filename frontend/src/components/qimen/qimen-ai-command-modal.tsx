@@ -3,19 +3,20 @@
 import { Check, Copy, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import type { QimenOutput } from "taibu-core/qimen";
-import { buildQimenAiCommandText } from "@/lib/ai/qimen-command";
+import { buildQimenAiCommandText, type QimenAiCommandFocus } from "@/lib/ai/qimen-command";
 
 type QimenChart = QimenOutput;
 
 type QimenAiCommandModalProps = {
   chart: QimenChart;
+  focus?: QimenAiCommandFocus;
   onClose: () => void;
 };
 
-export function QimenAiCommandModal({ chart, onClose }: QimenAiCommandModalProps) {
+export function QimenAiCommandModal({ chart, focus = "财运", onClose }: QimenAiCommandModalProps) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "selected">("idle");
   const commandTextRef = useRef<HTMLTextAreaElement>(null);
-  const commandText = useMemo(() => buildQimenAiCommandText({ chart }), [chart]);
+  const commandText = useMemo(() => buildQimenAiCommandText({ chart, focus }), [chart, focus]);
 
   async function handleCopy() {
     try {
