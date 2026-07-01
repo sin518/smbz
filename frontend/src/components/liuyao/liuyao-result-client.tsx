@@ -258,11 +258,12 @@ export function LiuyaoResultClient() {
             <div key={line.position} className="grid h-[45px] grid-cols-[116fr_530fr_530fr] items-center">
               <span className="text-center text-[15px] text-ink">{line.spirit}</span>
               <div className="grid grid-cols-[54px_34px_1fr] items-center">
-                <span className="whitespace-nowrap text-center text-[13px] text-ink">{line.hiddenStem ?? ""}</span>
+                <span aria-hidden="true" />
                 <LineSymbol symbol={line.symbol} changing={line.changing} />
-                <span className="whitespace-nowrap text-center text-[14px] text-ink">
+                <span className="relative whitespace-nowrap text-center text-[14px] text-ink">
                   {line.relation}{line.branch}{line.element}
                   {line.marker ? <b className="ml-[5px] font-normal text-[#c23521]">{line.marker}</b> : null}
+                  {line.hiddenStem ? <span className="absolute left-1/2 top-[20px] -translate-x-1/2 whitespace-nowrap text-[10px] leading-none text-[#6f675c]">{line.hiddenStem}</span> : null}
                 </span>
               </div>
               <div className="grid grid-cols-[34px_1fr] items-center">

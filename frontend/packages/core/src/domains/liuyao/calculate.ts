@@ -1889,7 +1889,11 @@ function calculateShenSystem(group: YongShenGroup, fullYaos: FullYaoInfoExtended
   };
 }
 
-function calculateTimeRecommendations(groups: YongShenGroup[]): TimeRecommendation[] {
+function calculateTimeRecommendations(
+  groups: YongShenGroup[],
+  shenSystemByYongShen: ShenSystemByYongShen[],
+  fullYaos: FullYaoInfoExtended[]
+): TimeRecommendation[] {
   const recommendations: TimeRecommendation[] = [];
   for (const group of groups) {
     const selected = group.selected;
@@ -1904,25 +1908,47 @@ function calculateTimeRecommendations(groups: YongShenGroup[]): TimeRecommendati
       continue;
     }
 
-    const shouldAddGenericFavorable = Boolean(
+    // 获取当前用神对应的神系统
+    const shenSystem = shenSystemByYongShen.find(s => s.targetLiuQin === group.targetLiuQin);
+
+    // 生成 favorable 应期：用神有纳甲、不是伏神、不是日破/空亡
+    if (
       selected.naJia
       && group.selectionStatus !== 'from_fushen'
       && group.selectionStatus !== 'from_temporal'
-      && selected.strength !== 'weak'
-      && selected.strength !== 'unknown'
       && selected.movementState !== 'day_break'
       && selected.kongWangState !== 'kong_static'
-    );
+    ) {
+      // 1. 用神值临日（用神旺相或中等时生成）
+      if (selected.strength === 'strong' || selected.strength === 'moderate') {
+        recommendations.push({
+          targetLiuQin: group.targetLiuQin,
+          type: 'favorable',
+          earthlyBranch: selected.naJia,
+          trigger: `逢${selected.naJia}日值临`,
+          basis: [`用神纳甲${selected.naJia}`, selected.strengthLabel],
+          description: `用神${group.targetLiuQin}纳甲为${selected.naJia}，逢${selected.naJia}日值临力量最强，为最佳行动时机。`,
+        });
+      }
 
-    if (shouldAddGenericFavorable && selected.naJia) {
-      recommendations.push({
-        targetLiuQin: group.targetLiuQin,
-        type: 'favorable',
-        earthlyBranch: selected.naJia,
-        trigger: `逢${selected.naJia}日/月`,
-        basis: [`用神纳甲${selected.naJia}`, selected.strengthLabel],
-        description: `用神${group.targetLiuQin}逢${selected.naJia}日/月时更容易显事，应以当时旺衰再复核。`,
-      });
+      // 2. 原神生扶日
+      if (shenSystem?.yuanShen && shenSystem.yuanShen.positions.length > 0) {
+        // 获取原神的纳甲地支（可能多个位置，取第一个）
+        const yuanShenPosition = shenSystem.yuanShen.positions[0];
+        const yuanShenYao = fullYaos.find(y => y.position === yuanShenPosition);
+
+        // 原神存在且地支与用神不同时才生成（避免重复）
+        if (yuanShenYao && yuanShenYao.naJia !== selected.naJia) {
+          recommendations.push({
+            targetLiuQin: group.targetLiuQin,
+            type: 'favorable',
+            earthlyBranch: yuanShenYao.naJia,
+            trigger: `逢${yuanShenYao.naJia}日原神生扶`,
+            basis: [`原神${shenSystem.yuanShen.liuQin}纳甲${yuanShenYao.naJia}`, `生扶${group.targetLiuQin}`],
+            description: `原神${shenSystem.yuanShen.liuQin}${yuanShenYao.wuXing}可生${group.targetLiuQin}${selected.element}，逢${yuanShenYao.naJia}日为源头到位之时。`,
+          });
+        }
+      }
     }
 
     if (selected.source === 'fushen') {
@@ -2141,7 +2167,7 @@ export function performFullAnalysis(
   const liuHeGuaInfo = checkLiuHeGua(baseYaos);
   const chongHeTransition = checkChongHeTransition(baseYaos, changedCode);
   const guaFanFuYin = checkGuaFanFuYin(changedCode, baseYaos);
-  const timeRecommendations = calculateTimeRecommendations(yongShen);
+  const timeRecommendations = calculateTimeRecommendations(yongShen, shenSystemByYongShen, fullYaos);
   const globalShenSha = calculateGlobalShenSha(shenShaContext);
   const warnings = buildWarnings(yongShen, sanHeAnalysis, guaFanFuYin, chongHeTransition);
   const fuShen = Array.from(fuShenByTarget.values()).flat();
