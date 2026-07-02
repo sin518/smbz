@@ -336,7 +336,7 @@ const directionLabels: Record<string, string> = {
 export async function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | undefined, storedLines: LiuyaoLine[]): Promise<LiuyaoChart> {
   const question = inputSnapshot?.question?.trim() || "未填写";
   const direction = formatDirection(inputSnapshot);
-  const castingDateText = normalizeTaibuDate(inputSnapshot?.castingTime);
+  const castingDateText = normalizeTaibuDate(resolveCastingTime(inputSnapshot));
   const castingDate = parseDate(castingDateText) ?? new Date();
   const yongShenTargets = inferYongShenTargets(inputSnapshot);
   const ganZhiTime = buildGanZhiTimeOverride(inputSnapshot);
@@ -526,6 +526,74 @@ function parseGanzhi(value: string | undefined) {
     gan: value.slice(0, -1),
     zhi: value.slice(-1)
   };
+}
+
+function resolveCastingTime(inputSnapshot: LiuyaoInputSnapshot | undefined) {
+  if (inputSnapshot?.castingCalendar === "lunar") {
+    const matched = findSolarDateTimeForGanzhi(inputSnapshot);
+
+    if (matched) {
+      return matched;
+    }
+  }
+
+  return inputSnapshot?.castingTime;
+}
+
+function findSolarDateTimeForGanzhi(inputSnapshot: LiuyaoInputSnapshot) {
+  const target = {
+    year: inputSnapshot.castingGanzhiYear,
+    month: inputSnapshot.castingGanzhiMonth,
+    day: inputSnapshot.castingGanzhiDay,
+    hour: inputSnapshot.castingGanzhiHour
+  };
+
+  if (!target.year || !target.month || !target.day || !target.hour) {
+    return undefined;
+  }
+
+  const fallbackDate = parseDate(normalizeTaibuDate(inputSnapshot.castingTime)) ?? new Date();
+  const minute = fallbackDate.getMinutes();
+  const start = new Date(fallbackDate);
+  start.setHours(12, minute, 0, 0);
+
+  for (let offset = 0; offset <= 36525; offset += 1) {
+    const directions = offset === 0 ? [0] : [offset, -offset];
+
+    for (const direction of directions) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + direction);
+
+      for (let hour = 0; hour < 24; hour += 1) {
+        const candidate = new Date(date);
+        candidate.setHours(hour, minute, 0, 0);
+
+        if (isSameGanzhi(getGanzhiFromDate(candidate), target)) {
+          return formatDateTimeInput(candidate);
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function getGanzhiFromDate(date: Date) {
+  const lunar = Solar.fromYmdHms(date.getFullYear(), date.getMonth() + 1, date.getDate(), date.getHours(), date.getMinutes(), 0).getLunar();
+
+  return {
+    year: `${lunar.getYearGan()}${lunar.getYearZhi()}`,
+    month: `${lunar.getMonthGan()}${lunar.getMonthZhi()}`,
+    day: `${lunar.getDayGan()}${lunar.getDayZhi()}`,
+    hour: `${lunar.getTimeGan()}${lunar.getTimeZhi()}`
+  };
+}
+
+function isSameGanzhi(
+  first: { year: string; month: string; day: string; hour: string },
+  second: { year?: string; month?: string; day?: string; hour?: string }
+) {
+  return first.year === second.year && first.month === second.month && first.day === second.day && first.hour === second.hour;
 }
 
 function inferYongShenTargets(inputSnapshot: LiuyaoInputSnapshot | undefined): LiuQinType[] {

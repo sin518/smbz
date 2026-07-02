@@ -844,10 +844,12 @@ function LiuyaoTimePickerSheet({
 
   const handleConfirm = () => {
     const nextValue = toDateTimeValue(draftTime);
+    const resolvedValue = draftCalendar === "lunar" ? findSolarDateTimeForGanzhi(draftGanzhi, nextValue) ?? nextValue : nextValue;
+
     onConfirm({
       calendar: draftCalendar,
-      value: nextValue,
-      ganzhi: draftCalendar === "solar" ? getGanzhiFromDateTime(nextValue) : draftGanzhi
+      value: resolvedValue,
+      ganzhi: draftCalendar === "solar" ? getGanzhiFromDateTime(resolvedValue) : draftGanzhi
     });
   };
 
@@ -1420,14 +1422,7 @@ function formatCastingTimeTrigger(calendar: LiuyaoFormValues["castingCalendar"],
 function getGanzhiFromDateTime(value: string): GanzhiSelection {
   try {
     const date = parseDateTimeLocal(value);
-    const lunar = Solar.fromYmdHms(date.year, date.month, date.day, date.hour, date.minute, 0).getLunar();
-
-    return {
-      year: `${lunar.getYearGan()}${lunar.getYearZhi()}`,
-      month: `${lunar.getMonthGan()}${lunar.getMonthZhi()}`,
-      day: `${lunar.getDayGan()}${lunar.getDayZhi()}`,
-      hour: `${lunar.getTimeGan()}${lunar.getTimeZhi()}`
-    };
+    return getGanzhiFromTimeParts(date);
   } catch {
     return {
       year: "甲子",
@@ -1436,6 +1431,54 @@ function getGanzhiFromDateTime(value: string): GanzhiSelection {
       hour: "甲子"
     };
   }
+}
+
+function getGanzhiFromTimeParts(date: TimeParts): GanzhiSelection {
+  const lunar = Solar.fromYmdHms(date.year, date.month, date.day, date.hour, date.minute, 0).getLunar();
+
+  return {
+    year: `${lunar.getYearGan()}${lunar.getYearZhi()}`,
+    month: `${lunar.getMonthGan()}${lunar.getMonthZhi()}`,
+    day: `${lunar.getDayGan()}${lunar.getDayZhi()}`,
+    hour: `${lunar.getTimeGan()}${lunar.getTimeZhi()}`
+  };
+}
+
+function findSolarDateTimeForGanzhi(target: GanzhiSelection, fallbackValue: string) {
+  const fallback = parseDateTimeLocalParts(fallbackValue);
+  const fallbackDate = new Date(fallback.year, fallback.month - 1, fallback.day, fallback.hour, fallback.minute);
+  const minute = fallback.minute;
+  const start = new Date(fallbackDate);
+  start.setHours(12, minute, 0, 0);
+
+  for (let offset = 0; offset <= 36525; offset += 1) {
+    const directions = offset === 0 ? [0] : [offset, -offset];
+
+    for (const direction of directions) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + direction);
+
+      for (let hour = 0; hour < 24; hour += 1) {
+        const parts = {
+          year: date.getFullYear(),
+          month: date.getMonth() + 1,
+          day: date.getDate(),
+          hour,
+          minute
+        };
+
+        if (isSameGanzhi(getGanzhiFromTimeParts(parts), target)) {
+          return toDateTimeValue(parts);
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function isSameGanzhi(first: GanzhiSelection, second: GanzhiSelection) {
+  return first.year === second.year && first.month === second.month && first.day === second.day && first.hour === second.hour;
 }
 
 function parseDateTimeLocalParts(value: string): TimeParts {
