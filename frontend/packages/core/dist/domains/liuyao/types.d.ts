@@ -7,6 +7,7 @@ export interface LiuyaoInput {
     changedHexagramName?: string;
     numbers?: number[];
     date: string;
+    ganZhiTime?: GanZhiTime;
     seed?: string;
     seedScope?: string;
     detailLevel?: DetailLevel;

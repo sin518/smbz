@@ -271,6 +271,7 @@ export interface LiuYaoFullAnalysis {
 
 export interface FullAnalysisOptions {
   yongShenTargets?: readonly unknown[];
+  ganZhiTime?: unknown;
 }
 
 type InternalPalace = {
@@ -939,6 +940,41 @@ export function calculateGanZhiTime(date: Date): GanZhiTime {
       zhi: eightChar.getTimeZhi() as DiZhi,
     },
     xun: getXunFromGanZhi(dayGan, dayZhi),
+  };
+}
+
+function normalizeGanZhiPair(value: unknown, label: string): GanZhiPillar {
+  const pair = value as { gan?: unknown; zhi?: unknown } | undefined;
+  const gan = pair?.gan;
+  const zhi = pair?.zhi;
+
+  if (typeof gan !== 'string' || !TIANGAN.includes(gan as TianGan) || typeof zhi !== 'string' || !DIZHI.includes(zhi as DiZhi)) {
+    throw new Error(`${label}干支无效`);
+  }
+
+  return {
+    gan: gan as TianGan,
+    zhi: zhi as DiZhi,
+  };
+}
+
+function normalizeGanZhiTimeOverride(value: unknown): GanZhiTime | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const source = value as { year?: unknown; month?: unknown; day?: unknown; hour?: unknown };
+  const year = normalizeGanZhiPair(source.year, '年柱');
+  const month = normalizeGanZhiPair(source.month, '月柱');
+  const day = normalizeGanZhiPair(source.day, '日柱');
+  const hour = normalizeGanZhiPair(source.hour, '时柱');
+
+  return {
+    year,
+    month,
+    day,
+    hour,
+    xun: getXunFromGanZhi(day.gan, day.zhi),
   };
 }
 
@@ -2075,7 +2111,7 @@ export function performFullAnalysis(
   options?: FullAnalysisOptions
 ): LiuYaoFullAnalysis {
   const targets = resolveYongShenTargets(question, options?.yongShenTargets);
-  const ganZhiTime = calculateGanZhiTime(date);
+  const ganZhiTime = normalizeGanZhiTimeOverride(options?.ganZhiTime) ?? calculateGanZhiTime(date);
   const monthZhi = ganZhiTime.month.zhi;
   const dayZhi = ganZhiTime.day.zhi;
   const kongWangByPillar = calculateKongWangByPillar(ganZhiTime);
@@ -2368,6 +2404,7 @@ function toLiuyaoOutput(params: {
   hexagramCode: string;
   changedCode?: string;
   analysisDate: Date;
+  ganZhiTime?: unknown;
   yaos: YaoInput[];
   changedLines: number[];
   selectedTargets: ReturnType<typeof normalizeYongShenTargets>;
@@ -2388,7 +2425,7 @@ function toLiuyaoOutput(params: {
     changedCode,
     question,
     analysisDate,
-    { yongShenTargets: params.selectedTargets },
+    { yongShenTargets: params.selectedTargets, ganZhiTime: params.ganZhiTime },
   );
 
   const fullYaos: LiuyaoOutput['fullYaos'] = analysis.fullYaos.map((item) => {
@@ -2542,6 +2579,7 @@ export async function calculateLiuyaoData(input: LiuyaoInput): Promise<LiuyaoOut
     hexagramCode,
     changedCode,
     analysisDate,
+    ganZhiTime: input.ganZhiTime,
     yaos,
     changedLines,
     selectedTargets,

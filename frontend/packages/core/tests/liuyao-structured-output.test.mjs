@@ -126,6 +126,30 @@ test('liuyao output uses refactored yao/yongshen/time structures', async () => {
   assert.ok(Array.isArray(result.globalShenSha), 'globalShenSha should be array');
 });
 
+test('liuyao should use explicit ganZhiTime override for lunar stem-branch selection', async () => {
+  const result = await mcpCore.calculateLiuyao({
+    question: '验证干支起卦时间',
+    method: 'select',
+    hexagramName: '乾为天',
+    date: '2026-07-02T09:08:00',
+    yongShenTargets: ['官鬼'],
+    ganZhiTime: {
+      year: { gan: '丙', zhi: '午' },
+      month: { gan: '甲', zhi: '午' },
+      day: { gan: '丁', zhi: '丑' },
+      hour: { gan: '乙', zhi: '巳' },
+      xun: ''
+    }
+  });
+
+  assert.deepEqual(result.ganZhiTime.year, { gan: '丙', zhi: '午' });
+  assert.deepEqual(result.ganZhiTime.month, { gan: '甲', zhi: '午' });
+  assert.deepEqual(result.ganZhiTime.day, { gan: '丁', zhi: '丑' });
+  assert.deepEqual(result.ganZhiTime.hour, { gan: '乙', zhi: '巳' });
+  assert.equal(result.kongWang.xun, '甲戌旬');
+  assert.deepEqual(result.kongWang.kongDizhi, ['申', '酉']);
+});
+
 test('liuyao can identify hidden_moving and day_break in sampled cases', async () => {
   const dates = [
     '2026-02-10T12:00:00',

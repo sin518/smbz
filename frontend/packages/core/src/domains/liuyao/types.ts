@@ -28,6 +28,7 @@ export interface LiuyaoInput {
   changedHexagramName?: string;
   numbers?: number[];
   date: string;  // 占卜日期时间，必须包含时间；支持 YYYY-MM-DDTHH:MM[:SS]、YYYY-MM-DD HH:MM[:SS] 及带时区偏移的 ISO 时间
+  ganZhiTime?: GanZhiTime; // 可选干支时间覆盖；提供时六爻月建、日辰、旬空、六神等按此计算
   seed?: string;
   seedScope?: string;
   detailLevel?: DetailLevel;

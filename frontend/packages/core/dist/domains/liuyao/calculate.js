@@ -585,6 +585,35 @@ export function calculateGanZhiTime(date) {
         xun: getXunFromGanZhi(dayGan, dayZhi),
     };
 }
+function normalizeGanZhiPair(value, label) {
+    const pair = value;
+    const gan = pair?.gan;
+    const zhi = pair?.zhi;
+    if (typeof gan !== 'string' || !TIANGAN.includes(gan) || typeof zhi !== 'string' || !DIZHI.includes(zhi)) {
+        throw new Error(`${label}干支无效`);
+    }
+    return {
+        gan: gan,
+        zhi: zhi,
+    };
+}
+function normalizeGanZhiTimeOverride(value) {
+    if (!value) {
+        return undefined;
+    }
+    const source = value;
+    const year = normalizeGanZhiPair(source.year, '年柱');
+    const month = normalizeGanZhiPair(source.month, '月柱');
+    const day = normalizeGanZhiPair(source.day, '日柱');
+    const hour = normalizeGanZhiPair(source.hour, '时柱');
+    return {
+        year,
+        month,
+        day,
+        hour,
+        xun: getXunFromGanZhi(day.gan, day.zhi),
+    };
+}
 export function getKongWang(dayGan, dayZhi) {
     const kongWang = getKongWangByPillarSource(dayGan, dayZhi);
     return {
@@ -1589,7 +1618,7 @@ function buildWarnings(groups, sanHeAnalysis, guaFanFuYin, chongHeTransition) {
 }
 export function performFullAnalysis(yaos, hexagramCode, changedCode, question, date, options) {
     const targets = resolveYongShenTargets(question, options?.yongShenTargets);
-    const ganZhiTime = calculateGanZhiTime(date);
+    const ganZhiTime = normalizeGanZhiTimeOverride(options?.ganZhiTime) ?? calculateGanZhiTime(date);
     const monthZhi = ganZhiTime.month.zhi;
     const dayZhi = ganZhiTime.day.zhi;
     const kongWangByPillar = calculateKongWangByPillar(ganZhiTime);
@@ -1863,7 +1892,7 @@ function toLiuyaoOutput(params) {
     if (!baseHexagram) {
         throw new Error(`未找到卦象：${hexagramCode}`);
     }
-    const analysis = performFullAnalysis(yaos, hexagramCode, changedCode, question, analysisDate, { yongShenTargets: params.selectedTargets });
+    const analysis = performFullAnalysis(yaos, hexagramCode, changedCode, question, analysisDate, { yongShenTargets: params.selectedTargets, ganZhiTime: params.ganZhiTime });
     const fullYaos = analysis.fullYaos.map((item) => {
         const { change: omittedChange, ...yao } = item;
         void omittedChange;
@@ -1999,6 +2028,7 @@ export async function calculateLiuyaoData(input) {
         hexagramCode,
         changedCode,
         analysisDate,
+        ganZhiTime: input.ganZhiTime,
         yaos,
         changedLines,
         selectedTargets,

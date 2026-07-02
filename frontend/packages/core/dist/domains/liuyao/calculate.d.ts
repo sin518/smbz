@@ -209,6 +209,7 @@ export interface LiuYaoFullAnalysis {
 }
 export interface FullAnalysisOptions {
     yongShenTargets?: readonly unknown[];
+    ganZhiTime?: unknown;
 }
 export type TrigramNaJia = {
     element: WuXing;

@@ -6,6 +6,11 @@ export type LiuyaoInputSnapshot = {
   castingTime?: string;
   castingMethod?: string;
   castingCalendar?: "solar" | "lunar";
+  castingGanzhiYear?: string;
+  castingGanzhiMonth?: string;
+  castingGanzhiDay?: string;
+  castingGanzhiHour?: string;
+  hexagramCode?: string;
   numberMode?: "two" | "three";
   numberFirst?: string;
   numberSecond?: string;
@@ -334,10 +339,12 @@ export async function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | unde
   const castingDateText = normalizeTaibuDate(inputSnapshot?.castingTime);
   const castingDate = parseDate(castingDateText) ?? new Date();
   const yongShenTargets = inferYongShenTargets(inputSnapshot);
+  const ganZhiTime = buildGanZhiTimeOverride(inputSnapshot);
   const taibuInput = buildTaibuLiuyaoInput(inputSnapshot, storedLines, {
     question,
     date: castingDateText,
-    yongShenTargets
+    yongShenTargets,
+    ...(ganZhiTime ? { ganZhiTime } : {})
   });
   const taibu = await calculateLiuyao(taibuInput);
   const fullYaos = taibu.fullYaos as RuntimeFullYaoInfo[];
@@ -444,8 +451,19 @@ function formatDirection(inputSnapshot: LiuyaoInputSnapshot | undefined) {
 function buildTaibuLiuyaoInput(
   inputSnapshot: LiuyaoInputSnapshot | undefined,
   storedLines: LiuyaoLine[],
-  defaults: Pick<LiuyaoInput, "question" | "date" | "yongShenTargets">
+  defaults: Pick<LiuyaoInput, "question" | "date" | "yongShenTargets"> & Pick<Partial<LiuyaoInput>, "ganZhiTime">
 ): LiuyaoInput {
+  if (inputSnapshot?.castingMethod === "time" && inputSnapshot.castingCalendar === "lunar" && storedLines.length === 6) {
+    const hexagramName = getLineCode(storedLines, false);
+    const changedHexagramName = storedLines.some((line) => line.changing) ? getLineCode(storedLines, true) : undefined;
+    return {
+      ...defaults,
+      method: "select",
+      hexagramName,
+      changedHexagramName
+    };
+  }
+
   if (inputSnapshot?.castingMethod === "time") {
     return { ...defaults, method: "time" };
   }
@@ -473,6 +491,40 @@ function buildTaibuLiuyaoInput(
     ...defaults,
     method: "auto",
     seedScope: "sm1-liuyao"
+  };
+}
+
+function buildGanZhiTimeOverride(inputSnapshot: LiuyaoInputSnapshot | undefined): LiuyaoInput["ganZhiTime"] | undefined {
+  if (inputSnapshot?.castingCalendar !== "lunar") {
+    return undefined;
+  }
+
+  const year = parseGanzhi(inputSnapshot.castingGanzhiYear);
+  const month = parseGanzhi(inputSnapshot.castingGanzhiMonth);
+  const day = parseGanzhi(inputSnapshot.castingGanzhiDay);
+  const hour = parseGanzhi(inputSnapshot.castingGanzhiHour);
+
+  if (!year || !month || !day || !hour) {
+    return undefined;
+  }
+
+  return {
+    year,
+    month,
+    day,
+    hour,
+    xun: ""
+  };
+}
+
+function parseGanzhi(value: string | undefined) {
+  if (!value || value.length < 2) {
+    return undefined;
+  }
+
+  return {
+    gan: value.slice(0, -1),
+    zhi: value.slice(-1)
   };
 }
 
@@ -731,6 +783,7 @@ function formatCastingMethod(value: string | undefined) {
     shake: "摇卦",
     number: "报数",
     manual: "指定",
+    hexagram: "爻卦",
     time: "时间",
     text: "汉字"
   };

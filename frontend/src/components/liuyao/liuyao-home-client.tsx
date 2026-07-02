@@ -1,14 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CalendarClock, Check, ChevronDown, Compass, Hand, Hash, Info, ListChecks, MessageSquareText, Type, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, Check, ChevronDown, Compass, Hand, Hash, Info, ListChecks, MessageSquareText, X } from "lucide-react";
 import { Lunar, Solar } from "lunar-typescript";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, type UseFormRegisterReturn, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { DivinationTimePickerSheet, SharedFieldRow, SharedFormCard, SharedSegmentedPill, formatDateTimeLocal } from "@/components/shared/divination-profile-card";
+import { SharedFieldRow, SharedFormCard, SharedSegmentedPill, formatDateTimeLocal } from "@/components/shared/divination-profile-card";
 import { castLiuyaoLine, type LiuyaoLine } from "@/lib/liuyao/casting";
 import { cn } from "@/lib/utils";
 
@@ -16,18 +16,19 @@ const liuyaoFormSchema = z.object({
   yongShenMode: z.enum(["general", "specific"]),
   yongShenTargets: z.array(z.enum(["妻财", "官鬼", "父母", "子孙", "兄弟"])),
   question: z.string().trim().min(1, "请填写求测问题").max(80, "问题不能超过 80 个字"),
-  castingMethod: z.enum(["shake", "number", "manual", "time", "text"]),
+  castingMethod: z.enum(["shake", "number", "manual", "hexagram"]),
   numberMode: z.enum(["two", "three"]),
   numberFirst: z.string().trim(),
   numberSecond: z.string().trim(),
   numberThird: z.string().trim(),
-  textMode: z.enum(["two", "three"]),
-  textFirst: z.string().trim(),
-  textSecond: z.string().trim(),
-  textThird: z.string().trim(),
+  hexagramCode: z.string().regex(/^[01]{6}$/),
   manualLines: z.array(z.enum(["young-yang", "young-yin", "old-yang", "old-yin"]).nullable()).length(6),
   castingCalendar: z.enum(["solar", "lunar"]),
-  castingTime: z.string().min(1, "请选择起卦时间")
+  castingTime: z.string().min(1, "请选择起卦时间"),
+  castingGanzhiYear: z.string().min(2),
+  castingGanzhiMonth: z.string().min(2),
+  castingGanzhiDay: z.string().min(2),
+  castingGanzhiHour: z.string().min(2)
 }).superRefine((values, context) => {
   if (values.yongShenMode === "specific" && values.yongShenTargets.length < 1) {
     context.addIssue({
@@ -42,14 +43,6 @@ const liuyaoFormSchema = z.object({
     validateCastingNumber(values.numberSecond, ["numberSecond"], context);
     if (values.numberMode === "three") {
       validateCastingNumber(values.numberThird, ["numberThird"], context);
-    }
-  }
-
-  if (values.castingMethod === "text") {
-    validateCastingText(values.textFirst, ["textFirst"], context);
-    validateCastingText(values.textSecond, ["textSecond"], context);
-    if (values.textMode === "three") {
-      validateCastingText(values.textThird, ["textThird"], context);
     }
   }
 
@@ -82,13 +75,14 @@ const defaultValues: LiuyaoFormValues = {
   numberFirst: "",
   numberSecond: "",
   numberThird: "",
-  textMode: "two",
-  textFirst: "",
-  textSecond: "",
-  textThird: "",
+  hexagramCode: "111111",
   manualLines: [null, null, null, null, null, null],
   castingCalendar: "solar",
-  castingTime: ""
+  castingTime: "",
+  castingGanzhiYear: "甲子",
+  castingGanzhiMonth: "甲子",
+  castingGanzhiDay: "甲子",
+  castingGanzhiHour: "甲子"
 };
 
 const yongShenOptions: ReadonlyArray<{ label: YongShenOptionValue; title: string; description: string }> = [
@@ -104,18 +98,12 @@ const castingMethodOptions: ReadonlyArray<{ label: string; value: CastingMethodV
   { label: "摇卦", value: "shake" },
   { label: "报数", value: "number" },
   { label: "指定", value: "manual" },
-  { label: "时间", value: "time" },
-  { label: "汉字", value: "text" }
+  { label: "爻卦", value: "hexagram" }
 ];
 
 const numberModeOptions = [
   { label: "双数起卦", value: "two" },
   { label: "三数起卦", value: "three" }
-] as const;
-
-const textModeOptions = [
-  { label: "双字起卦", value: "two" },
-  { label: "三字起卦", value: "three" }
 ] as const;
 
 const calendarOptions = [
@@ -138,6 +126,10 @@ const branchNumbers = {
   亥: 12
 } as const;
 
+const heavenlyStems = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"] as const;
+const earthlyBranches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"] as const;
+const jiaziCycle = Array.from({ length: 60 }, (_, index) => `${heavenlyStems[index % 10]}${earthlyBranches[index % 12]}`);
+
 const trigramKeysByNumber = {
   1: "111",
   2: "110",
@@ -157,6 +149,73 @@ const manualLineOptions: ReadonlyArray<{ label: string; value: ManualLineValue; 
 ];
 
 const manualLineLabels = ["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"] as const;
+
+const hexagramOptions: ReadonlyArray<{ name: string; code: string }> = [
+  { name: "乾为天", code: "111111" },
+  { name: "坤为地", code: "000000" },
+  { name: "水雷屯", code: "100010" },
+  { name: "山水蒙", code: "010001" },
+  { name: "水天需", code: "111010" },
+  { name: "天水讼", code: "010111" },
+  { name: "地水师", code: "010000" },
+  { name: "水地比", code: "000010" },
+  { name: "风天小畜", code: "111011" },
+  { name: "天泽履", code: "110111" },
+  { name: "地天泰", code: "111000" },
+  { name: "天地否", code: "000111" },
+  { name: "天火同人", code: "101111" },
+  { name: "火天大有", code: "111101" },
+  { name: "地山谦", code: "001000" },
+  { name: "雷地豫", code: "000100" },
+  { name: "泽雷随", code: "100110" },
+  { name: "山风蛊", code: "011001" },
+  { name: "地泽临", code: "110000" },
+  { name: "风地观", code: "000011" },
+  { name: "火雷噬嗑", code: "100101" },
+  { name: "山火贲", code: "101001" },
+  { name: "山地剥", code: "000001" },
+  { name: "地雷复", code: "100000" },
+  { name: "天雷无妄", code: "100111" },
+  { name: "山天大畜", code: "111001" },
+  { name: "山雷颐", code: "100001" },
+  { name: "泽风大过", code: "011110" },
+  { name: "坎为水", code: "010010" },
+  { name: "离为火", code: "101101" },
+  { name: "泽山咸", code: "001110" },
+  { name: "雷风恒", code: "011100" },
+  { name: "天山遯", code: "001111" },
+  { name: "雷天大壮", code: "111100" },
+  { name: "火地晋", code: "000101" },
+  { name: "地火明夷", code: "101000" },
+  { name: "风火家人", code: "101011" },
+  { name: "火泽睽", code: "110101" },
+  { name: "水山蹇", code: "001010" },
+  { name: "雷水解", code: "010100" },
+  { name: "山泽损", code: "110001" },
+  { name: "风雷益", code: "100011" },
+  { name: "泽天夬", code: "111110" },
+  { name: "天风姤", code: "011111" },
+  { name: "泽地萃", code: "000110" },
+  { name: "地风升", code: "011000" },
+  { name: "泽水困", code: "010110" },
+  { name: "水风井", code: "011010" },
+  { name: "泽火革", code: "101110" },
+  { name: "火风鼎", code: "011101" },
+  { name: "震为雷", code: "100100" },
+  { name: "艮为山", code: "001001" },
+  { name: "风山渐", code: "001011" },
+  { name: "雷泽归妹", code: "110100" },
+  { name: "雷火丰", code: "101100" },
+  { name: "火山旅", code: "001101" },
+  { name: "巽为风", code: "011011" },
+  { name: "兑为泽", code: "110110" },
+  { name: "风水涣", code: "010011" },
+  { name: "水泽节", code: "110010" },
+  { name: "风泽中孚", code: "110011" },
+  { name: "雷山小过", code: "001100" },
+  { name: "水火既济", code: "101010" },
+  { name: "火水未济", code: "010101" }
+];
 
 export function LiuyaoHomeClient() {
   const router = useRouter();
@@ -179,14 +238,24 @@ export function LiuyaoHomeClient() {
   const yongShenMode = useWatch({ control, name: "yongShenMode" });
   const castingMethod = useWatch({ control, name: "castingMethod" });
   const numberMode = useWatch({ control, name: "numberMode" });
-  const textMode = useWatch({ control, name: "textMode" });
+  const hexagramCode = useWatch({ control, name: "hexagramCode" });
   const castingCalendar = useWatch({ control, name: "castingCalendar" });
   const castingTime = useWatch({ control, name: "castingTime" });
+  const castingGanzhiYear = useWatch({ control, name: "castingGanzhiYear" });
+  const castingGanzhiMonth = useWatch({ control, name: "castingGanzhiMonth" });
+  const castingGanzhiDay = useWatch({ control, name: "castingGanzhiDay" });
+  const castingGanzhiHour = useWatch({ control, name: "castingGanzhiHour" });
   const manualLines = useWatch({ control, name: "manualLines" });
 
   useEffect(() => {
-    const currentTime = formatDateTimeLocal(new Date());
+    const now = new Date();
+    const currentTime = formatDateTimeLocal(now);
+    const currentGanzhi = getGanzhiFromDateTime(currentTime);
     setValue("castingTime", currentTime);
+    setValue("castingGanzhiYear", currentGanzhi.year);
+    setValue("castingGanzhiMonth", currentGanzhi.month);
+    setValue("castingGanzhiDay", currentGanzhi.day);
+    setValue("castingGanzhiHour", currentGanzhi.hour);
     // Run once after hydration so the displayed minute stays stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -242,7 +311,12 @@ export function LiuyaoHomeClient() {
                 className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
                 aria-label="选择起卦时间"
               >
-                {formatDateTimeText(castingTime)}
+                {formatCastingTimeTrigger(castingCalendar, castingTime, {
+                  year: castingGanzhiYear,
+                  month: castingGanzhiMonth,
+                  day: castingGanzhiDay,
+                  hour: castingGanzhiHour
+                })}
                 <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
               </button>
             </SharedFieldRow>
@@ -333,39 +407,30 @@ export function LiuyaoHomeClient() {
             </SharedFormCard>
           ) : null}
 
-          {castingMethod === "time" ? (
+          {castingMethod === "hexagram" ? (
             <SharedFormCard>
               <Controller
-                name="castingCalendar"
+                name="hexagramCode"
                 control={control}
                 render={({ field }) => (
-                  <SharedFieldRow icon={CalendarClock} label="历法" last>
-                    <SharedSegmentedPill value={field.value} onChange={field.onChange} options={calendarOptions} ariaLabel="选择起卦历法" />
-                  </SharedFieldRow>
+                  <div className="space-y-3 py-3">
+                    <div className="flex items-center gap-2 text-[17px] font-semibold text-ink">
+                      <ListChecks size={18} className="text-[#a58024]" />
+                      选择爻卦
+                    </div>
+                    <div className="grid max-h-[360px] grid-cols-2 gap-2 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {hexagramOptions.map((option) => (
+                        <HexagramChoice
+                          key={option.name}
+                          option={option}
+                          selected={field.value === option.code}
+                          onSelect={() => field.onChange(option.code)}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 )}
               />
-            </SharedFormCard>
-          ) : null}
-
-          {castingMethod === "text" ? (
-            <SharedFormCard>
-              <Controller
-                name="textMode"
-                control={control}
-                render={({ field }) => (
-                  <SharedFieldRow icon={Type} label="汉字形式">
-                    <RadioChoiceGroup value={field.value} onChange={field.onChange} options={textModeOptions} />
-                  </SharedFieldRow>
-                )}
-              />
-              <div className="py-4">
-                <div className="mb-3 text-[18px] font-semibold text-ink">起卦汉字</div>
-                <div className={cn("grid gap-3", textMode === "three" ? "grid-cols-3" : "grid-cols-2")}>
-                  <TextBoxInput label="第一个汉字" error={errors.textFirst?.message} inputProps={register("textFirst")} />
-                  <TextBoxInput label="第二个汉字" error={errors.textSecond?.message} inputProps={register("textSecond")} />
-                  {textMode === "three" ? <TextBoxInput label="第三个汉字" error={errors.textThird?.message} inputProps={register("textThird")} /> : null}
-                </div>
-              </div>
             </SharedFormCard>
           ) : null}
 
@@ -409,13 +474,25 @@ export function LiuyaoHomeClient() {
         </form>
       </div>
 
-      <DivinationTimePickerSheet
+      <LiuyaoTimePickerSheet
         open={castingTimePickerOpen}
+        calendar={castingCalendar}
         value={castingTime}
+        ganzhi={{
+          year: castingGanzhiYear,
+          month: castingGanzhiMonth,
+          day: castingGanzhiDay,
+          hour: castingGanzhiHour
+        }}
         ariaLabel="关闭起卦时间选择"
         onClose={() => setCastingTimePickerOpen(false)}
         onConfirm={(nextValue) => {
-          setValue("castingTime", nextValue, { shouldDirty: true, shouldValidate: true });
+          setValue("castingCalendar", nextValue.calendar, { shouldDirty: true, shouldValidate: true });
+          setValue("castingTime", nextValue.value, { shouldDirty: true, shouldValidate: true });
+          setValue("castingGanzhiYear", nextValue.ganzhi.year, { shouldDirty: true, shouldValidate: true });
+          setValue("castingGanzhiMonth", nextValue.ganzhi.month, { shouldDirty: true, shouldValidate: true });
+          setValue("castingGanzhiDay", nextValue.ganzhi.day, { shouldDirty: true, shouldValidate: true });
+          setValue("castingGanzhiHour", nextValue.ganzhi.hour, { shouldDirty: true, shouldValidate: true });
           setCastingTimePickerOpen(false);
         }}
       />
@@ -697,6 +774,267 @@ function RadioChoiceGroup<TValue extends string>({
   );
 }
 
+type GanzhiSelection = {
+  year: string;
+  month: string;
+  day: string;
+  hour: string;
+};
+
+type LiuyaoTimePickerResult = {
+  calendar: LiuyaoFormValues["castingCalendar"];
+  value: string;
+  ganzhi: GanzhiSelection;
+};
+
+const PICKER_ITEM_HEIGHT = 48;
+
+function LiuyaoTimePickerSheet({
+  open,
+  calendar,
+  value,
+  ganzhi,
+  onClose,
+  onConfirm,
+  ariaLabel = "关闭时间选择"
+}: {
+  open: boolean;
+  calendar: LiuyaoFormValues["castingCalendar"];
+  value: string;
+  ganzhi: GanzhiSelection;
+  onClose: () => void;
+  onConfirm: (value: LiuyaoTimePickerResult) => void;
+  ariaLabel?: string;
+}) {
+  const [draftCalendar, setDraftCalendar] = useState<LiuyaoFormValues["castingCalendar"]>(calendar);
+  const [draftTime, setDraftTime] = useState(() => parseDateTimeLocalParts(value));
+  const [draftGanzhi, setDraftGanzhi] = useState<GanzhiSelection>(ganzhi);
+  const years = useMemo(() => buildNumberRange(1920, 2050), []);
+  const months = useMemo(() => buildNumberRange(1, 12), []);
+  const hours = useMemo(() => buildNumberRange(0, 23), []);
+  const minutes = useMemo(() => buildNumberRange(0, 59), []);
+  const days = useMemo(() => buildNumberRange(1, getDaysInMonth(draftTime.year, draftTime.month)), [draftTime.month, draftTime.year]);
+
+  useEffect(() => {
+    if (open) {
+      setDraftCalendar(calendar);
+      setDraftTime(parseDateTimeLocalParts(value));
+      setDraftGanzhi(ganzhi);
+    }
+  }, [calendar, ganzhi, open, value]);
+
+  useEffect(() => {
+    const maxDay = getDaysInMonth(draftTime.year, draftTime.month);
+    if (draftTime.day > maxDay) {
+      setDraftTime((current) => ({ ...current, day: maxDay }));
+    }
+  }, [draftTime.day, draftTime.month, draftTime.year]);
+
+  if (!open) {
+    return null;
+  }
+
+  const updateTime = (key: keyof TimeParts, nextValue: number) => {
+    setDraftTime((current) => ({ ...current, [key]: nextValue }));
+  };
+
+  const updateGanzhi = (key: keyof GanzhiSelection, nextValue: string) => {
+    setDraftGanzhi((current) => ({ ...current, [key]: nextValue }));
+  };
+
+  const handleConfirm = () => {
+    const nextValue = toDateTimeValue(draftTime);
+    onConfirm({
+      calendar: draftCalendar,
+      value: nextValue,
+      ganzhi: draftCalendar === "solar" ? getGanzhiFromDateTime(nextValue) : draftGanzhi
+    });
+  };
+
+  const handleToday = () => {
+    const nowValue = formatDateTimeLocal(new Date());
+    onConfirm({
+      calendar: draftCalendar,
+      value: nowValue,
+      ganzhi: getGanzhiFromDateTime(nowValue)
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65">
+      <button className="absolute inset-0 cursor-default" type="button" aria-label={ariaLabel} onClick={onClose} />
+      <section className="relative w-full max-w-[430px] rounded-t-[28px] bg-white px-5 pb-8 pt-7 shadow-soft">
+        <div className="grid h-12 grid-cols-2 rounded-full bg-[#f4f4f3] p-1">
+          {calendarOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setDraftCalendar(option.value)}
+              className={cn(
+                "flex items-center justify-center rounded-full text-[18px] font-semibold transition-colors",
+                draftCalendar === option.value ? "bg-white text-ink shadow-sm" : "text-[#8b8985]"
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {draftCalendar === "solar" ? (
+          <div className="mt-6 border-t border-[#f0f0ef] pt-4">
+            <div className="grid grid-cols-5 text-center text-[20px] font-semibold text-[#3d3a36]">
+              <span className="rounded-full bg-[#f4f1ed] py-3 text-[#a99156]">年</span>
+              <span className="py-3">月</span>
+              <span className="py-3">日</span>
+              <span className="py-3">时</span>
+              <span className="py-3">分</span>
+            </div>
+            <div className="relative mt-2 grid h-60 grid-cols-5 overflow-hidden">
+              <div className="pointer-events-none absolute left-0 right-0 top-[96px] h-12 rounded-2xl bg-[#f3f3f2]" />
+              <PickerColumn values={years} selected={draftTime.year} onSelect={(nextValue) => updateTime("year", nextValue)} />
+              <PickerColumn values={months} selected={draftTime.month} onSelect={(nextValue) => updateTime("month", nextValue)} padValue />
+              <PickerColumn values={days} selected={draftTime.day} onSelect={(nextValue) => updateTime("day", nextValue)} padValue />
+              <PickerColumn values={hours} selected={draftTime.hour} onSelect={(nextValue) => updateTime("hour", nextValue)} padValue />
+              <PickerColumn values={minutes} selected={draftTime.minute} onSelect={(nextValue) => updateTime("minute", nextValue)} padValue />
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 border-t border-[#f0f0ef] pt-4">
+            <div className="grid grid-cols-4 text-center text-[18px] font-semibold text-[#3d3a36]">
+              <span className="rounded-full bg-[#f4f1ed] py-3 text-[#a99156]">年柱</span>
+              <span className="py-3">月柱</span>
+              <span className="py-3">日柱</span>
+              <span className="py-3">时柱</span>
+            </div>
+            <div className="relative mt-2 grid h-60 grid-cols-4 overflow-hidden">
+              <div className="pointer-events-none absolute left-0 right-0 top-[96px] h-12 rounded-2xl bg-[#f3f3f2]" />
+              <PickerColumn values={jiaziCycle} selected={draftGanzhi.year} onSelect={(nextValue) => updateGanzhi("year", nextValue)} />
+              <PickerColumn values={jiaziCycle} selected={draftGanzhi.month} onSelect={(nextValue) => updateGanzhi("month", nextValue)} />
+              <PickerColumn values={jiaziCycle} selected={draftGanzhi.day} onSelect={(nextValue) => updateGanzhi("day", nextValue)} />
+              <PickerColumn values={jiaziCycle} selected={draftGanzhi.hour} onSelect={(nextValue) => updateGanzhi("hour", nextValue)} />
+            </div>
+          </div>
+        )}
+
+        <div className="mt-5 grid grid-cols-[1fr_1.35fr] items-center gap-3">
+          <button
+            type="button"
+            onClick={handleToday}
+            className="h-12 rounded-full bg-[#f4f4f3] text-[18px] font-semibold text-ink"
+          >
+            今
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            className="h-12 rounded-full bg-black text-[20px] font-semibold text-[#e8d4a7]"
+          >
+            确定
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+type TimeParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+};
+
+function PickerColumn<TValue extends string | number>({
+  values,
+  selected,
+  onSelect,
+  padValue
+}: {
+  values: TValue[];
+  selected: TValue;
+  onSelect: (value: TValue) => void;
+  padValue?: boolean;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const settleTimerRef = useRef<number | null>(null);
+  const hasPositionedRef = useRef(false);
+  const selectedIndex = Math.max(0, values.indexOf(selected));
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) {
+      return;
+    }
+
+    const top = selectedIndex * PICKER_ITEM_HEIGHT;
+
+    if (!hasPositionedRef.current) {
+      container.scrollTop = top;
+      hasPositionedRef.current = true;
+      return;
+    }
+
+    if (Math.abs(container.scrollTop - top) > 1) {
+      container.scrollTo({ top, behavior: "smooth" });
+    }
+  }, [selectedIndex]);
+
+  useEffect(() => {
+    return () => {
+      if (settleTimerRef.current) {
+        window.clearTimeout(settleTimerRef.current);
+      }
+    };
+  }, []);
+
+  const settleToNearestValue = () => {
+    const container = scrollRef.current;
+    if (!container) {
+      return;
+    }
+
+    const nextIndex = Math.min(values.length - 1, Math.max(0, Math.round(container.scrollTop / PICKER_ITEM_HEIGHT)));
+    const nextValue = values[nextIndex];
+
+    container.scrollTo({ top: nextIndex * PICKER_ITEM_HEIGHT, behavior: "smooth" });
+
+    if (nextValue !== selected) {
+      onSelect(nextValue);
+    }
+  };
+
+  const handleScroll = () => {
+    if (settleTimerRef.current) {
+      window.clearTimeout(settleTimerRef.current);
+    }
+
+    settleTimerRef.current = window.setTimeout(settleToNearestValue, 90);
+  };
+
+  return (
+    <div
+      ref={scrollRef}
+      onScroll={handleScroll}
+      className="relative z-10 h-60 overflow-y-auto snap-y snap-mandatory py-24 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {values.map((item) => (
+        <button
+          key={String(item)}
+          type="button"
+          onClick={() => onSelect(item)}
+          className={cn(
+            "flex h-12 w-full snap-center items-center justify-center text-center text-[20px] font-semibold transition-colors",
+            item === selected ? "text-[26px] text-black" : "text-[#d1d1d1]"
+          )}
+        >
+          {typeof item === "number" && padValue ? pad(item) : item}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function NumberInputRow({
   label,
   error,
@@ -727,21 +1065,39 @@ function NumberInputRow({
   );
 }
 
-function TextBoxInput({ label, error, inputProps }: { label: string; error?: string; inputProps: UseFormRegisterReturn }) {
+function HexagramChoice({
+  option,
+  selected,
+  onSelect
+}: {
+  option: { name: string; code: string };
+  selected: boolean;
+  onSelect: () => void;
+}) {
   return (
-    <label className="block">
-      <span className="sr-only">{label}</span>
-      <input
-        {...inputProps}
-        maxLength={1}
-        className={cn(
-          "h-16 w-full rounded-xl border bg-[#fffef7] text-center text-[28px] font-semibold text-ink outline-none",
-          error ? "border-red-500" : "border-[#d8c8a6]"
-        )}
-        aria-label={label}
-      />
-      {error ? <span className="mt-1 block text-center text-xs font-semibold text-red-600">{error}</span> : null}
-    </label>
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "grid min-h-[58px] grid-cols-[1fr_42px] items-center gap-2 rounded-lg border px-3 text-left transition-colors",
+        selected ? "border-black bg-black text-[#e8d4a7]" : "border-[#e8e1cf] bg-[#fffef7] text-[#55514a]"
+      )}
+      aria-pressed={selected}
+    >
+      <span className="text-[15px] font-semibold leading-tight">{option.name}</span>
+      <span className="flex flex-col-reverse items-center justify-center gap-[2px]" aria-hidden="true">
+        {option.code.split("").map((line, index) => (
+          <span key={`${option.code}-${index}`} className={line === "1" ? "h-[3px] w-8 rounded-full bg-current" : "flex w-8 gap-1"}>
+            {line === "0" ? (
+              <>
+                <span className="h-[3px] flex-1 rounded-full bg-current" />
+                <span className="h-[3px] flex-1 rounded-full bg-current" />
+              </>
+            ) : null}
+          </span>
+        ))}
+      </span>
+    </button>
   );
 }
 
@@ -845,19 +1201,42 @@ function buildDirectCastingLines(values: LiuyaoFormValues): LiuyaoLine[] {
     return values.manualLines.map((kind, index) => manualLineToLiuyaoLine(kind, index + 1));
   }
 
-  if (values.castingMethod === "time") {
-    return buildTimeCastingLines(values);
+  if (values.castingMethod === "hexagram") {
+    return hexagramCodeToLiuyaoLines(values.hexagramCode);
   }
 
   return Array.from({ length: 6 }, (_, index) => castLiuyaoLine(index + 1));
 }
 
+function hexagramCodeToLiuyaoLines(code: string): LiuyaoLine[] {
+  return code.split("").map((symbol, index) => symbolToLiuyaoLine(symbol, index + 1, false));
+}
+
 function buildTimeCastingLines(values: LiuyaoFormValues): LiuyaoLine[] {
+  if (values.castingCalendar === "lunar") {
+    return buildGanzhiTimeCastingLines(values);
+  }
+
   const lunar = getCastingLunar(values.castingTime, values.castingCalendar);
   const yearBranchNumber = getBranchNumber(lunar.getYearZhi());
   const hourBranchNumber = getBranchNumber(lunar.getTimeZhi());
   const monthNumber = Math.abs(lunar.getMonth());
   const dayNumber = lunar.getDay();
+  const baseSum = yearBranchNumber + monthNumber + dayNumber;
+  const timeSum = baseSum + hourBranchNumber;
+  const upperNumber = moduloOneBased(baseSum, 8);
+  const lowerNumber = moduloOneBased(timeSum, 8);
+  const movingPosition = moduloOneBased(timeSum, 6);
+  const lineKey = `${trigramKeysByNumber[lowerNumber]}${trigramKeysByNumber[upperNumber]}`;
+
+  return lineKey.split("").map((symbol, index) => symbolToLiuyaoLine(symbol, index + 1, index + 1 === movingPosition));
+}
+
+function buildGanzhiTimeCastingLines(values: Pick<LiuyaoFormValues, "castingGanzhiYear" | "castingGanzhiMonth" | "castingGanzhiDay" | "castingGanzhiHour">): LiuyaoLine[] {
+  const yearBranchNumber = getBranchNumber(getGanzhiBranch(values.castingGanzhiYear));
+  const monthNumber = getBranchNumber(getGanzhiBranch(values.castingGanzhiMonth));
+  const dayNumber = getBranchNumber(getGanzhiBranch(values.castingGanzhiDay));
+  const hourBranchNumber = getBranchNumber(getGanzhiBranch(values.castingGanzhiHour));
   const baseSum = yearBranchNumber + monthNumber + dayNumber;
   const timeSum = baseSum + hourBranchNumber;
   const upperNumber = moduloOneBased(baseSum, 8);
@@ -1028,4 +1407,61 @@ function formatDateTimeText(value: string) {
   }
 
   return value.replace("T", " ");
+}
+
+function formatCastingTimeTrigger(calendar: LiuyaoFormValues["castingCalendar"], value: string, ganzhi: GanzhiSelection) {
+  if (calendar === "lunar") {
+    return `${ganzhi.year} ${ganzhi.month} ${ganzhi.day} ${ganzhi.hour}`;
+  }
+
+  return formatDateTimeText(value);
+}
+
+function getGanzhiFromDateTime(value: string): GanzhiSelection {
+  try {
+    const date = parseDateTimeLocal(value);
+    const lunar = Solar.fromYmdHms(date.year, date.month, date.day, date.hour, date.minute, 0).getLunar();
+
+    return {
+      year: `${lunar.getYearGan()}${lunar.getYearZhi()}`,
+      month: `${lunar.getMonthGan()}${lunar.getMonthZhi()}`,
+      day: `${lunar.getDayGan()}${lunar.getDayZhi()}`,
+      hour: `${lunar.getTimeGan()}${lunar.getTimeZhi()}`
+    };
+  } catch {
+    return {
+      year: "甲子",
+      month: "甲子",
+      day: "甲子",
+      hour: "甲子"
+    };
+  }
+}
+
+function parseDateTimeLocalParts(value: string): TimeParts {
+  try {
+    return parseDateTimeLocal(value);
+  } catch {
+    return parseDateTimeLocal(formatDateTimeLocal(new Date()));
+  }
+}
+
+function toDateTimeValue(value: TimeParts) {
+  return `${value.year}-${pad(value.month)}-${pad(value.day)}T${pad(value.hour)}:${pad(value.minute)}`;
+}
+
+function buildNumberRange(start: number, end: number) {
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
+
+function getDaysInMonth(year: number, month: number) {
+  return new Date(year, month, 0).getDate();
+}
+
+function pad(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function getGanzhiBranch(value: string) {
+  return value.slice(-1);
 }
