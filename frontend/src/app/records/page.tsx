@@ -44,9 +44,9 @@ export default function RecordsPage() {
   const [syncMessage, setSyncMessage] = useState("");
   const [deletingRecordKey, setDeletingRecordKey] = useState<string | null>(null);
   const [openGroups, setOpenGroups] = useState<Record<RecordGroupKey, boolean>>({
-    bazi: true,
-    liuyao: true,
-    qimen: true
+    bazi: false,
+    liuyao: false,
+    qimen: false
   });
 
   useEffect(() => {

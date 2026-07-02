@@ -332,6 +332,7 @@ const directionLabels: Record<string, string> = {
   interpersonal: "人际关系",
   risk: "风险问题"
 };
+const generalYongShenTargets: LiuQinType[] = ["父母", "兄弟", "子孙", "妻财", "官鬼"];
 
 export async function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | undefined, storedLines: LiuyaoLine[]): Promise<LiuyaoChart> {
   const question = inputSnapshot?.question?.trim() || "未填写";
@@ -392,7 +393,7 @@ export async function buildLiuyaoChart(inputSnapshot: LiuyaoInputSnapshot | unde
     taibu,
     canonicalText,
     skillWorkflow: {
-      yongShenTargets,
+      yongShenTargets: inputSnapshot?.yongShenTargets ?? [],
       timeRecommendations: formatTimeRecommendations(taibu),
       warnings: taibu.warnings ?? []
     },
@@ -614,7 +615,7 @@ function inferYongShenTargets(inputSnapshot: LiuyaoInputSnapshot | undefined): L
     return ["兄弟"];
   }
 
-  return ["官鬼"];
+  return generalYongShenTargets;
 }
 
 function getNumberCastingValues(inputSnapshot: LiuyaoInputSnapshot): number[] {

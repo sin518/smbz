@@ -129,6 +129,10 @@ const branchNumbers = {
 const heavenlyStems = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"] as const;
 const earthlyBranches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"] as const;
 const jiaziCycle = Array.from({ length: 60 }, (_, index) => `${heavenlyStems[index % 10]}${earthlyBranches[index % 12]}`);
+const stemGroupedGanzhiOptions = heavenlyStems.map((stem) => ({
+  stem,
+  values: earthlyBranches.map((branch) => `${stem}${branch}`)
+}));
 
 const trigramKeysByNumber = {
   1: "111",
@@ -788,6 +792,12 @@ type LiuyaoTimePickerResult = {
 };
 
 const PICKER_ITEM_HEIGHT = 48;
+const ganzhiFieldLabels: Record<keyof GanzhiSelection, string> = {
+  year: "年柱",
+  month: "月柱",
+  day: "日柱",
+  hour: "时柱"
+};
 
 function LiuyaoTimePickerSheet({
   open,
@@ -809,6 +819,7 @@ function LiuyaoTimePickerSheet({
   const [draftCalendar, setDraftCalendar] = useState<LiuyaoFormValues["castingCalendar"]>(calendar);
   const [draftTime, setDraftTime] = useState(() => parseDateTimeLocalParts(value));
   const [draftGanzhi, setDraftGanzhi] = useState<GanzhiSelection>(ganzhi);
+  const [activeGanzhiField, setActiveGanzhiField] = useState<keyof GanzhiSelection>("year");
   const years = useMemo(() => buildNumberRange(1920, 2050), []);
   const months = useMemo(() => buildNumberRange(1, 12), []);
   const hours = useMemo(() => buildNumberRange(0, 23), []);
@@ -902,18 +913,53 @@ function LiuyaoTimePickerSheet({
           </div>
         ) : (
           <div className="mt-6 border-t border-[#f0f0ef] pt-4">
-            <div className="grid grid-cols-4 text-center text-[18px] font-semibold text-[#3d3a36]">
-              <span className="rounded-full bg-[#f4f1ed] py-3 text-[#a99156]">年柱</span>
-              <span className="py-3">月柱</span>
-              <span className="py-3">日柱</span>
-              <span className="py-3">时柱</span>
+            <div className="grid grid-cols-4 gap-2">
+              {(Object.keys(ganzhiFieldLabels) as Array<keyof GanzhiSelection>).map((field) => (
+                <button
+                  key={field}
+                  type="button"
+                  onClick={() => setActiveGanzhiField(field)}
+                  className={cn(
+                    "min-h-[66px] rounded-2xl border px-2 text-center transition-colors",
+                    activeGanzhiField === field ? "border-black bg-black text-[#e8d4a7]" : "border-[#ece5d6] bg-[#fffdf8] text-[#5a554d]"
+                  )}
+                >
+                  <span className="block text-[12px] font-semibold leading-5 opacity-75">{ganzhiFieldLabels[field]}</span>
+                  <span className="block text-[22px] font-semibold leading-8">{draftGanzhi[field]}</span>
+                </button>
+              ))}
             </div>
-            <div className="relative mt-2 grid h-60 grid-cols-4 overflow-hidden">
-              <div className="pointer-events-none absolute left-0 right-0 top-[96px] h-12 rounded-2xl bg-[#f3f3f2]" />
-              <PickerColumn values={jiaziCycle} selected={draftGanzhi.year} onSelect={(nextValue) => updateGanzhi("year", nextValue)} />
-              <PickerColumn values={jiaziCycle} selected={draftGanzhi.month} onSelect={(nextValue) => updateGanzhi("month", nextValue)} />
-              <PickerColumn values={jiaziCycle} selected={draftGanzhi.day} onSelect={(nextValue) => updateGanzhi("day", nextValue)} />
-              <PickerColumn values={jiaziCycle} selected={draftGanzhi.hour} onSelect={(nextValue) => updateGanzhi("hour", nextValue)} />
+            <div className="mt-4 rounded-2xl bg-[#f6f3ec] p-3">
+              <div className="mb-3 flex items-center justify-between px-1">
+                <span className="text-[15px] font-semibold text-[#4d4537]">选择{ganzhiFieldLabels[activeGanzhiField]}</span>
+                <span className="text-[13px] font-semibold text-[#a58024]">当前 {draftGanzhi[activeGanzhiField]}</span>
+              </div>
+              <div className="max-h-[240px] space-y-3 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {stemGroupedGanzhiOptions.map((group) => (
+                  <div key={group.stem} className="grid grid-cols-[28px_minmax(0,1fr)] gap-2">
+                    <span className="flex h-9 items-center justify-center rounded-full bg-[#eadfca] text-[15px] font-semibold text-[#7a642a]">{group.stem}</span>
+                    <div className="grid grid-cols-4 gap-2">
+                      {group.values.map((item) => {
+                        const selected = draftGanzhi[activeGanzhiField] === item;
+
+                        return (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => updateGanzhi(activeGanzhiField, item)}
+                            className={cn(
+                              "h-9 rounded-xl text-[15px] font-semibold transition-colors",
+                              selected ? "bg-black text-[#e8d4a7]" : "bg-white text-[#5a554d]"
+                            )}
+                          >
+                            {item}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
