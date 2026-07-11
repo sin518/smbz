@@ -213,6 +213,47 @@ NEXT_PUBLIC_API_BASE_URL=https://your-backend.up.railway.app
 
 如果使用 Railway PostgreSQL，可以在后端 service 里引用 Railway 提供的 `DATABASE_URL`。首次部署时先部署后端，拿到后端域名后再配置前端的 `NEXT_PUBLIC_API_BASE_URL`；前端域名确定后，再回填后端的 `FRONTEND_URL` 和 `FRONTEND_ORIGINS`。
 
+## Vercel 部署
+
+本仓库在 Vercel 中部署为两个 Project，并继续使用外部 Neon PostgreSQL：
+
+1. `sm1-backend`
+   - Root Directory：`backend`
+   - Framework Preset：FastAPI（自动检测）
+   - Vercel 通过 `backend/index.py` 导入现有的 `app.main:app`
+   - 不设置 Build Command、Output Directory 或 Uvicorn Start Command
+2. `sm1-frontend`
+   - Root Directory：`frontend`
+   - Framework Preset：Next.js
+   - Build Command：使用自动检测，或显式设置为 `pnpm run build`
+
+后端 Project 至少需要配置：
+
+```env
+DATABASE_URL=postgresql://<neon-connection-string>
+SESSION_SECRET=<long-random-secret>
+ENVIRONMENT=production
+FRONTEND_URL=https://<frontend-domain>
+FRONTEND_ORIGINS=https://<frontend-domain>
+```
+
+`REDIS_URL` 是可选变量；不配置时后端会直接访问 Neon。其他 OAuth、管理员和短信变量按实际启用的功能配置。
+
+前端 Project 需要配置：
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://<backend-project>.vercel.app
+```
+
+推荐部署顺序：
+
+1. 先部署后端，并访问 `https://<backend-project>.vercel.app/api/health` 验证返回成功。
+2. 将后端生产域名写入前端的 `NEXT_PUBLIC_API_BASE_URL`，再部署前端。
+3. 将前端生产域名写入后端的 `FRONTEND_URL` 与 `FRONTEND_ORIGINS`，重新部署后端。
+4. 在前端域名测试注册、登录、刷新后会话保持、资料保存与 AI 分析。
+
+不要把 Neon 连接串、Session Secret 或 AI Key 添加到 `NEXT_PUBLIC_*` 变量中，也不要提交真实 `.env` 文件。
+
 ## API 概览
 
 当前后端已提供：
