@@ -1,0 +1,27 @@
+name: Sync Pending Records
+
+on:
+  schedule:
+    # 每5分钟执行一次 (GitHub Actions 最小间隔)
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  sync-records:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call sync endpoint
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X GET "${{ secrets.BACKEND_URL }}/api/cron/sync-records" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+
+          if [ "$http_code" != "200" ]; then
+            echo "::error::Sync failed with status $http_code"
+            exit 1
+          fi
