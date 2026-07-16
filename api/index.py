@@ -11,10 +11,17 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent / "backend"
 sys.path.insert(0, str(backend_dir))
 
-from mangum import Mangum
-from app.main import app
+try:
+    from mangum import Mangum
+    from app.main import app
 
-# Vercel serverless function handler
-handler = Mangum(app, lifespan="off")
+    # Vercel serverless function handler (disable lifespan for serverless)
+    handler = Mangum(app, lifespan="off")
+
+except Exception as e:
+    print(f"Failed to initialize app: {e}")
+    import traceback
+    traceback.print_exc()
+    raise
 
 __all__ = ["app", "handler"]

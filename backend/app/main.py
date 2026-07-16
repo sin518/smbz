@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
@@ -8,20 +9,26 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
-from app.db import close_db, connect_db
-from app.redis import close_redis, connect_redis
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await connect_db()
-    await connect_redis()
-    yield
-    await close_redis()
-    await close_db()
+# 只在非 Serverless 环境启用 lifespan
+is_serverless = os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME")
 
+if not is_serverless:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        from app.db import close_db, connect_db
+        from app.redis import close_redis, connect_redis
+        await connect_db()
+        await connect_redis()
+        yield
+        await close_redis()
+        await close_db()
 
-app = FastAPI(title="sm1 Backend", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="sm1 Backend", version="0.1.0", lifespan=lifespan)
+else:
+    app = FastAPI(title="sm1 Backend", version="0.1.0")
+
 settings = get_settings()
 
 app.add_middleware(
