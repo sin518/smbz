@@ -24,3 +24,6 @@ httpx==0.28.1
 
 # 工具
 python-dateutil==2.9.0.post0
+
+# Serverless 适配器
+mangum==0.18.0
