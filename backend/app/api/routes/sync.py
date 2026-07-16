@@ -14,6 +14,16 @@ from app.redis import get_redis_client
 router = APIRouter(prefix="/sync", tags=["sync"])
 
 
+@router.get("/status")
+async def sync_status():
+    """检查同步服务状态"""
+    redis = get_redis_client()
+    return {
+        "redisAvailable": redis is not None,
+        "message": "同步服务正常" if redis else "Redis 未配置,同步功能不可用",
+    }
+
+
 async def require_user_id(connection: asyncpg.Connection, request: Request) -> str:
     session = await get_user_by_session_token(connection, request.cookies.get("sm1_session"))
     user = session.get("user") if session else None
