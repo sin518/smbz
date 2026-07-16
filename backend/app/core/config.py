@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     github_client_secret: Optional[str] = None
     admin_user_ids: str = ""
     admin_emails: str = ""
+    cron_secret: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

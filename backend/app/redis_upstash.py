@@ -1,9 +1,13 @@
 """
-Redis client setup - supports both Upstash REST API and traditional Redis
+Upstash Redis 客户端(兼容 Vercel Serverless)
+
+支持两种模式:
+1. Upstash REST API (推荐用于 Serverless)
+2. 传统 Redis 协议
 """
 
+import json
 import os
-from contextlib import asynccontextmanager
 from typing import Any
 
 try:
@@ -11,131 +15,117 @@ try:
     UPSTASH_AVAILABLE = True
 except ImportError:
     UPSTASH_AVAILABLE = False
-    UpstashRedis = None
 
 import redis.asyncio as redis
-
-from app.core.config import get_settings
 
 
 _redis_client: Any = None
 
 
-async def connect_redis() -> None:
+def get_redis_client() -> Any:
+    """获取 Redis 客户端"""
     global _redis_client
-    settings = get_settings()
+    if _redis_client is not None:
+        return _redis_client
 
     # 优先使用 Upstash REST API (适合 Serverless)
     upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
     upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN")
 
     if upstash_url and upstash_token and UPSTASH_AVAILABLE:
-        print("[redis] Using Upstash REST API")
+        print("[Redis] Using Upstash REST API")
         _redis_client = UpstashRedisAdapter(
             UpstashRedis(url=upstash_url, token=upstash_token)
         )
-        print("[redis] Upstash connected")
-        return
+        return _redis_client
 
     # 降级到传统 Redis 协议
-    if not settings.redis_url:
-        print("[redis] REDIS_URL not configured, running without cache")
-        return
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url:
+        print("[Redis] Using traditional Redis protocol")
+        _redis_client = redis.from_url(redis_url, decode_responses=True)
+        return _redis_client
 
-    try:
-        _redis_client = redis.from_url(settings.redis_url, decode_responses=True)
-        await _redis_client.ping()
-        print("[redis] Traditional Redis connected")
-    except Exception as error:
-        print(f"[redis] startup connection failed: {error}")
-        _redis_client = None
-
-
-async def close_redis() -> None:
-    global _redis_client
-    if _redis_client and hasattr(_redis_client, 'aclose'):
-        try:
-            await _redis_client.aclose()
-        except Exception as e:
-            print(f"[redis] Error closing connection: {e}")
-    _redis_client = None
-
-
-def get_redis_client() -> Any:
-    return _redis_client
-
-
-@asynccontextmanager
-async def optional_redis():
-    yield _redis_client
+    print("[Redis] Not configured")
+    return None
 
 
 class UpstashRedisAdapter:
-    """Upstash Redis 适配器 - 将同步接口适配为异步"""
+    """
+    Upstash Redis 适配器
+    将 Upstash SDK 的同步接口适配为异步接口
+    """
 
-    def __init__(self, client):
+    def __init__(self, client: Any):
         self.client = client
 
     async def hset(self, key: str, field: str = None, value: str = None, mapping: dict = None):
+        """Set hash field"""
         if mapping:
             return self.client.hset(key, mapping)
         return self.client.hset(key, {field: value})
 
-    async def hget(self, key: str, field: str):
+    async def hget(self, key: str, field: str) -> str | None:
+        """Get hash field"""
         return self.client.hget(key, field)
 
-    async def hgetall(self, key: str):
+    async def hgetall(self, key: str) -> dict:
+        """Get all hash fields"""
         result = self.client.hgetall(key)
         return result if result else {}
 
     async def zadd(self, key: str, mapping: dict):
+        """Add to sorted set"""
+        # Upstash format: {member: score}
         return self.client.zadd(key, mapping)
 
-    async def zrangebyscore(self, key: str, min_score: float, max_score: float, start: int = 0, num: int = -1):
+    async def zrangebyscore(self, key: str, min_score: float, max_score: float, start: int = 0, num: int = -1) -> list:
+        """Get sorted set by score range"""
         result = self.client.zrangebyscore(key, min_score, max_score)
         return result if result else []
 
     async def zrem(self, key: str, *members):
+        """Remove from sorted set"""
         return self.client.zrem(key, *members)
 
     async def sadd(self, key: str, *members):
+        """Add to set"""
         return self.client.sadd(key, *members)
 
-    async def smembers(self, key: str):
+    async def smembers(self, key: str) -> list:
+        """Get all set members"""
         result = self.client.smembers(key)
         return list(result) if result else []
 
     async def srem(self, key: str, *members):
+        """Remove from set"""
         return self.client.srem(key, *members)
 
     async def delete(self, *keys):
+        """Delete keys"""
         return self.client.delete(*keys)
 
     async def expire(self, key: str, seconds: int):
+        """Set key expiration"""
         return self.client.expire(key, seconds)
 
-    async def exists(self, key: str):
+    async def exists(self, key: str) -> int:
+        """Check if key exists"""
         result = self.client.exists(key)
         return 1 if result else 0
 
-    async def get(self, key: str):
-        return self.client.get(key)
-
-    async def setex(self, key: str, seconds: int, value: str):
-        return self.client.setex(key, seconds, value)
-
-    async def ping(self):
-        """Health check"""
-        return True
-
     def pipeline(self, transaction: bool = False):
+        """
+        Pipeline support (limited for Upstash)
+        Upstash 不完全支持 pipeline,这里返回一个模拟的 pipeline
+        """
         return UpstashPipelineAdapter(self.client, self)
 
 
 class UpstashPipelineAdapter:
     """模拟 Pipeline 接口"""
 
-    def __init__(self, client, adapter):
+    def __init__(self, client: Any, adapter: UpstashRedisAdapter):
         self.client = client
         self.adapter = adapter
         self.commands = []
@@ -175,6 +165,7 @@ class UpstashPipelineAdapter:
         pass
 
     async def execute(self):
+        """执行所有命令"""
         results = []
         for cmd in self.commands:
             cmd_name = cmd[0]
@@ -200,3 +191,28 @@ class UpstashPipelineAdapter:
                 _, key, members = cmd
                 results.append(await self.adapter.srem(key, *members))
         return results
+
+
+async def connect_redis() -> None:
+    """初始化 Redis 连接"""
+    global _redis_client
+    client = get_redis_client()
+    if client:
+        _redis_client = client
+        print("[Redis] Connected successfully")
+    else:
+        print("[Redis] Not configured, running without cache")
+
+
+async def close_redis() -> None:
+    """关闭 Redis 连接"""
+    global _redis_client
+    if _redis_client and hasattr(_redis_client, 'close'):
+        try:
+            if hasattr(_redis_client, 'aclose'):
+                await _redis_client.aclose()
+            else:
+                _redis_client.close()
+        except Exception as e:
+            print(f"[Redis] Error closing connection: {e}")
+    _redis_client = None

@@ -5,6 +5,7 @@ from app.db import get_connection
 from app.schemas.bazi import BaziChartInput, BaziChartResponse, BaziChartsResponse
 from app.services.auth import get_user_by_session_token
 from app.services.bazi import create_bazi_chart, delete_bazi_chart, get_bazi_chart, list_bazi_charts
+from app.services.record_save_helper import save_record_with_cache
 
 
 router = APIRouter()
@@ -23,7 +24,18 @@ async def save_chart(
     connection: asyncpg.Connection = Depends(get_connection),
 ) -> dict[str, object]:
     user_id = await require_user_id(connection, request)
-    return {"chart": await create_bazi_chart(connection, user_id, body)}
+
+    # 尝试使用 Redis 缓存保存
+    try:
+        result = await save_record_with_cache(
+            record_type="bazi",
+            user_id=user_id,
+            data=body.model_dump(),
+        )
+        return {"chart": {"id": result.id, **body.model_dump()}, "isPending": result.is_pending}
+    except Exception:
+        # Redis 不可用时降级到直接保存
+        return {"chart": await create_bazi_chart(connection, user_id, body)}
 
 
 @router.get("/charts/{chart_id}", response_model=BaziChartResponse)
