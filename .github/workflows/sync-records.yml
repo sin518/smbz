@@ -11,9 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Call sync endpoint
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          response=$(curl -s -w "\n%{http_code}" -X GET "${{ secrets.BACKEND_URL }}/api/cron/sync-records" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          backend_url="${BACKEND_URL%/}"
+          response=$(curl -sS -w "\n%{http_code}" -X GET "${backend_url}/api/cron/sync-records" \
+            -H "Authorization: Bearer ${CRON_SECRET}")
 
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | head -n-1)
