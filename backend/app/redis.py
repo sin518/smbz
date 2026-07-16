@@ -19,11 +19,17 @@ from app.core.config import get_settings
 
 
 _redis_client: Any = None
+_redis_initialized: bool = False
 
 
-async def connect_redis() -> None:
-    global _redis_client
-    settings = get_settings()
+def _init_redis_sync() -> None:
+    """同步初始化 Redis 客户端 (仅限 Upstash)"""
+    global _redis_client, _redis_initialized
+
+    if _redis_initialized:
+        return
+
+    _redis_initialized = True
 
     # 优先使用 Upstash REST API (适合 Serverless)
     upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
@@ -35,6 +41,24 @@ async def connect_redis() -> None:
             UpstashRedis(url=upstash_url, token=upstash_token)
         )
         print("[redis] Upstash connected")
+        return
+
+    print("[redis] UPSTASH_REDIS_REST_URL/TOKEN not configured")
+
+
+async def connect_redis() -> None:
+    """异步初始化 Redis (仅用于传统 Redis)"""
+    global _redis_client, _redis_initialized
+
+    if _redis_initialized:
+        return
+
+    _redis_initialized = True
+    settings = get_settings()
+
+    # 优先尝试 Upstash
+    _init_redis_sync()
+    if _redis_client:
         return
 
     # 降级到传统 Redis 协议
@@ -62,6 +86,9 @@ async def close_redis() -> None:
 
 
 def get_redis_client() -> Any:
+    """获取 Redis 客户端 (懒加载)"""
+    if not _redis_initialized:
+        _init_redis_sync()
     return _redis_client
 
 
