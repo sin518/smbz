@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 import logging
 
-from app.api.deps import get_auth_context
+from app.auth import get_auth_context
 from app.redis import get_redis_client
 
 logger = logging.getLogger(__name__)
