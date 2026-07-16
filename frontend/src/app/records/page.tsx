@@ -15,8 +15,10 @@ import {
   deleteLocalDivinationRecord,
   getLocalDivinationRecords,
   restoreLocalDivinationRecord,
+  syncAllPendingRecords,
   type LocalDivinationRecord
 } from "@/lib/divination/local-records";
+import { DivinationSyncStatusBadge as DivinationSyncBadge } from "@/components/divination/divination-sync-status-badge";
 
 type SessionResponse = {
   session?: unknown;
@@ -55,8 +57,11 @@ export default function RecordsPage() {
   }, []);
 
   async function handleManualSync() {
-    const pendingRecords = getUnifiedBaziRecords().filter((record) => record.syncStatus !== "synced");
-    if (pendingRecords.length === 0) {
+    const pendingBazi = getUnifiedBaziRecords().filter((record) => record.syncStatus !== "synced");
+    const pendingDivination = getLocalDivinationRecords().filter((record) => record.syncStatus === "pending");
+    const totalPending = pendingBazi.length + pendingDivination.length;
+
+    if (totalPending === 0) {
       setRecords(getRecordsPageItems());
       setSyncMessage("当前没有需要上传的本机记录。");
       window.setTimeout(() => setSyncMessage(""), 3200);
@@ -75,16 +80,20 @@ export default function RecordsPage() {
       }
 
       setSyncMessage("正在上传本机排盘记录，请勿关闭页面。");
-      const [nextRecords] = await Promise.all([
+      const [nextBaziRecords, divinationResult] = await Promise.all([
         syncPendingBaziRecords(true),
+        syncAllPendingRecords(),
         waitForMinimumUploadAnimation()
       ]);
+
       setRecords(getRecordsPageItems());
-      const pendingCount = nextRecords.filter((record) => record.syncStatus !== "synced").length;
-      const failedCount = nextRecords.filter((record) => record.syncStatus === "failed").length;
+      const pendingCount = nextBaziRecords.filter((record) => record.syncStatus !== "synced").length + divinationResult.failed;
+      const failedCount = nextBaziRecords.filter((record) => record.syncStatus === "failed").length + divinationResult.failed;
+      const successCount = (nextBaziRecords.length - pendingCount - failedCount) + divinationResult.success;
+
       setSyncMessage(
         pendingCount > 0
-          ? `上传未全部完成，${failedCount > 0 ? `${failedCount} 条上传失败，` : ""}仍有 ${pendingCount} 条待同步。`
+          ? `上传未全部完成，${successCount > 0 ? `成功 ${successCount} 条，` : ""}${failedCount > 0 ? `失败 ${failedCount} 条，` : ""}仍有 ${pendingCount} 条待同步。`
           : "上传完成，记录已同步。"
       );
     } finally {
@@ -271,7 +280,7 @@ function RecordCard({
                 <span className="rounded-full bg-[#e7f0ff] px-2 py-0.5 text-[12px] font-semibold text-[#4e85c7]">
                   {formatDivinationType(item.record.type)}
                 </span>
-                <LocalBadge />
+                <DivinationSyncBadge status={item.record.syncStatus} />
               </>
             )}
           </div>
@@ -369,13 +378,13 @@ function getRecordGroups(records: RecordsPageItem[]): RecordGroup[] {
     {
       key: "liuyao",
       title: "六爻断事",
-      description: "当前为本地记录，删除会移除本机浏览器里的排盘。",
+      description: "当前为本地记录，已同步的记录会保存到云端。",
       items: []
     },
     {
       key: "qimen",
       title: "奇门遁甲",
-      description: "当前为本地记录，删除会移除本机浏览器里的排盘。",
+      description: "当前为本地记录，已同步的记录会保存到云端。",
       items: []
     }
   ];
