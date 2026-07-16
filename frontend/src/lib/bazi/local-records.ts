@@ -202,13 +202,14 @@ export async function syncPendingBaziRecords(force = false) {
   try {
     for (const record of pendingRecords) {
       try {
-        const response = await fetchWithTimeout("/api/bazi/charts", {
+        const response = await fetchWithTimeout("/api/sync/bazi", {
           method: "POST",
           credentials: "include",
           headers: {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
+            localId: record.id,
             name: record.name,
             gender: record.gender,
             birthTime: record.birthTime,
@@ -227,8 +228,8 @@ export async function syncPendingBaziRecords(force = false) {
           continue;
         }
 
-        const data = (await response.json()) as { chart?: { id?: string; updatedAt?: string } };
-        markRecordSynced(nextRecords, record.id, data.chart?.id, data.chart?.updatedAt);
+        const data = (await response.json()) as { serverId?: string; syncedAt?: string; cached?: boolean };
+        markRecordSynced(nextRecords, record.id, data.serverId, data.syncedAt);
         changed = true;
       } catch {
         markRecordFailed(nextRecords, record.id);
