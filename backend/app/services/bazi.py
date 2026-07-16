@@ -82,6 +82,105 @@ async def create_bazi_chart(connection: asyncpg.Connection, user_id: str, body: 
     return chart_detail_from_parts(row, body, profile_id)
 
 
+async def create_or_update_local_bazi_chart(
+    connection: asyncpg.Connection,
+    user_id: str,
+    local_id: str,
+    body: BaziChartInput,
+) -> tuple[BaziChartDetail, bool]:
+    await ensure_bazi_tables(connection)
+    existing = await connection.fetchrow(
+        '''
+        SELECT c.id, c."profileId"
+        FROM "BaziChart" c
+        INNER JOIN "BaziProfile" p ON p.id = c."profileId"
+        WHERE p."userId" = $1 AND p."localId" = $2
+        LIMIT 1
+        ''',
+        user_id,
+        local_id,
+    )
+
+    if existing:
+        chart_json = json.dumps(body.chartJson, ensure_ascii=False)
+        async with connection.transaction():
+            await connection.execute(
+                '''
+                UPDATE "BaziProfile"
+                SET name = $3, gender = $4, "birthTime" = $5, calendar = $6,
+                    location = $7, longitude = $8, latitude = $9,
+                    "useSolarTime" = $10, "updatedAt" = NOW()
+                WHERE id = $1 AND "userId" = $2
+                ''',
+                existing["profileId"],
+                user_id,
+                body.name.strip() or None,
+                body.gender,
+                body.birthTime,
+                body.calendar,
+                body.location,
+                body.longitude,
+                body.latitude,
+                body.useSolarTime,
+            )
+            row = await connection.fetchrow(
+                '''
+                UPDATE "BaziChart"
+                SET "chartJson" = $2::jsonb, "updatedAt" = NOW()
+                WHERE id = $1
+                RETURNING id, "profileId", "chartJson", "createdAt", "updatedAt"
+                ''',
+                existing["id"],
+                chart_json,
+            )
+
+        if not row:
+            raise RuntimeError("更新八字排盘失败")
+        return chart_detail_from_parts(row, body, str(existing["profileId"])), False
+
+    profile_id = str(uuid4())
+    chart_id = str(uuid4())
+    chart_json = json.dumps(body.chartJson, ensure_ascii=False)
+    try:
+        async with connection.transaction():
+            await connection.execute(
+                '''
+                INSERT INTO "BaziProfile" (
+                  id, "userId", "localId", name, gender, "birthTime", calendar,
+                  location, longitude, latitude, "useSolarTime", "createdAt", "updatedAt"
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+                ''',
+                profile_id,
+                user_id,
+                local_id,
+                body.name.strip() or None,
+                body.gender,
+                body.birthTime,
+                body.calendar,
+                body.location,
+                body.longitude,
+                body.latitude,
+                body.useSolarTime,
+            )
+            row = await connection.fetchrow(
+                '''
+                INSERT INTO "BaziChart" (id, "profileId", "chartJson", "createdAt", "updatedAt")
+                VALUES ($1, $2, $3::jsonb, NOW(), NOW())
+                RETURNING id, "profileId", "chartJson", "createdAt", "updatedAt"
+                ''',
+                chart_id,
+                profile_id,
+                chart_json,
+            )
+    except asyncpg.UniqueViolationError:
+        return await create_or_update_local_bazi_chart(connection, user_id, local_id, body)
+
+    if not row:
+        raise RuntimeError("保存八字排盘失败")
+    return chart_detail_from_parts(row, body, profile_id), True
+
+
 async def list_bazi_charts(connection: asyncpg.Connection, user_id: str) -> list[BaziChartSummary]:
     await ensure_bazi_tables(connection)
     rows = await connection.fetch(

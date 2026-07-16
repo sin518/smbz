@@ -25,6 +25,7 @@ model User {
   sessions           Session[]
   accounts           Account[]
   divinationProfiles DivinationProfile[]
+  divinationRecords  DivinationRecord[]
   baziProfiles       BaziProfile[]
   aiQuickAnalysisCaches AiQuickAnalysisCache[]
 }
@@ -104,6 +105,7 @@ model DivinationProfile {
 model BaziProfile {
   id           String   @id
   userId       String
+  localId      String?
   name         String?
   gender       String
   birthTime    String
@@ -119,6 +121,7 @@ model BaziProfile {
   charts BaziChart[]
 
   @@index([userId, updatedAt])
+  @@unique([userId, localId])
 }
 
 model BaziChart {
@@ -131,6 +134,25 @@ model BaziChart {
   profile BaziProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId, createdAt])
+}
+
+model DivinationRecord {
+  id         String   @id
+  userId     String
+  type       String
+  localId    String
+  question   String   @default("")
+  summary    String   @default("")
+  detail     String   @default("")
+  payload    Json
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, localId])
+  @@index([userId, occurredAt])
 }
 
 model AiQuickAnalysisCache {

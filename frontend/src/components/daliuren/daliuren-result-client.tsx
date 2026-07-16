@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { DaliurenInput, DaliurenOutput } from "taibu-core/daliuren";
 import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
 import { calculateDaliurenChart } from "@/lib/daliuren/api";
+import { saveLocalDaliurenRecord } from "@/lib/divination/local-records";
 import { cn } from "@/lib/utils";
 
 type DaliurenStoredInput = {
@@ -75,6 +76,11 @@ export function DaliurenResultClient() {
         setStoredInput(parsed);
         setChart(nextResult.chart);
         setCanonicalText(nextResult.canonicalText);
+        saveLocalDaliurenRecord({
+          ...parsed,
+          chart: nextResult.chart,
+          canonicalText: nextResult.canonicalText
+        });
       } catch (nextError) {
         if (mounted) {
           setError(nextError instanceof Error ? nextError.message : "大六壬起课失败");

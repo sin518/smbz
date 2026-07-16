@@ -1,7 +1,9 @@
 import type { QimenOutput } from "taibu-core/qimen";
+import type { DaliurenOutput } from "taibu-core/daliuren";
 import type { LiuyaoStoredCasting, LiuyaoStoredInput } from "@/lib/liuyao/chart";
+import type { ZiweiChart } from "@/lib/ziwei/calculate";
 
-export type LocalDivinationRecordType = "liuyao" | "qimen";
+export type LocalDivinationRecordType = "liuyao" | "qimen" | "ziwei" | "daliuren";
 
 export type LocalDivinationRecord = {
   id: string;
@@ -31,7 +33,31 @@ export type LocalLiuyaoRecordPayload = {
   casting?: LiuyaoStoredCasting;
 };
 
+export type LocalZiweiRecordPayload = {
+  profile: {
+    name?: string;
+    gender: "male" | "female";
+    birthTime: string;
+    location?: string;
+    savedAt: string;
+  };
+  chart: ZiweiChart;
+};
+
+export type LocalDaliurenRecordPayload = {
+  input: {
+    question: string;
+    dateTime: string;
+    birthYear: number;
+    gender: "male" | "female";
+  };
+  savedAt: string;
+  chart: DaliurenOutput;
+  canonicalText: string;
+};
+
 const LOCAL_DIVINATION_RECORDS_KEY = "sm1:divination-records";
+const CLOUD_SYNC_TIMEOUT_MS = 25000;
 
 export function saveLocalQimenRecord(payload: LocalQimenRecordPayload) {
   const question = payload.input?.question?.trim() || payload.chart.question?.trim() || "未填写占事";
@@ -61,6 +87,37 @@ export function saveLocalLiuyaoRecord(payload: LocalLiuyaoRecordPayload) {
     detail: `${formatCastingMethod(input?.castingMethod)} · ${formatDateTime(input?.castingTime)}`,
     createdAt,
     sourceSavedAt: `${payload.input?.savedAt || ""}-${payload.casting?.completedAt || ""}`,
+    payload,
+    syncStatus: "pending"
+  });
+}
+
+export function saveLocalZiweiRecord(payload: LocalZiweiRecordPayload) {
+  const createdAt = payload.profile.savedAt || new Date().toISOString();
+  const name = payload.profile.name?.trim() || "未填写姓名";
+
+  return saveLocalDivinationRecord({
+    type: "ziwei",
+    question: name,
+    summary: "紫微斗数",
+    detail: `${payload.chart.profile.solarText} · ${payload.chart.profile.location}`,
+    createdAt,
+    sourceSavedAt: createdAt,
+    payload,
+    syncStatus: "pending"
+  });
+}
+
+export function saveLocalDaliurenRecord(payload: LocalDaliurenRecordPayload) {
+  const createdAt = payload.savedAt || new Date().toISOString();
+
+  return saveLocalDivinationRecord({
+    type: "daliuren",
+    question: payload.input.question.trim() || "未填写占事",
+    summary: "大六壬",
+    detail: `${payload.chart.keName} · ${payload.chart.dateInfo.solarDate}`,
+    createdAt,
+    sourceSavedAt: createdAt,
     payload,
     syncStatus: "pending"
   });
@@ -110,6 +167,22 @@ export function restoreLocalDivinationRecord(record: LocalDivinationRecord) {
     if (record.payload.casting) {
       window.localStorage.setItem("sm1:current-liuyao-casting", JSON.stringify(record.payload.casting));
     }
+    return;
+  }
+
+  if (record.type === "ziwei" && isLocalZiweiRecordPayload(record.payload)) {
+    window.localStorage.setItem("sm1:current-ziwei-profile", JSON.stringify(record.payload.profile));
+    return;
+  }
+
+  if (record.type === "daliuren" && isLocalDaliurenRecordPayload(record.payload)) {
+    window.localStorage.setItem(
+      "sm1:current-daliuren-input",
+      JSON.stringify({
+        input: record.payload.input,
+        savedAt: record.payload.savedAt
+      })
+    );
   }
 }
 
@@ -171,7 +244,7 @@ function isLocalDivinationRecord(value: unknown): value is LocalDivinationRecord
 
   return (
     typeof record.id === "string" &&
-    (record.type === "liuyao" || record.type === "qimen") &&
+    (record.type === "liuyao" || record.type === "qimen" || record.type === "ziwei" || record.type === "daliuren") &&
     typeof record.question === "string" &&
     typeof record.summary === "string" &&
     typeof record.detail === "string" &&
@@ -200,65 +273,30 @@ function isLocalLiuyaoRecordPayload(value: unknown): value is LocalLiuyaoRecordP
   return Boolean(payload.input || payload.casting);
 }
 
-// ==================== 云端同步功能 ====================
-
-/**
- * 同步六爻记录到云端
- */
-export async function syncLiuyaoToCloud(record: LocalDivinationRecord): Promise<boolean> {
-  if (record.type !== "liuyao" || !isLocalLiuyaoRecordPayload(record.payload)) {
+function isLocalZiweiRecordPayload(value: unknown): value is LocalZiweiRecordPayload {
+  if (!value || typeof value !== "object") {
     return false;
   }
 
-  try {
-    const response = await fetchWithTimeout(
-      "/api/sync/liuyao",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          localId: record.id,
-          question: record.question,
-          casting_method: record.payload.input?.input?.castingMethod || "unknown",
-          casting_time: record.payload.input?.input?.castingTime || record.createdAt,
-          hexagram_data: record.payload,
-          created_at: record.createdAt
-        })
-      },
-      8000
-    );
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const result = await response.json();
-
-    if (result.success && result.serverId) {
-      updateRecordSyncStatus(record.id, "synced", result.serverId);
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.error("六爻记录同步失败:", error);
-    updateRecordSyncStatus(record.id, "failed");
-    return false;
-  }
+  const payload = value as Record<string, unknown>;
+  return Boolean(payload.profile && payload.chart);
 }
 
-/**
- * 同步奇门记录到云端
- */
-export async function syncQimenToCloud(record: LocalDivinationRecord): Promise<boolean> {
-  if (record.type !== "qimen" || !isLocalQimenRecordPayload(record.payload)) {
+function isLocalDaliurenRecordPayload(value: unknown): value is LocalDaliurenRecordPayload {
+  if (!value || typeof value !== "object") {
     return false;
   }
 
+  const payload = value as Record<string, unknown>;
+  return Boolean(payload.input && payload.chart && typeof payload.savedAt === "string");
+}
+
+// ==================== 云端同步功能 ====================
+
+export async function syncDivinationToCloud(record: LocalDivinationRecord): Promise<boolean> {
   try {
     const response = await fetchWithTimeout(
-      "/api/sync/qimen",
+      `/api/sync/${record.type}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -266,14 +304,17 @@ export async function syncQimenToCloud(record: LocalDivinationRecord): Promise<b
         body: JSON.stringify({
           localId: record.id,
           question: record.question,
-          chart_data: record.payload.chart,
-          created_at: record.createdAt
+          summary: record.summary,
+          detail: record.detail,
+          payload: record.payload,
+          createdAt: record.createdAt
         })
       },
-      8000
+      CLOUD_SYNC_TIMEOUT_MS
     );
 
     if (!response.ok) {
+      updateRecordSyncStatus(record.id, "failed");
       return false;
     }
 
@@ -286,7 +327,7 @@ export async function syncQimenToCloud(record: LocalDivinationRecord): Promise<b
 
     return false;
   } catch (error) {
-    console.error("奇门记录同步失败:", error);
+    console.error(`${record.type} 记录同步失败:`, error);
     updateRecordSyncStatus(record.id, "failed");
     return false;
   }
@@ -318,11 +359,7 @@ function scheduleDivinationAutoSync(record: LocalDivinationRecord) {
   }
 
   window.setTimeout(() => {
-    if (record.type === "liuyao") {
-      syncLiuyaoToCloud(record).catch(console.error);
-    } else if (record.type === "qimen") {
-      syncQimenToCloud(record).catch(console.error);
-    }
+    syncDivinationToCloud(record).catch(console.error);
   }, 10 * 60 * 1000);
 }
 
@@ -330,17 +367,12 @@ function scheduleDivinationAutoSync(record: LocalDivinationRecord) {
  * 手动同步所有待同步的记录
  */
 export async function syncAllPendingRecords(): Promise<{ success: number; failed: number }> {
-  const records = getLocalDivinationRecords().filter((r) => r.syncStatus === "pending");
+  const records = getLocalDivinationRecords().filter((r) => r.syncStatus !== "synced");
   let success = 0;
   let failed = 0;
 
   for (const record of records) {
-    const result =
-      record.type === "liuyao"
-        ? await syncLiuyaoToCloud(record)
-        : record.type === "qimen"
-          ? await syncQimenToCloud(record)
-          : false;
+    const result = await syncDivinationToCloud(record);
 
     if (result) {
       success++;

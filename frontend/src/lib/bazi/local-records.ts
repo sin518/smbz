@@ -381,7 +381,7 @@ function isLocalBaziRecord(value: unknown): value is LocalBaziRecord {
   );
 }
 
-function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs = 5000) {
+function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs = 25000) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
 

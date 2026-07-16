@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
+import { saveLocalZiweiRecord } from "@/lib/divination/local-records";
 import { ZiweiAiCommandModal } from "@/components/ziwei/ziwei-ai-command-modal";
 import { calculateZiweiChart, type ZiweiChart, type ZiweiPalace } from "@/lib/ziwei/calculate";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ type StoredZiweiProfile = {
   gender?: "male" | "female";
   birthTime?: string;
   location?: string;
+  savedAt?: string;
 };
 
 const palaceLayout: Record<string, string> = {
@@ -52,7 +54,18 @@ export function ZiweiChartClient() {
         return;
       }
 
-      setChart(calculateZiweiChart(profile));
+      const nextChart = calculateZiweiChart(profile);
+      const savedAt = profile.savedAt || new Date().toISOString();
+      const normalizedProfile = {
+        ...profile,
+        savedAt
+      };
+      window.localStorage.setItem("sm1:current-ziwei-profile", JSON.stringify(normalizedProfile));
+      saveLocalZiweiRecord({
+        profile: normalizedProfile,
+        chart: nextChart
+      });
+      setChart(nextChart);
     } catch {
       router.replace("/ziwei/profile");
     }

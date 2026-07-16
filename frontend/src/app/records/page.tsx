@@ -31,7 +31,7 @@ type RecordsPageItem =
   | { kind: "bazi"; record: LocalBaziRecord; createdAt: string }
   | { kind: "divination"; record: LocalDivinationRecord; createdAt: string };
 
-type RecordGroupKey = "bazi" | "liuyao" | "qimen";
+type RecordGroupKey = "bazi" | "liuyao" | "qimen" | "ziwei" | "daliuren";
 
 type RecordGroup = {
   key: RecordGroupKey;
@@ -48,7 +48,9 @@ export default function RecordsPage() {
   const [openGroups, setOpenGroups] = useState<Record<RecordGroupKey, boolean>>({
     bazi: false,
     liuyao: false,
-    qimen: false
+    qimen: false,
+    ziwei: false,
+    daliuren: false
   });
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export default function RecordsPage() {
 
   async function handleManualSync() {
     const pendingBazi = getUnifiedBaziRecords().filter((record) => record.syncStatus !== "synced");
-    const pendingDivination = getLocalDivinationRecords().filter((record) => record.syncStatus === "pending");
+    const pendingDivination = getLocalDivinationRecords().filter((record) => record.syncStatus !== "synced");
     const totalPending = pendingBazi.length + pendingDivination.length;
 
     if (totalPending === 0) {
@@ -87,9 +89,14 @@ export default function RecordsPage() {
       ]);
 
       setRecords(getRecordsPageItems());
-      const pendingCount = nextBaziRecords.filter((record) => record.syncStatus !== "synced").length + divinationResult.failed;
-      const failedCount = nextBaziRecords.filter((record) => record.syncStatus === "failed").length + divinationResult.failed;
-      const successCount = (nextBaziRecords.length - pendingCount - failedCount) + divinationResult.success;
+      const attemptedBaziIds = new Set(pendingBazi.map((record) => record.id));
+      const attemptedBaziRecords = nextBaziRecords.filter((record) => attemptedBaziIds.has(record.id));
+      const pendingCount =
+        attemptedBaziRecords.filter((record) => record.syncStatus !== "synced").length + divinationResult.failed;
+      const failedCount =
+        attemptedBaziRecords.filter((record) => record.syncStatus === "failed").length + divinationResult.failed;
+      const successCount =
+        attemptedBaziRecords.filter((record) => record.syncStatus === "synced").length + divinationResult.success;
 
       setSyncMessage(
         pendingCount > 0
@@ -386,6 +393,18 @@ function getRecordGroups(records: RecordsPageItem[]): RecordGroup[] {
       title: "奇门遁甲",
       description: "当前为本地记录，已同步的记录会保存到云端。",
       items: []
+    },
+    {
+      key: "ziwei",
+      title: "紫微斗数",
+      description: "当前为本地记录，已同步的记录会保存到云端。",
+      items: []
+    },
+    {
+      key: "daliuren",
+      title: "大六壬",
+      description: "当前为本地记录，已同步的记录会保存到云端。",
+      items: []
     }
   ];
   const groupMap = new Map(groups.map((group) => [group.key, group]));
@@ -403,7 +422,7 @@ function getRecordGroupKey(item: RecordsPageItem): RecordGroupKey {
     return "bazi";
   }
 
-  return item.record.type === "qimen" ? "qimen" : "liuyao";
+  return item.record.type;
 }
 
 function getRecordKey(item: RecordsPageItem) {
@@ -419,7 +438,7 @@ function getRecordSummary(item: RecordsPageItem) {
     return item.record.pillars || "四柱待生成";
   }
 
-  return item.record.type === "qimen" ? "奇门遁甲" : "六爻断事";
+  return getDivinationTypeConfig(item.record.type).summary;
 }
 
 function getRecordDetail(item: RecordsPageItem) {
@@ -443,7 +462,7 @@ function getRecordHref(item: RecordsPageItem) {
     return `/bazi/local/${item.record.id}`;
   }
 
-  return item.record.type === "qimen" ? "/qimen/result" : "/liuyao/result";
+  return getDivinationTypeConfig(item.record.type).href;
 }
 
 function handleOpenRecord(item: RecordsPageItem) {
@@ -453,7 +472,18 @@ function handleOpenRecord(item: RecordsPageItem) {
 }
 
 function formatDivinationType(value: LocalDivinationRecord["type"]) {
-  return value === "qimen" ? "奇门" : "六爻";
+  return getDivinationTypeConfig(value).shortLabel;
+}
+
+function getDivinationTypeConfig(value: LocalDivinationRecord["type"]) {
+  const config = {
+    liuyao: { shortLabel: "六爻", summary: "六爻断事", href: "/liuyao/result" },
+    qimen: { shortLabel: "奇门", summary: "奇门遁甲", href: "/qimen/result" },
+    ziwei: { shortLabel: "紫微", summary: "紫微斗数", href: "/ziwei" },
+    daliuren: { shortLabel: "六壬", summary: "大六壬", href: "/daliuren/result" }
+  } satisfies Record<LocalDivinationRecord["type"], { shortLabel: string; summary: string; href: string }>;
+
+  return config[value];
 }
 
 function getDivinationQuestion(record: LocalDivinationRecord) {
