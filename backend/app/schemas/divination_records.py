@@ -21,3 +21,19 @@ class DivinationRecordSyncResponse(BaseModel):
     serverId: str
     syncedAt: str
     created: bool
+
+
+class DivinationRecordCloudItem(BaseModel):
+    id: str
+    localId: str
+    type: DivinationRecordType
+    question: str
+    summary: str
+    detail: str
+    payload: dict[str, Any]
+    createdAt: str
+    updatedAt: str
+
+
+class DivinationRecordCloudListResponse(BaseModel):
+    records: list[DivinationRecordCloudItem]

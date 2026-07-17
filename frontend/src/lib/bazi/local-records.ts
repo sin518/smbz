@@ -16,13 +16,17 @@ export type LocalBaziRecord = {
   createdAt: string;
   updatedAt: string;
   syncStatus: "pending" | "synced" | "failed";
-  origin?: "record" | "profile";
+  origin?: "record" | "profile" | "cloud";
 };
 
 export type LocalBaziRecordInput = Pick<
   LocalBaziRecord,
   "name" | "gender" | "birthTime" | "calendar" | "location" | "longitude" | "latitude" | "useSolarTime" | "chartJson"
 >;
+
+export type CloudBaziRecord = Omit<LocalBaziRecord, "chartJson"> & {
+  origin: "cloud";
+};
 
 const LOCAL_BAZI_RECORDS_KEY = "sm1:bazi-records";
 const LOCAL_BAZI_LAST_SYNC_KEY = "sm1:bazi-records-last-sync-at";
@@ -108,6 +112,55 @@ export function getUnifiedBaziRecords() {
   const localRecords = getLocalBaziRecords();
 
   return localRecords.sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+}
+
+export async function fetchCloudBaziRecords(): Promise<CloudBaziRecord[]> {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const response = await fetchWithTimeout("/api/bazi/charts", {
+    method: "GET",
+    credentials: "include"
+  });
+
+  if (response.status === 401) {
+    return [];
+  }
+
+  if (!response.ok) {
+    throw new Error("云端八字记录读取失败");
+  }
+
+  const data = (await response.json()) as { charts?: CloudBaziChart[] };
+  return (data.charts ?? []).filter(isCloudBaziChart).map((chart) => ({
+    id: chart.localId || `cloud-bazi-${chart.id}`,
+    serverId: chart.id,
+    name: chart.name,
+    gender: chart.gender,
+    birthTime: chart.birthTime,
+    calendar: chart.calendar,
+    location: chart.location,
+    longitude: chart.longitude,
+    latitude: chart.latitude,
+    useSolarTime: chart.useSolarTime,
+    pillars: chart.pillars,
+    createdAt: chart.createdAt,
+    updatedAt: chart.updatedAt,
+    syncStatus: "synced",
+    origin: "cloud"
+  }));
+}
+
+export async function deleteCloudBaziRecord(serverId: string) {
+  const response = await fetchWithTimeout(`/api/bazi/charts/${encodeURIComponent(serverId)}`, {
+    method: "DELETE",
+    credentials: "include"
+  });
+
+  if (!response.ok && response.status !== 404) {
+    throw new Error("云端删除失败");
+  }
 }
 
 export function deleteUnifiedBaziRecord(id: string) {
@@ -378,6 +431,29 @@ function isLocalBaziRecord(value: unknown): value is LocalBaziRecord {
     typeof record.updatedAt === "string" &&
     (record.syncStatus === "pending" || record.syncStatus === "synced" || record.syncStatus === "failed") &&
     Boolean(record.chartJson)
+  );
+}
+
+type CloudBaziChart = Omit<LocalBaziRecord, "serverId" | "syncStatus" | "origin" | "chartJson"> & {
+  localId?: string | null;
+};
+
+function isCloudBaziChart(value: unknown): value is CloudBaziChart {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const chart = value as Record<string, unknown>;
+  return (
+    typeof chart.id === "string" &&
+    typeof chart.name === "string" &&
+    (chart.gender === "male" || chart.gender === "female") &&
+    typeof chart.birthTime === "string" &&
+    (chart.calendar === "solar" || chart.calendar === "lunar" || chart.calendar === "pillars") &&
+    typeof chart.useSolarTime === "boolean" &&
+    typeof chart.pillars === "string" &&
+    typeof chart.createdAt === "string" &&
+    typeof chart.updatedAt === "string"
   );
 }
 

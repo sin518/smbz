@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import asyncpg
 
-from app.schemas.bazi import BaziChartDetail, BaziChartInput, BaziChartSummary
+from app.schemas.bazi import BaziChartDetail, BaziChartInput, BaziChartSummary, BaziCloudChart
 
 
 async def ensure_bazi_tables(connection: asyncpg.Connection) -> None:
@@ -181,21 +181,28 @@ async def create_or_update_local_bazi_chart(
     return chart_detail_from_parts(row, body, profile_id), True
 
 
-async def list_bazi_charts(connection: asyncpg.Connection, user_id: str) -> list[BaziChartSummary]:
+async def list_bazi_charts(connection: asyncpg.Connection, user_id: str) -> list[BaziCloudChart]:
     await ensure_bazi_tables(connection)
     rows = await connection.fetch(
         '''
         SELECT c.id, c."profileId", c."chartJson", c."createdAt", c."updatedAt",
-               p.name, p.gender, p."birthTime", p.calendar, p.location, p.longitude, p.latitude, p."useSolarTime"
+               p."localId", p.name, p.gender, p."birthTime", p.calendar, p.location,
+               p.longitude, p.latitude, p."useSolarTime"
         FROM "BaziChart" c
         INNER JOIN "BaziProfile" p ON p.id = c."profileId"
         WHERE p."userId" = $1
         ORDER BY c."createdAt" DESC
-        LIMIT 50
+        LIMIT 1000
         ''',
         user_id,
     )
-    return [chart_summary_from_row(row) for row in rows]
+    return [
+        BaziCloudChart(
+            **chart_summary_from_row(row).model_dump(),
+            localId=row["localId"],
+        )
+        for row in rows
+    ]
 
 
 async def get_bazi_chart(connection: asyncpg.Connection, user_id: str, chart_id: str) -> BaziChartDetail | None:

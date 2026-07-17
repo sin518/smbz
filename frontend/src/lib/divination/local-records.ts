@@ -17,6 +17,7 @@ export type LocalDivinationRecord = {
   payload: unknown;
   syncStatus?: "pending" | "synced" | "failed";
   serverId?: string;
+  origin?: "local" | "cloud";
 };
 
 export type LocalQimenRecordPayload = {
@@ -148,9 +149,71 @@ export function deleteLocalDivinationRecord(id: string) {
   return nextRecords;
 }
 
+export async function fetchCloudDivinationRecords(): Promise<LocalDivinationRecord[]> {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const response = await fetchWithTimeout(
+    "/api/sync/records",
+    {
+      method: "GET",
+      credentials: "include"
+    },
+    CLOUD_SYNC_TIMEOUT_MS
+  );
+
+  if (response.status === 401) {
+    return [];
+  }
+
+  if (!response.ok) {
+    throw new Error("云端占术记录读取失败");
+  }
+
+  const data = (await response.json()) as { records?: CloudDivinationRecord[] };
+  return (data.records ?? []).filter(isCloudDivinationRecord).map((record) => ({
+    id: record.localId,
+    serverId: record.id,
+    type: record.type,
+    question: record.question,
+    summary: record.summary,
+    detail: record.detail,
+    payload: record.payload,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    sourceSavedAt: getSourceSavedAt(record.payload, record.localId),
+    syncStatus: "synced",
+    origin: "cloud"
+  }));
+}
+
+export async function deleteDivinationRecordWithRemote(record: LocalDivinationRecord) {
+  if (record.serverId) {
+    const response = await fetchWithTimeout(
+      `/api/sync/records/${encodeURIComponent(record.serverId)}`,
+      {
+        method: "DELETE",
+        credentials: "include"
+      },
+      CLOUD_SYNC_TIMEOUT_MS
+    );
+
+    if (!response.ok && response.status !== 404) {
+      throw new Error("云端删除失败");
+    }
+  }
+
+  deleteLocalDivinationRecord(record.id);
+}
+
 export function restoreLocalDivinationRecord(record: LocalDivinationRecord) {
   if (typeof window === "undefined") {
     return;
+  }
+
+  if (record.origin === "cloud") {
+    cacheCloudDivinationRecord(record);
   }
 
   if (record.type === "qimen" && isLocalQimenRecordPayload(record.payload)) {
@@ -194,7 +257,9 @@ function saveLocalDivinationRecord(input: Omit<LocalDivinationRecord, "id" | "up
     ...input,
     id: duplicateIndex >= 0 ? currentRecords[duplicateIndex].id : `local-${input.type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     updatedAt: now,
-    syncStatus: input.syncStatus || "pending"
+    serverId: duplicateIndex >= 0 ? currentRecords[duplicateIndex].serverId : input.serverId,
+    syncStatus: duplicateIndex >= 0 ? currentRecords[duplicateIndex].syncStatus : input.syncStatus || "pending",
+    origin: duplicateIndex >= 0 ? currentRecords[duplicateIndex].origin : input.origin || "local"
   };
   const nextRecords =
     duplicateIndex >= 0
@@ -209,6 +274,16 @@ function saveLocalDivinationRecord(input: Omit<LocalDivinationRecord, "id" | "up
   }
 
   return record;
+}
+
+function cacheCloudDivinationRecord(record: LocalDivinationRecord) {
+  const currentRecords = getLocalDivinationRecords();
+  const duplicateIndex = currentRecords.findIndex((item) => item.id === record.id || item.serverId === record.serverId);
+  const nextRecords =
+    duplicateIndex >= 0
+      ? currentRecords.map((item, index) => (index === duplicateIndex ? { ...record, origin: "local" as const } : item))
+      : [{ ...record, origin: "local" as const }, ...currentRecords].slice(0, 200);
+  writeRecords(nextRecords);
 }
 
 function writeRecords(records: LocalDivinationRecord[]) {
@@ -289,6 +364,62 @@ function isLocalDaliurenRecordPayload(value: unknown): value is LocalDaliurenRec
 
   const payload = value as Record<string, unknown>;
   return Boolean(payload.input && payload.chart && typeof payload.savedAt === "string");
+}
+
+type CloudDivinationRecord = {
+  id: string;
+  localId: string;
+  type: LocalDivinationRecordType;
+  question: string;
+  summary: string;
+  detail: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function isCloudDivinationRecord(value: unknown): value is CloudDivinationRecord {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.id === "string" &&
+    typeof record.localId === "string" &&
+    (record.type === "liuyao" || record.type === "qimen" || record.type === "ziwei" || record.type === "daliuren") &&
+    typeof record.question === "string" &&
+    typeof record.summary === "string" &&
+    typeof record.detail === "string" &&
+    typeof record.createdAt === "string" &&
+    typeof record.updatedAt === "string" &&
+    Boolean(record.payload) &&
+    typeof record.payload === "object"
+  );
+}
+
+function getSourceSavedAt(payload: Record<string, unknown>, fallback: string) {
+  if (typeof payload.savedAt === "string") {
+    return payload.savedAt;
+  }
+
+  const profile = payload.profile;
+  if (profile && typeof profile === "object" && typeof (profile as Record<string, unknown>).savedAt === "string") {
+    return (profile as Record<string, unknown>).savedAt as string;
+  }
+
+  const input = payload.input;
+  const casting = payload.casting;
+  if (input && typeof input === "object") {
+    const inputSavedAt = (input as Record<string, unknown>).savedAt;
+    const completedAt =
+      casting && typeof casting === "object" ? (casting as Record<string, unknown>).completedAt : undefined;
+    if (typeof inputSavedAt === "string" || typeof completedAt === "string") {
+      return `${typeof inputSavedAt === "string" ? inputSavedAt : ""}-${typeof completedAt === "string" ? completedAt : ""}`;
+    }
+  }
+
+  return fallback;
 }
 
 // ==================== 云端同步功能 ====================

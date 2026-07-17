@@ -35,9 +35,13 @@ class BaziChartDetail(BaziChartSummary):
     chartJson: dict[str, Any]
 
 
+class BaziCloudChart(BaziChartSummary):
+    localId: str | None = None
+
+
 class BaziChartResponse(BaseModel):
     chart: BaziChartDetail
 
 
 class BaziChartsResponse(BaseModel):
-    charts: list[BaziChartSummary]
+    charts: list[BaziCloudChart]

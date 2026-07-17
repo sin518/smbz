@@ -5,14 +5,18 @@ import { ChevronDown, ChevronRight, Cloud, CloudOff, RefreshCw, Search, Trash2 }
 import { useEffect, useState } from "react";
 import { AppBottomNav } from "@/components/app-bottom-nav";
 import {
+  deleteCloudBaziRecord,
   deleteUnifiedBaziRecordWithRemote,
+  fetchCloudBaziRecords,
   getUnifiedBaziRecords,
   scheduleBaziRecordAutoSync,
   syncPendingBaziRecords,
+  type CloudBaziRecord,
   type LocalBaziRecord
 } from "@/lib/bazi/local-records";
 import {
-  deleteLocalDivinationRecord,
+  deleteDivinationRecordWithRemote,
+  fetchCloudDivinationRecords,
   getLocalDivinationRecords,
   restoreLocalDivinationRecord,
   syncAllPendingRecords,
@@ -28,7 +32,7 @@ type SessionResponse = {
 };
 
 type RecordsPageItem =
-  | { kind: "bazi"; record: LocalBaziRecord; createdAt: string }
+  | { kind: "bazi"; record: LocalBaziRecord | CloudBaziRecord; createdAt: string }
   | { kind: "divination"; record: LocalDivinationRecord; createdAt: string };
 
 type RecordGroupKey = "bazi" | "liuyao" | "qimen" | "ziwei" | "daliuren";
@@ -56,6 +60,17 @@ export default function RecordsPage() {
   useEffect(() => {
     setRecords(getRecordsPageItems());
     scheduleBaziRecordAutoSync();
+
+    let mounted = true;
+    void fetchRecordsPageItemsFromCloud().then((nextRecords) => {
+      if (mounted) {
+        setRecords(nextRecords);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   async function handleManualSync() {
@@ -64,7 +79,7 @@ export default function RecordsPage() {
     const totalPending = pendingBazi.length + pendingDivination.length;
 
     if (totalPending === 0) {
-      setRecords(getRecordsPageItems());
+      setRecords(await fetchRecordsPageItemsFromCloud());
       setSyncMessage("当前没有需要上传的本机记录。");
       window.setTimeout(() => setSyncMessage(""), 3200);
       return;
@@ -88,7 +103,6 @@ export default function RecordsPage() {
         waitForMinimumUploadAnimation()
       ]);
 
-      setRecords(getRecordsPageItems());
       const attemptedBaziIds = new Set(pendingBazi.map((record) => record.id));
       const attemptedBaziRecords = nextBaziRecords.filter((record) => attemptedBaziIds.has(record.id));
       const pendingCount =
@@ -97,6 +111,7 @@ export default function RecordsPage() {
         attemptedBaziRecords.filter((record) => record.syncStatus === "failed").length + divinationResult.failed;
       const successCount =
         attemptedBaziRecords.filter((record) => record.syncStatus === "synced").length + divinationResult.success;
+      setRecords(await fetchRecordsPageItemsFromCloud());
 
       setSyncMessage(
         pendingCount > 0
@@ -111,7 +126,7 @@ export default function RecordsPage() {
 
   async function handleDeleteRecord(item: RecordsPageItem) {
     const deleteMessage =
-      item.kind === "bazi" && item.record.serverId
+      item.record.serverId
         ? "删除后会同时删除数据库里的云端排盘记录，无法从当前浏览器恢复。确定删除吗？"
         : "删除后会移除本机记录，无法从当前浏览器恢复。确定删除吗？";
     const confirmed = window.confirm(deleteMessage);
@@ -125,12 +140,16 @@ export default function RecordsPage() {
 
     try {
       if (item.kind === "bazi") {
-        await deleteUnifiedBaziRecordWithRemote(item.record.id);
+        if (item.record.origin === "cloud" && item.record.serverId) {
+          await deleteCloudBaziRecord(item.record.serverId);
+        } else {
+          await deleteUnifiedBaziRecordWithRemote(item.record.id);
+        }
       } else {
-        deleteLocalDivinationRecord(item.record.id);
+        await deleteDivinationRecordWithRemote(item.record);
       }
 
-      setRecords(getRecordsPageItems());
+      setRecords(await fetchRecordsPageItemsFromCloud());
     } catch {
       setSyncMessage("删除失败：云端记录没有删除成功，本机记录已保留。请稍后重试。");
       window.setTimeout(() => setSyncMessage(""), 3600);
@@ -158,7 +177,7 @@ export default function RecordsPage() {
 
       <section className="px-4 pt-5">
         <div className="rounded-[22px] bg-white p-5 shadow-soft">
-          <p className="text-sm text-mutedInk">本机记录</p>
+          <p className="text-sm text-mutedInk">本机与云端记录</p>
           <div className="mt-2 flex items-center justify-between gap-3">
             <h2 className="text-[22px] font-semibold">本地优先保存</h2>
             <button
@@ -171,7 +190,7 @@ export default function RecordsPage() {
               {syncing ? "上传中" : "手动上传"}
             </button>
           </div>
-          <p className="mt-2 text-[14px] leading-6 text-mutedInk">打开应用后会检查本机数据；浏览器在线时每 10 分钟自动尝试同步到云端。</p>
+          <p className="mt-2 text-[14px] leading-6 text-mutedInk">登录后会读取云端记录；本机新记录会每 10 分钟自动尝试上传。</p>
           {syncing || syncMessage ? (
             <div className="mt-4 overflow-hidden rounded-2xl bg-[#f6f0e2] px-4 py-3">
               <div className="flex items-center gap-3">
@@ -359,19 +378,50 @@ function LocalBadge() {
   );
 }
 
-function getRecordsPageItems(): RecordsPageItem[] {
-  const baziRecords = getUnifiedBaziRecords().map((record) => ({
+function getRecordsPageItems(
+  cloudBaziRecords: CloudBaziRecord[] = [],
+  cloudDivinationRecords: LocalDivinationRecord[] = []
+): RecordsPageItem[] {
+  const localBaziRecords = getUnifiedBaziRecords();
+  const localDivinationRecords = getLocalDivinationRecords();
+  const mergedBaziRecords = [
+    ...localBaziRecords,
+    ...cloudBaziRecords.filter(
+      (cloudRecord) =>
+        !localBaziRecords.some(
+          (localRecord) => localRecord.id === cloudRecord.id || localRecord.serverId === cloudRecord.serverId
+        )
+    )
+  ];
+  const mergedDivinationRecords = [
+    ...localDivinationRecords,
+    ...cloudDivinationRecords.filter(
+      (cloudRecord) =>
+        !localDivinationRecords.some(
+          (localRecord) => localRecord.id === cloudRecord.id || localRecord.serverId === cloudRecord.serverId
+        )
+    )
+  ];
+  const baziRecords = mergedBaziRecords.map((record) => ({
     kind: "bazi" as const,
     record,
     createdAt: record.createdAt
   }));
-  const divinationRecords = getLocalDivinationRecords().map((record) => ({
+  const divinationRecords = mergedDivinationRecords.map((record) => ({
     kind: "divination" as const,
     record,
     createdAt: record.createdAt
   }));
 
   return [...baziRecords, ...divinationRecords].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+}
+
+async function fetchRecordsPageItemsFromCloud() {
+  const [cloudBaziRecords, cloudDivinationRecords] = await Promise.all([
+    fetchCloudBaziRecords().catch(() => []),
+    fetchCloudDivinationRecords().catch(() => [])
+  ]);
+  return getRecordsPageItems(cloudBaziRecords, cloudDivinationRecords);
 }
 
 function getRecordGroups(records: RecordsPageItem[]): RecordGroup[] {
@@ -459,6 +509,9 @@ function getRecordMeta(item: RecordsPageItem) {
 
 function getRecordHref(item: RecordsPageItem) {
   if (item.kind === "bazi") {
+    if (item.record.origin === "cloud" && item.record.serverId) {
+      return `/bazi/${item.record.serverId}`;
+    }
     return `/bazi/local/${item.record.id}`;
   }
 
