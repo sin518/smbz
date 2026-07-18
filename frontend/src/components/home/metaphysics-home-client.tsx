@@ -61,12 +61,12 @@ const homeCards: HomeCard[] = [
 export function MetaphysicsHomeClient() {
   return (
     <main className="light-surface-text-scope app-responsive-shell flex h-dvh flex-col overflow-hidden bg-[#F8F7EE] text-ink shadow-soft">
-      <header className="shrink-0 px-5 pb-5 pt-7 sm:px-8 sm:pb-6 sm:pt-9">
-        <h1 className="text-center text-[29px] font-semibold tracking-[0.04em] text-black sm:text-[34px]">赛博排盘</h1>
-        <div className="mt-2 flex items-center justify-center gap-3 text-[#a28e66]" aria-hidden="true">
-          <span className="h-px w-8 bg-[#d9c9a3]" />
-          <p className="text-[13px] font-medium tracking-[0.14em]">选择一种排盘方式</p>
-          <span className="h-px w-8 bg-[#d9c9a3]" />
+      <header className="mb-3 flex h-[80px] shrink-0 flex-col items-center justify-center border-b border-[#e5d8bc]/90 bg-[var(--color-surface)]/80 px-5 shadow-[0_8px_22px_rgba(42,32,13,0.08)] backdrop-blur-xl">
+        <h1 className="shrink-0 text-center text-[24px] font-semibold leading-none tracking-[0.04em] text-black sm:text-[26px]">赛博排盘</h1>
+        <div className="mt-2.5 flex w-full min-w-0 items-center justify-center gap-2.5 text-[#a28e66]" aria-hidden="true">
+          <span className="h-px w-6 shrink-0 bg-[#d9c9a3]" />
+          <p className="min-w-0 truncate text-center text-[11px] font-medium tracking-[0.1em] sm:text-[12px]">选择一种排盘方式</p>
+          <span className="h-px w-6 shrink-0 bg-[#d9c9a3]" />
         </div>
       </header>
 
