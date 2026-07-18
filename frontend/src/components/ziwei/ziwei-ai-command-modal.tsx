@@ -1,7 +1,9 @@
 "use client";
 
 import { Check, Copy, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useCachedAiCommand } from "@/components/shared/use-cached-ai-command";
+import { useCopyFeedback } from "@/components/shared/use-copy-feedback";
 import { buildZiweiAiCommandText, getZiweiAiCommandFocusDescription, type ZiweiAiCommandFocus } from "@/lib/ai/ziwei-command";
 import type { ZiweiChart } from "@/lib/ziwei/calculate";
 import { cn } from "@/lib/utils";
@@ -15,14 +17,23 @@ type ZiweiAiCommandModalProps = {
 
 export function ZiweiAiCommandModal({ chart, onClose }: ZiweiAiCommandModalProps) {
   const [selectedType, setSelectedType] = useState<ZiweiAiCommandFocus>("全项");
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "selected">("idle");
+  const { copyStatus, setCopyStatus } = useCopyFeedback();
   const commandTextRef = useRef<HTMLTextAreaElement>(null);
-  const commandText = useMemo(
+  const commandSource = useMemo(
+    () => JSON.stringify({ chart, focus: selectedType }),
+    [chart, selectedType]
+  );
+  const buildCommand = useCallback(
     () => buildZiweiAiCommandText({ chart, focus: selectedType }),
     [chart, selectedType]
   );
+  const commandText = useCachedAiCommand({ namespace: "ziwei", source: commandSource, build: buildCommand });
 
   async function handleCopy() {
+    if (!commandText) {
+      return;
+    }
+
     try {
       await copyText(commandText);
       setCopyStatus("copied");
@@ -93,6 +104,7 @@ export function ZiweiAiCommandModal({ chart, onClose }: ZiweiAiCommandModalProps
               <button
                 type="button"
                 onClick={handleCopy}
+                disabled={!commandText}
                 className="flex h-8 items-center gap-1 rounded-full bg-[var(--color-primary)] px-3 text-[13px] font-bold text-[var(--color-primary-text)]"
               >
                 {copyStatus === "idle" ? <Copy size={15} /> : <Check size={15} />}
@@ -112,6 +124,7 @@ export function ZiweiAiCommandModal({ chart, onClose }: ZiweiAiCommandModalProps
           <button
             type="button"
             onClick={handleCopy}
+            disabled={!commandText}
             className="mt-5 flex h-14 w-full items-center justify-center rounded-full bg-[var(--color-primary)] text-[22px] font-extrabold text-[var(--color-primary-text)] shadow-[0_12px_28px_rgba(173,146,85,0.24)]"
           >
             {copyStatus === "copied" ? "已复制AI指令" : copyStatus === "selected" ? "已选中AI指令" : "复制AI指令"}

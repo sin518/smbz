@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { Check, Copy, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useCachedAiCommand } from "@/components/shared/use-cached-ai-command";
+import { useCopyFeedback } from "@/components/shared/use-copy-feedback";
 import { buildAiCommandText, getAiCommandFocusDescription, type AiCommandFocus } from "@/lib/ai/bazi-command";
 import type { DemoBaziChart } from "@/lib/bazi/demo";
 import { cn } from "@/lib/utils";
@@ -21,13 +23,18 @@ type AiCommandModalProps = {
 export function AiCommandModal({ chart, closeHref, useSolarTime }: AiCommandModalProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [selectedType, setSelectedType] = useState<CommandType>("全项");
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "selected">("idle");
+  const { copyStatus, setCopyStatus } = useCopyFeedback();
   const commandTextRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
-  const commandText = useMemo(
+  const commandSource = useMemo(
+    () => JSON.stringify({ chart, focus: selectedType, useSolarTime }),
+    [chart, selectedType, useSolarTime]
+  );
+  const buildCommand = useCallback(
     () => buildAiCommandText({ chart, focus: selectedType, useSolarTime }),
     [chart, selectedType, useSolarTime]
   );
+  const commandText = useCachedAiCommand({ namespace: "bazi", source: commandSource, build: buildCommand });
 
   function handleClose(event: React.MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
@@ -36,6 +43,10 @@ export function AiCommandModal({ chart, closeHref, useSolarTime }: AiCommandModa
   }
 
   async function handleCopy() {
+    if (!commandText) {
+      return;
+    }
+
     try {
       await copyText(commandText);
       setCopyStatus("copied");
@@ -90,7 +101,10 @@ export function AiCommandModal({ chart, closeHref, useSolarTime }: AiCommandModa
               <button
                 key={type}
                 type="button"
-                onClick={() => setSelectedType(type)}
+                onClick={() => {
+                  setSelectedType(type);
+                  setCopyStatus("idle");
+                }}
                 className={cn(
                   "flex h-10 items-center justify-center rounded-full text-[17px] font-bold transition",
                   selectedType === type ? "bg-[var(--color-primary)] text-[var(--color-primary-text)] shadow-[0_8px_18px_rgba(173,146,85,0.28)]" : "bg-[var(--color-control)] text-ink shadow-[0_8px_20px_rgba(0,0,0,0.05)]"
@@ -107,6 +121,7 @@ export function AiCommandModal({ chart, closeHref, useSolarTime }: AiCommandModa
               <button
                 type="button"
                 onClick={handleCopy}
+                disabled={!commandText}
                 className="flex h-8 items-center gap-1 rounded-full bg-[var(--color-primary)] px-3 text-[13px] font-bold text-[var(--color-primary-text)]"
               >
                 {copyStatus === "idle" ? <Copy size={15} /> : <Check size={15} />}
@@ -126,6 +141,7 @@ export function AiCommandModal({ chart, closeHref, useSolarTime }: AiCommandModa
           <button
             type="button"
             onClick={handleCopy}
+            disabled={!commandText}
             className="mt-5 flex h-14 w-full items-center justify-center rounded-full bg-[var(--color-primary)] text-[22px] font-extrabold text-[var(--color-primary-text)] shadow-[0_12px_28px_rgba(173,146,85,0.24)]"
           >
             {copyStatus === "copied" ? "已复制AI指令" : copyStatus === "selected" ? "已选中AI指令" : "复制AI指令"}

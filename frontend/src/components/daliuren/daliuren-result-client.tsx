@@ -4,9 +4,11 @@
 import { ArrowLeft, Copy, X } from "lucide-react";
 import { Solar } from "lunar-javascript";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DaliurenInput, DaliurenOutput } from "taibu-core/daliuren";
 import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
+import { useCachedAiCommand } from "@/components/shared/use-cached-ai-command";
+import { useCopyFeedback } from "@/components/shared/use-copy-feedback";
 import { calculateDaliurenChart } from "@/lib/daliuren/api";
 import { saveLocalDaliurenRecord } from "@/lib/divination/local-records";
 import { cn } from "@/lib/utils";
@@ -320,15 +322,21 @@ function KongWangMark() {
 }
 
 function AiCommandModal({ chart, canonicalText, onClose }: { chart: DaliurenOutput; canonicalText: string; onClose: () => void }) {
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
-  const command = buildAiCommand(chart, canonicalText);
+  const { copyStatus, setCopyStatus } = useCopyFeedback();
+  const commandSource = useMemo(() => JSON.stringify({ chart, canonicalText }), [canonicalText, chart]);
+  const buildCommand = useCallback(() => buildAiCommand(chart, canonicalText), [canonicalText, chart]);
+  const command = useCachedAiCommand({ namespace: "daliuren", source: commandSource, build: buildCommand });
 
   async function copyCommand() {
+    if (!command) {
+      return;
+    }
+
     try {
       await navigator.clipboard.writeText(command);
-      setCopyState("copied");
+      setCopyStatus("copied");
     } catch {
-      setCopyState("failed");
+      setCopyStatus("selected");
     }
   }
 
@@ -349,10 +357,11 @@ function AiCommandModal({ chart, canonicalText, onClose }: { chart: DaliurenOutp
         <button
           type="button"
           onClick={() => void copyCommand()}
+          disabled={!command}
           className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-black text-[17px] font-semibold text-[#e8d4a7]"
         >
           <Copy size={17} />
-          {copyState === "copied" ? "已复制" : copyState === "failed" ? "复制失败" : "复制指令"}
+          {copyStatus === "copied" ? "已复制" : copyStatus === "selected" ? "复制失败" : "复制指令"}
         </button>
       </section>
     </div>

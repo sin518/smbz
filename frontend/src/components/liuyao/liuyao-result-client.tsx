@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AiCommandAction } from "@/components/shared/ai-command-action";
 import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
+import { useCopyFeedback } from "@/components/shared/use-copy-feedback";
 import { buildLiuyaoAiCommandText } from "@/lib/ai/liuyao-command";
 import { saveLocalLiuyaoRecord } from "@/lib/divination/local-records";
 import {
@@ -21,7 +22,7 @@ export function LiuyaoResultClient() {
   const [chartError, setChartError] = useState("");
   const [showAiCommand, setShowAiCommand] = useState(false);
   const [showAdminAiCommand, setShowAdminAiCommand] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "selected">("idle");
+  const { copyStatus, setCopyStatus } = useCopyFeedback();
   const [adminAnalysisStatus, setAdminAnalysisStatus] = useState<"idle" | "streaming" | "done" | "error">("idle");
   const [adminAnalysisText, setAdminAnalysisText] = useState("");
   const [adminAnalysisError, setAdminAnalysisError] = useState("");
