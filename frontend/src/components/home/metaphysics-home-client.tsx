@@ -61,12 +61,17 @@ const homeCards: HomeCard[] = [
 export function MetaphysicsHomeClient() {
   return (
     <main className="light-surface-text-scope app-responsive-shell flex h-dvh flex-col overflow-hidden bg-[#F8F7EE] text-ink shadow-soft">
-      <header className="shrink-0 px-5 pb-5 pt-10 sm:px-8 sm:pb-7 sm:pt-12">
-        <h1 className="text-center text-[30px] font-semibold tracking-normal text-black sm:text-[38px]">赛博排盘</h1>
+      <header className="shrink-0 px-5 pb-5 pt-7 sm:px-8 sm:pb-6 sm:pt-9">
+        <h1 className="text-center text-[29px] font-semibold tracking-[0.04em] text-black sm:text-[34px]">赛博排盘</h1>
+        <div className="mt-2 flex items-center justify-center gap-3 text-[#a28e66]" aria-hidden="true">
+          <span className="h-px w-8 bg-[#d9c9a3]" />
+          <p className="text-[13px] font-medium tracking-[0.14em]">选择一种排盘方式</p>
+          <span className="h-px w-8 bg-[#d9c9a3]" />
+        </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[92px] sm:px-8 sm:pb-[116px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <section className="grid grid-cols-1 gap-3 sm:gap-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(92px+env(safe-area-inset-bottom))] sm:px-6 sm:pb-[calc(104px+env(safe-area-inset-bottom))] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <section className="grid grid-cols-1 gap-3.5 sm:gap-4">
           {homeCards.map((card) => (
             <HomeFeatureCard key={card.title} card={card} />
           ))}
@@ -81,32 +86,30 @@ export function MetaphysicsHomeClient() {
 function HomeFeatureCard({ card }: { card: HomeCard }) {
   const Icon = card.icon;
   const content = (
-    <div className="relative min-h-[124px] overflow-hidden border border-[#e5decb] bg-[#fffdf5] px-5 py-5 shadow-[0_10px_24px_rgba(54,45,24,0.05)] sm:min-h-[190px] md:px-7 sm:py-7">
-      <Corner className="left-2 top-2 rotate-180" />
-      <Corner className="right-2 top-2 -rotate-90" />
-      <Corner className="bottom-2 left-2 rotate-90" />
-      <Corner className="bottom-2 right-2" />
+    <div className="group relative min-h-[132px] overflow-hidden rounded-[16px] border border-[#e5d8bc] bg-[#fffdf7] px-5 py-[18px] shadow-[0_8px_22px_rgba(70,53,20,0.055)] transition duration-200 active:scale-[0.99] sm:min-h-[150px] sm:px-6 sm:py-5">
+      <Corner className="left-3 top-3 rotate-180" />
+      <Corner className="bottom-3 right-3" />
 
-      <div className="relative z-10 flex h-full flex-col justify-between gap-5">
-        <div className="relative min-h-[52px] pr-[66px]">
-          <h2 className="text-[28px] font-semibold leading-tight text-[#34322f] sm:text-[34px]">{card.title}</h2>
+      <div className="relative z-10 flex h-full flex-col justify-between gap-4">
+        <div className="relative min-h-[48px] pr-[62px]">
+          <h2 className="text-[26px] font-semibold leading-tight tracking-[0.02em] text-[#34322f] sm:text-[30px]">{card.title}</h2>
           <span
             className={cn(
-              "absolute right-0 top-0 flex h-[54px] w-[54px] items-center justify-center rounded-full border-2",
+              "absolute right-0 top-0 flex h-[50px] w-[50px] items-center justify-center rounded-full border-2 shadow-[inset_0_0_0_3px_rgba(255,255,255,0.12)] sm:h-[54px] sm:w-[54px]",
               card.tone === "red" && "border-[#d44623] bg-[#c92b12] text-[#f8d28b]",
               card.tone === "purple" && "border-[#8f7969] bg-[#40335d] text-[#f6c979]",
               card.tone === "brown" && "border-[#d19c51] bg-[#9a5f1f] text-[#ffe1a1]",
               card.tone === "gold" && "border-[#d9a450] bg-[#b07222] text-[#ffe0a6]"
             )}
           >
-            <Icon size={28} strokeWidth={1.8} />
+            <Icon size={25} strokeWidth={1.8} />
           </span>
         </div>
 
-        <div className="flex items-end justify-between gap-3">
-          <p className="text-[19px] font-semibold leading-snug text-[#74716a] sm:text-[22px]">{card.subtitle}</p>
+        <div className="flex items-end justify-between gap-3 pl-1">
+          <p className="text-[16px] font-medium leading-snug text-[#74716a] sm:text-[18px]">{card.subtitle}</p>
           {card.suitable ? (
-            <div className="shrink-0 text-right text-[11px] font-semibold leading-[1.45] text-[#9b9383] sm:text-[13px]">
+            <div className="shrink-0 rounded-full border border-[#ead9b4] bg-[#fbf4e4] px-2.5 py-1 text-right text-[11px] font-medium leading-[1.25] text-[#9a7a39] sm:text-[12px]">
               {card.suitable.map((line) => (
                 <p key={line}>{line}</p>
               ))}
@@ -136,8 +139,8 @@ function Corner({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "pointer-events-none absolute h-7 w-7 border-b-2 border-r-2 border-[#e8e0ca]",
-        "after:absolute after:bottom-[-2px] after:right-[-2px] after:h-3 after:w-3 after:rounded-br-[10px] after:border-b-2 after:border-r-2 after:border-[#e8e0ca]",
+        "pointer-events-none absolute h-6 w-6 border-b border-r border-[#dfcfa9] opacity-80",
+        "after:absolute after:bottom-[-1px] after:right-[-1px] after:h-2.5 after:w-2.5 after:rounded-br-[8px] after:border-b after:border-r after:border-[#dfcfa9]",
         className
       )}
     />

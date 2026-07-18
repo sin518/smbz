@@ -105,6 +105,8 @@ body {
 :root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f6f0e2]"],
 :root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f6f0d8]"],
 :root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f8f3e7]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#fbf2df]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="bg-[#fbf4e4]"],
 :root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f4efe2]"],
 :root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f4f1ed]"],
 :root[data-theme="dark"] .app-responsive-shell [class*="bg-[#f3f3f2]"],
@@ -130,6 +132,8 @@ body {
 
 :root[data-theme="dark"] .app-responsive-shell [class*="border-[#eaded2]"],
 :root[data-theme="dark"] .app-responsive-shell [class*="border-[#e8e0ca]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#e5d8bc]"],
+:root[data-theme="dark"] .app-responsive-shell [class*="border-[#ead9b4]"],
 :root[data-theme="dark"] .app-responsive-shell [class*="border-[#e5decb]"],
 :root[data-theme="dark"] .app-responsive-shell [class*="border-[#eee8dc]"],
 :root[data-theme="dark"] .app-responsive-shell [class*="border-[#eee4d2]"],
@@ -235,8 +239,8 @@ button {
   }
 
   .app-responsive-nav {
-    width: 100%;
-    max-width: min(100%, 430px);
+    width: calc(100% - 24px);
+    max-width: min(calc(100% - 24px), 406px);
     margin-inline: auto;
   }
 }
