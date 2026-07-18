@@ -23,7 +23,10 @@ const navItems: Array<{
 export function AppBottomNav({ active }: { active: NavKey }) {
   const router = useRouter();
   const [visualActive, setVisualActive] = useState(active);
+  const [isIndicatorMoving, setIsIndicatorMoving] = useState(false);
+  const [movementDirection, setMovementDirection] = useState<"left" | "right">("right");
   const navigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeIndex = navItems.findIndex((item) => item.key === visualActive);
 
   useEffect(() => {
@@ -32,6 +35,9 @@ export function AppBottomNav({ active }: { active: NavKey }) {
     return () => {
       if (navigationTimerRef.current) {
         clearTimeout(navigationTimerRef.current);
+      }
+      if (settleTimerRef.current) {
+        clearTimeout(settleTimerRef.current);
       }
     };
   }, [active]);
@@ -42,27 +48,35 @@ export function AppBottomNav({ active }: { active: NavKey }) {
     }
 
     event.preventDefault();
+    const targetIndex = navItems.findIndex((navItem) => navItem.key === item.key);
+    setMovementDirection(targetIndex > activeIndex ? "right" : "left");
+    setIsIndicatorMoving(true);
     setVisualActive(item.key);
 
     if (navigationTimerRef.current) {
       clearTimeout(navigationTimerRef.current);
     }
+    if (settleTimerRef.current) {
+      clearTimeout(settleTimerRef.current);
+    }
 
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    navigationTimerRef.current = setTimeout(() => router.push(item.href), prefersReducedMotion ? 0 : 180);
+    settleTimerRef.current = setTimeout(() => setIsIndicatorMoving(false), prefersReducedMotion ? 0 : 190);
+    navigationTimerRef.current = setTimeout(() => router.push(item.href), prefersReducedMotion ? 0 : 360);
   };
 
   return (
     <nav
-      className="app-responsive-nav fixed bottom-[calc(10px+env(safe-area-inset-bottom))] left-1/2 z-30 grid h-[62px] -translate-x-1/2 grid-cols-3 rounded-[28px] border border-[#e5d8bc]/90 bg-[var(--color-surface)]/95 p-1.5 shadow-[0_12px_36px_rgba(42,32,13,0.16)] backdrop-blur-xl"
+      className="liquid-glass app-responsive-nav fixed bottom-[calc(10px+env(safe-area-inset-bottom))] left-1/2 z-30 grid h-[62px] -translate-x-1/2 grid-cols-3 rounded-[28px] border border-white/60 p-1.5"
       aria-label="主导航"
     >
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 rounded-[22px] bg-[#fbf2df] transition-transform duration-200 ease-out motion-reduce:transition-none"
+        className="liquid-nav-indicator pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 rounded-[22px] motion-reduce:transition-none"
         style={{
           width: "calc((100% - 12px) / 3)",
-          transform: `translateX(${activeIndex * 100}%)`
+          transform: `translateX(${activeIndex * 100}%) scaleX(${isIndicatorMoving ? 1.12 : 1})`,
+          transformOrigin: movementDirection === "right" ? "left center" : "right center"
         }}
       />
       {navItems.map((item) => (

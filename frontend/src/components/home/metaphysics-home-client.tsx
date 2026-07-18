@@ -60,8 +60,8 @@ const homeCards: HomeCard[] = [
 
 export function MetaphysicsHomeClient() {
   return (
-    <main className="light-surface-text-scope app-responsive-shell flex h-dvh flex-col overflow-hidden bg-[#F8F7EE] text-ink shadow-soft">
-      <header className="mb-3 flex h-[80px] shrink-0 flex-col items-center justify-center border-b border-[#e5d8bc]/90 bg-[var(--color-surface)]/80 px-5 shadow-[0_8px_22px_rgba(42,32,13,0.08)] backdrop-blur-xl">
+    <main className="light-surface-text-scope app-responsive-shell relative flex h-dvh flex-col overflow-hidden bg-[#F8F7EE] text-ink shadow-soft">
+      <header className="liquid-glass absolute inset-x-0 top-0 z-20 flex h-[80px] shrink-0 flex-col items-center justify-center border-b border-white/55 px-5">
         <h1 className="shrink-0 text-center text-[24px] font-semibold leading-none tracking-[0.04em] text-black sm:text-[26px]">赛博排盘</h1>
         <div className="mt-2.5 flex w-full min-w-0 items-center justify-center gap-2.5 text-[#a28e66]" aria-hidden="true">
           <span className="h-px w-6 shrink-0 bg-[#d9c9a3]" />
@@ -70,7 +70,7 @@ export function MetaphysicsHomeClient() {
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(92px+env(safe-area-inset-bottom))] sm:px-6 sm:pb-[calc(104px+env(safe-area-inset-bottom))] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(92px+env(safe-area-inset-bottom))] pt-[92px] sm:px-6 sm:pb-[calc(104px+env(safe-area-inset-bottom))] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <section className="grid grid-cols-1 gap-3.5 sm:gap-4">
           {homeCards.map((card) => (
             <HomeFeatureCard key={card.title} card={card} />
