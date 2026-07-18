@@ -22,6 +22,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { chinaLocationOptions } from "@/lib/locations/china";
+import { cn } from "@/lib/utils";
 
 type ApiResult<T> = T & {
   message?: string;
@@ -550,40 +551,47 @@ function UserSettingsPage({
   }
 
   return (
-    <main className="light-surface-text-scope app-responsive-shell min-h-dvh bg-[#f7f7f7] text-ink shadow-soft">
-      <header className="grid h-[108px] grid-cols-[44px_minmax(0,1fr)_44px] items-center border-b border-[#f1f1f1] bg-white px-[22px] pt-[38px]">
-        <Link href="/settings" className="-ml-2 flex h-10 w-10 items-center justify-center text-[#222]" aria-label="返回设置">
-          <ChevronLeft size={34} strokeWidth={1.8} />
+    <main className="light-surface-text-scope app-responsive-shell min-h-dvh bg-[#F8F7EE] pb-8 text-ink shadow-soft">
+      <header className="liquid-glass sticky top-0 z-20 grid h-[80px] grid-cols-[44px_minmax(0,1fr)_44px] items-center border-b border-white/55 px-4">
+        <Link href="/settings" className="flex h-11 w-11 items-center justify-center rounded-full text-ink transition-colors active:bg-black/5" aria-label="返回设置">
+          <ChevronLeft size={27} strokeWidth={1.8} />
         </Link>
-        <h1 className="text-center text-[24px] font-medium tracking-[0.08em]">个人设置</h1>
+        <h1 className="text-center text-[23px] font-semibold tracking-[0.08em]">个人设置</h1>
         <span />
       </header>
 
-      <div>
-        <section className="mt-[18px] bg-white pl-[17px]">
+      <div className="px-4 pt-5">
+        <ProfileSectionTitle>账户信息</ProfileSectionTitle>
+        <section className="mt-2.5 overflow-hidden rounded-[24px] border border-[#e5d8bc] bg-[#fffdf7] shadow-soft">
           <SettingsRow icon={IdCard} label="ID" value={displayId} />
-          <SettingsRow icon={Smartphone} label={accountLabel} value={accountValue} actionable />
+          <SettingsRow icon={Smartphone} label={accountLabel} value={accountValue} actionable last />
         </section>
 
-        <p className="mt-[26px] px-[17px] pb-4 text-[14px] leading-[1.6] text-[#d95f68]">*输入出生信息，将会在用户列表排盘置顶，便于用户使用</p>
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <ProfileSectionTitle>个人资料</ProfileSectionTitle>
+          <p className="truncate text-[11px] text-[#b86a63]">完善出生信息后可快速排盘</p>
+        </div>
 
-        <section className="bg-white pl-[17px]">
+        <section className="mt-2.5 overflow-hidden rounded-[24px] border border-[#e5d8bc] bg-[#fffdf7] shadow-soft">
           <SettingsRow icon={UserRound} label="昵称" value={profile.name || "未填写"} actionable onClick={() => startEdit("name")} />
           <SettingsRow icon={UsersRound} label="性别" value={profile.gender || "未填写"} actionable onClick={() => startEdit("gender")} />
           <SettingsRow icon={Clock3} label="出生时间" value={formatProfileBirthTime(profile.birthTime)} actionable onClick={() => startEdit("birthTime")} />
           <SettingsRow icon={MapPin} label="出生地区" value={profile.birthPlace || "未填写"} actionable last onClick={() => startEdit("birthPlace")} />
         </section>
 
-        <section className="mt-6 bg-white pl-[17px]">
-          <SettingsRow icon={Power} label="账号注销" value="" actionable muted last onClick={() => setDeleteWarningOpen(true)} />
+        <section className="mt-5">
+          <ProfileSectionTitle>账户与安全</ProfileSectionTitle>
+          <div className="mt-2.5 overflow-hidden rounded-[24px] border border-[#e5d8bc] bg-[#fffdf7] shadow-soft">
+            <SettingsRow icon={Power} label="账号注销" value="" actionable muted last onClick={() => setDeleteWarningOpen(true)} />
+          </div>
         </section>
 
-        <section className="px-[15px] pt-7">
+        <section className="pt-5">
           <button
             type="button"
             onClick={signOut}
             disabled={signingOut}
-            className="flex h-[54px] w-full items-center justify-center rounded-full bg-[#eeeeee] text-[18px] font-medium tracking-[0.08em] text-[#666] disabled:opacity-60"
+            className="liquid-glass flex h-[52px] w-full items-center justify-center rounded-[22px] border border-white/60 text-[16px] font-semibold tracking-[0.08em] text-mutedInk transition active:scale-[0.99] disabled:opacity-60"
           >
             {signingOut ? <Loader2 className="animate-spin" size={21} /> : "退出登录"}
           </button>
@@ -611,6 +619,15 @@ function UserSettingsPage({
   );
 }
 
+function ProfileSectionTitle({ children }: { children: string }) {
+  return (
+    <div className="flex items-center gap-2 px-1 text-[#8d7b56]">
+      <span className="h-4 w-1 rounded-full bg-[#c5a45f]" />
+      <h2 className="text-[14px] font-semibold tracking-[0.12em]">{children}</h2>
+    </div>
+  );
+}
+
 function SettingsRow({
   icon,
   label,
@@ -631,11 +648,13 @@ function SettingsRow({
   const Icon = icon;
   const content = (
     <>
-      <Icon className={muted ? "text-[#b3b3b3]" : "text-[#6f7275]"} size={21} strokeWidth={1.9} />
-      <span className={`text-[18px] font-medium ${muted ? "text-[#8a8a8a]" : "text-black"}`}>{label}</span>
-      <span className="flex min-w-0 items-center justify-end text-right text-[16px] text-[#8d8d8d]">
+      <span className={cn("flex h-9 w-9 items-center justify-center rounded-[12px] bg-[var(--color-control)]", muted ? "text-[#aaa8a1]" : "text-[var(--color-icon)]")}>
+        <Icon size={19} strokeWidth={1.8} />
+      </span>
+      <span className={cn("text-[16px] font-semibold", muted ? "text-mutedInk" : "text-ink")}>{label}</span>
+      <span className="flex min-w-0 items-center justify-end text-right text-[14px] text-mutedInk">
         <span className="max-w-[160px] truncate">{value}</span>
-        {actionable ? <ChevronRight className="ml-1 shrink-0 text-[#999]" size={20} strokeWidth={2.1} /> : null}
+        {actionable ? <ChevronRight className="ml-1 shrink-0 text-[var(--color-chevron)]" size={19} strokeWidth={1.8} /> : null}
       </span>
     </>
   );
@@ -645,7 +664,7 @@ function SettingsRow({
       <button
         type="button"
         onClick={onClick}
-        className={`grid min-h-[58px] w-full grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2 pr-[18px] text-left ${last ? "" : "border-b border-[#eeeeee]"}`}
+        className={cn("grid min-h-[62px] w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-2 px-4 text-left transition-colors active:bg-[var(--color-control)]", !last && "border-b border-[var(--color-row-border)]")}
       >
         {content}
       </button>
@@ -653,7 +672,7 @@ function SettingsRow({
   }
 
   return (
-    <div className={`grid min-h-[58px] grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-2 pr-[18px] ${last ? "" : "border-b border-[#eeeeee]"}`}>
+    <div className={cn("grid min-h-[62px] grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-2 px-4", !last && "border-b border-[var(--color-row-border)]")}>
       {content}
     </div>
   );
