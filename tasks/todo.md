@@ -127,3 +127,57 @@
 - [x] 代码审查无必须修复项。
 
 **Dependencies:** Task 3
+
+---
+
+# 排盘录入页视觉统一
+
+## Task 1: 共享视觉基础
+
+**Acceptance criteria:**
+- [x] 八字当前标题、卡片和底部按钮样式提取为共享组件。
+- [x] 共享组件支持嵌入模式和各模块徽章色。
+- [x] 原表单逻辑与弹层行为不变。
+
+**Verification:**
+- [x] `pnpm typecheck`
+
+**Dependencies:** None
+
+## Task 2: 紫微与大六壬
+
+**Acceptance criteria:**
+- [x] 紫微保留地点选择弹层等现有未提交功能。
+- [x] 两页均使用统一标题、分组卡片和底部操作区。
+
+**Verification:**
+- [x] 536px 与 320px 页面检查。
+
+**Dependencies:** Task 1
+
+## Task 3: 奇门与六爻
+
+**Acceptance criteria:**
+- [x] 奇门嵌入模式不出现固定头部或固定按钮。
+- [x] 六爻各起卦方式的动态卡片保持可用。
+- [x] 页面长内容不被固定按钮遮挡。
+
+**Verification:**
+- [x] 各页面关键按钮和弹层可打开。
+
+**Dependencies:** Task 1
+
+## Task 4: 全量验证与审查
+
+**Acceptance criteria:**
+- [x] 类型检查、Lint、生产构建完成。
+- [x] 320px 与 536px 无横向溢出。
+- [x] 无新增依赖、接口或业务数据结构。
+
+**Verification:**
+- [x] `git diff --check`
+- [x] `pnpm typecheck`
+- [x] `pnpm lint`
+- [x] `pnpm build:frontend`
+
+**Dependencies:** Tasks 1–3

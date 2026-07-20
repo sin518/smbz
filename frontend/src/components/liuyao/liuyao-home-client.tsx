@@ -1,15 +1,21 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CalendarClock, Check, ChevronDown, Compass, Hand, Hash, Info, ListChecks, MessageSquareText, X } from "lucide-react";
+import { CalendarClock, Check, ChevronDown, Compass, Hand, Hash, Hexagon, Info, MessageSquareText, X } from "lucide-react";
 import { Lunar, Solar } from "lunar-typescript";
 import { resolveBaziPillars } from "taibu-core/bazi-pillars-resolve";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, type UseFormRegisterReturn, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { SharedFieldRow, SharedFormCard, SharedSegmentedPill, formatDateTimeLocal } from "@/components/shared/divination-profile-card";
+import {
+  DivinationFormBody,
+  DivinationFormShell,
+  DivinationSectionHeader,
+  DivinationSubmitBar,
+  divinationFormCardClass
+} from "@/components/shared/divination-form-shell";
 import { GanzhiPillarSelector } from "@/components/shared/ganzhi-pillar-selector";
 import { castLiuyaoLine, type LiuyaoLine } from "@/lib/liuyao/casting";
 import { cn } from "@/lib/utils";
@@ -287,20 +293,12 @@ export function LiuyaoHomeClient() {
   }
 
   return (
-    <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-[#F8F7EE] pb-8 text-ink shadow-soft">
-      <header className="px-5 pb-2 pt-8">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="-ml-2 flex h-10 w-10 items-center justify-center" aria-label="返回首页">
-            <ArrowLeft size={24} />
-          </Link>
-          <h1 className="text-[24px] font-semibold">六爻断事</h1>
-          <span className="h-10 w-10" />
-        </div>
-      </header>
-
-      <div className="space-y-4 px-4 pt-4">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <SharedFormCard>
+    <DivinationFormShell title="六爻断事" subtitle="一事一问，推演变化" icon={Hexagon} tone="purple">
+      <DivinationFormBody>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="space-y-4">
+          <SharedFormCard className={divinationFormCardClass}>
+            <DivinationSectionHeader title="求测信息" description="聚焦所问之事，并选择分析方向" tone="purple" />
             <SharedFieldRow icon={CalendarClock} label="起卦时间" error={errors.castingTime?.message}>
               <button
                 type="button"
@@ -344,7 +342,8 @@ export function LiuyaoHomeClient() {
             </SharedFieldRow>
           </SharedFormCard>
 
-          <SharedFormCard>
+          <SharedFormCard className={divinationFormCardClass}>
+            <DivinationSectionHeader title="起卦方式" description="选择适合当前情境的起卦方法" tone="purple" />
             <Controller
               name="castingMethod"
               control={control}
@@ -365,7 +364,8 @@ export function LiuyaoHomeClient() {
           </SharedFormCard>
 
           {castingMethod === "number" ? (
-            <SharedFormCard>
+            <SharedFormCard className={divinationFormCardClass}>
+              <DivinationSectionHeader title="报数设置" description="输入直觉想到的数字完成起卦" tone="purple" />
               <Controller
                 name="numberMode"
                 control={control}
@@ -384,12 +384,9 @@ export function LiuyaoHomeClient() {
           ) : null}
 
           {castingMethod === "manual" ? (
-            <SharedFormCard>
+            <SharedFormCard className={divinationFormCardClass}>
+              <DivinationSectionHeader title="指定六爻" description="从上爻到初爻依次确认阴阳与动静" tone="purple" />
               <div className="space-y-2 py-3">
-                <div className="flex items-center gap-2 text-[17px] font-semibold text-ink">
-                  <ListChecks size={18} className="text-[#a58024]" />
-                  指定六爻
-                </div>
                 <div className="space-y-1.5">
                   {manualLineLabels.map((lineLabel, index) => ({ lineLabel, index })).reverse().map(({ lineLabel, index }) => (
                     <ManualLinePreview
@@ -405,16 +402,13 @@ export function LiuyaoHomeClient() {
           ) : null}
 
           {castingMethod === "hexagram" ? (
-            <SharedFormCard>
+            <SharedFormCard className={divinationFormCardClass}>
+              <DivinationSectionHeader title="选择爻卦" description="从六十四卦中选择目标卦象" tone="purple" />
               <Controller
                 name="hexagramCode"
                 control={control}
                 render={({ field }) => (
                   <div className="space-y-3 py-3">
-                    <div className="flex items-center gap-2 text-[17px] font-semibold text-ink">
-                      <ListChecks size={18} className="text-[#a58024]" />
-                      选择爻卦
-                    </div>
                     <div className="grid max-h-[360px] grid-cols-2 gap-2 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {hexagramOptions.map((option) => (
                         <HexagramChoice
@@ -430,14 +424,9 @@ export function LiuyaoHomeClient() {
               />
             </SharedFormCard>
           ) : null}
+          </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="mx-auto mt-10 block h-14 w-[68%] rounded-full bg-black text-[22px] font-semibold text-[#e8d4a7] shadow-soft disabled:opacity-70"
-          >
-            开始起卦
-          </button>
+          <DivinationSubmitBar label="开始起卦" busyLabel="起卦中" isBusy={isSubmitting} icon={Hexagon} />
 
           <aside className="mx-auto mt-7 w-full max-w-[398px] border-t border-[#e5decb] px-1 pt-5" aria-labelledby="liuyao-question-tip-title">
             <h2 id="liuyao-question-tip-title" className="flex items-center gap-2 text-[16px] font-semibold text-[#8f6f2e]">
@@ -469,7 +458,7 @@ export function LiuyaoHomeClient() {
             </div>
           </aside>
         </form>
-      </div>
+      </DivinationFormBody>
 
       <LiuyaoTimePickerSheet
         open={castingTimePickerOpen}
@@ -528,7 +517,7 @@ export function LiuyaoHomeClient() {
           setManualLinePickerIndex(null);
         }}
       />
-    </main>
+    </DivinationFormShell>
   );
 }
 

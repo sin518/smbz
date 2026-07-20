@@ -2,8 +2,7 @@
 
 // 需要 useState + react-hook-form 管理时间弹层和表单状态。
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CalendarClock, CalendarDays, ChevronDown, Users } from "lucide-react";
-import Link from "next/link";
+import { CalendarClock, CalendarDays, ChevronDown, ScrollText, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -16,6 +15,13 @@ import {
   formatDateTimeLocal,
   formatPickerLabel
 } from "@/components/shared/divination-profile-card";
+import {
+  DivinationFormBody,
+  DivinationFormShell,
+  DivinationSectionHeader,
+  DivinationSubmitBar,
+  divinationFormCardClass
+} from "@/components/shared/divination-form-shell";
 
 const currentYear = new Date().getFullYear();
 
@@ -80,87 +86,74 @@ export function DaliurenHomeClient() {
   }
 
   return (
-    <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-[#F8F7EE] pb-8 text-ink shadow-soft">
-      <header className="px-5 pb-2 pt-8">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="-ml-2 flex h-10 w-10 items-center justify-center" aria-label="返回首页">
-            <ArrowLeft size={24} />
-          </Link>
-          <h1 className="text-[24px] font-semibold">大六壬</h1>
-          <span className="h-10 w-10" />
-        </div>
-      </header>
+    <DivinationFormShell title="大六壬" subtitle="起课问事，推演人事" icon={ScrollText} tone="brown">
+      <DivinationFormBody>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="space-y-4">
+            <SharedFormCard className={divinationFormCardClass}>
+              <DivinationSectionHeader title="所问之事" description="聚焦一件具体事情，便于推演判断" tone="brown" />
+              <div className="py-4">
+                <label htmlFor="daliuren-question" className="sr-only">占事</label>
+                <textarea
+                  {...register("question")}
+                  id="daliuren-question"
+                  rows={2}
+                  className="min-h-[76px] w-full resize-none rounded-[14px] border border-[#e1d2b3] bg-[#fffaf0] px-4 py-3 text-[16px] font-semibold leading-6 text-ink outline-none placeholder:text-[#aaa39a] focus:border-[#b68a3b]"
+                  placeholder="例如：此事下一步如何推进？"
+                />
+                {errors.question?.message ? <p className="mt-2 text-right text-sm text-red-600">{errors.question.message}</p> : null}
+              </div>
+            </SharedFormCard>
 
-      <div className="space-y-4 px-4 pt-4">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <section className="pt-1">
-            <label htmlFor="daliuren-question" className="block text-center text-[15px] font-semibold text-[#8b8985]">
-              占事
-            </label>
-            <textarea
-              {...register("question")}
-              id="daliuren-question"
-              rows={2}
-              className="mt-3 min-h-[62px] w-full resize-none content-center rounded-lg border border-[#d8c8a6] bg-transparent px-4 py-3 text-center text-[17px] font-semibold text-ink outline-none placeholder:text-[#8b8985]"
-              placeholder="例如：此事下一步如何推进？"
-            />
-            {errors.question?.message ? <p className="mt-2 text-right text-sm text-red-600">{errors.question.message}</p> : null}
-          </section>
+            <SharedFormCard className={divinationFormCardClass}>
+              <DivinationSectionHeader title="起课信息" description="确认起课时间与求测人资料" tone="brown" />
+              <SharedFieldRow icon={CalendarClock} label="起课时间" error={errors.dateTime?.message}>
+                <button
+                  type="button"
+                  onClick={() => setTimePickerOpen(true)}
+                  className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
+                  aria-label="选择起课时间"
+                >
+                  {dateTime ? formatPickerLabel(dateTime) : "请选择"}
+                  <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
+                </button>
+              </SharedFieldRow>
 
-          <SharedFormCard>
-            <SharedFieldRow icon={CalendarClock} label="起课时间" error={errors.dateTime?.message}>
-              <button
-                type="button"
-                onClick={() => setTimePickerOpen(true)}
-                className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
-                aria-label="选择起课时间"
-              >
-                {dateTime ? formatPickerLabel(dateTime) : "请选择"}
-                <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
-              </button>
-            </SharedFieldRow>
+              <SharedFieldRow icon={CalendarDays} label="出生年份" error={errors.birthYear?.message}>
+                <input
+                  {...register("birthYear", { valueAsNumber: true })}
+                  type="number"
+                  inputMode="numeric"
+                  min={1900}
+                  max={currentYear}
+                  className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none placeholder:text-[#bdbbb5]"
+                  placeholder="如 1990"
+                />
+              </SharedFieldRow>
 
-            <SharedFieldRow icon={CalendarDays} label="出生年份" error={errors.birthYear?.message}>
-              <input
-                {...register("birthYear", { valueAsNumber: true })}
-                type="number"
-                inputMode="numeric"
-                min={1900}
-                max={currentYear}
-                className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none placeholder:text-[#bdbbb5]"
-                placeholder="如 1990"
+              <Controller
+                name="gender"
+                control={control}
+                render={({ field }) => (
+                  <SharedFieldRow icon={Users} label="性别" last>
+                    <SharedSegmentedPill
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={[
+                        { label: "男", value: "male" },
+                        { label: "女", value: "female" }
+                      ]}
+                      ariaLabel="选择性别"
+                    />
+                  </SharedFieldRow>
+                )}
               />
-            </SharedFieldRow>
+            </SharedFormCard>
+          </div>
 
-            <Controller
-              name="gender"
-              control={control}
-              render={({ field }) => (
-                <SharedFieldRow icon={Users} label="性别" last>
-                  <SharedSegmentedPill
-                    value={field.value}
-                    onChange={field.onChange}
-                    options={[
-                      { label: "男", value: "male" },
-                      { label: "女", value: "female" }
-                    ]}
-                    ariaLabel="选择性别"
-                  />
-                </SharedFieldRow>
-              )}
-            />
-          </SharedFormCard>
-
-          <button
-            type="button"
-            onClick={handleSubmit(onSubmit)}
-            disabled={isSubmitting}
-            className="mx-auto mt-10 block h-14 w-[68%] rounded-full bg-black text-[22px] font-semibold text-[#e8d4a7] shadow-soft disabled:opacity-70"
-          >
-            起课
-          </button>
+          <DivinationSubmitBar label="开始起课" busyLabel="起课中" isBusy={isSubmitting} icon={ScrollText} />
         </form>
-      </div>
+      </DivinationFormBody>
 
       <DivinationTimePickerSheet
         open={timePickerOpen}
@@ -172,6 +165,6 @@ export function DaliurenHomeClient() {
           setTimePickerOpen(false);
         }}
       />
-    </main>
+    </DivinationFormShell>
   );
 }

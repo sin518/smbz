@@ -40,6 +40,9 @@ type DivinationProfileCardProps = {
   dateTimeError?: string;
   onOpenTimePicker: () => void;
   onApplyProfile?: (profile: SharedProfileValue) => void;
+  header?: ReactNode;
+  cardClassName?: string;
+  showDateTime?: boolean;
 };
 
 export function DivinationProfileCard({
@@ -50,12 +53,16 @@ export function DivinationProfileCard({
   dateTime,
   dateTimeError,
   onOpenTimePicker,
-  onApplyProfile
+  onApplyProfile,
+  header,
+  cardClassName,
+  showDateTime = true
 }: DivinationProfileCardProps) {
   const [profileSheetOpen, setProfileSheetOpen] = useState(false);
 
   return (
-    <SharedFormCard>
+    <SharedFormCard className={cardClassName}>
+      {header}
       <SharedFieldRow icon={UserRound} label="姓名" error={nameError}>
         <div className="flex min-w-0 items-center justify-end gap-2">
           <input
@@ -73,7 +80,7 @@ export function DivinationProfileCard({
         </div>
       </SharedFieldRow>
 
-      <SharedFieldRow icon={Users} label="性别">
+      <SharedFieldRow icon={Users} label="性别" last={!showDateTime}>
         <SharedSegmentedPill
           value={gender}
           onChange={onGenderChange}
@@ -85,17 +92,19 @@ export function DivinationProfileCard({
         />
       </SharedFieldRow>
 
-      <SharedFieldRow icon={CalendarClock} label="出生时间" error={dateTimeError} last>
-        <button
-          type="button"
-          onClick={onOpenTimePicker}
-          className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#aaa8a1]"
-          aria-label="选择出生时间"
-        >
-          {dateTime ? formatPickerLabel(dateTime) : "请选择"}
-          <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
-        </button>
-      </SharedFieldRow>
+      {showDateTime ? (
+        <SharedFieldRow icon={CalendarClock} label="出生时间" error={dateTimeError} last>
+          <button
+            type="button"
+            onClick={onOpenTimePicker}
+            className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#aaa8a1]"
+            aria-label="选择出生时间"
+          >
+            {dateTime ? formatPickerLabel(dateTime) : "请选择"}
+            <ChevronDown size={20} strokeWidth={2.5} className="shrink-0 text-[#302f2c]" />
+          </button>
+        </SharedFieldRow>
+      ) : null}
 
       {profileSheetOpen ? (
         <SharedProfileSheet
@@ -292,8 +301,8 @@ export function SharedFieldRow({
 }) {
   return (
     <div className={cn("py-4", !last && "border-b border-[#ebe7dd]")}>
-      <div className="grid grid-cols-[112px_1fr] items-center gap-2">
-        <label className="flex items-center gap-2 text-[18px] font-semibold text-ink">
+      <div className="grid grid-cols-[minmax(88px,112px)_minmax(0,1fr)] items-center gap-2">
+        <label className="flex items-center gap-2 whitespace-nowrap text-[18px] font-semibold text-ink">
           <Icon size={19} className="text-[#a58024]" />
           {label}
         </label>

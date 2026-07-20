@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>方案三：东方禅意 - 赛博八字</title>
+  <style>
+    :root { color-scheme: light }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #F8F7EE;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      width: 100%;
+      max-width: 430px;
+      background: #F8F7EE;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* 顶部装饰 */
+    .header-ornament {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 200px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(183, 154, 91, 0.08), transparent 60%),
+        linear-gradient(180deg, rgba(255, 253, 245, 0.6), transparent);
+      pointer-events: none;
+    }
+
+    /* 顶部导航 */
+    .header {
+      position: relative;
+      padding: 32px 20px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .back-btn {
+      position: absolute;
+      left: 20px;
+      top: 32px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: #2f2d2a;
+    }
+
+    .title-group {
+      text-align: center;
+    }
+    .title {
+      font-size: 26px;
+      font-weight: 600;
+      color: #34322f;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #a28e66;
+      letter-spacing: 0.12em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .subtitle::before,
+    .subtitle::after {
+      content: '';
+      width: 24px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #d9c9a3, transparent);
+    }
+
+    /* 主体内容 */
+    .main-content {
+      position: relative;
+      padding: 8px 20px 40px;
+    }
+
+    /* 分组标题 */
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #898783;
+      letter-spacing: 0.04em;
+      margin: 24px 0 12px;
+      padding-left: 12px;
+      position: relative;
+    }
+    .section-title::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 14px;
+      background: linear-gradient(180deg, #b79a5b, #d9c9a3);
+      border-radius: 2px;
+    }
+
+    /* 表单卡片 - 竖向布局 */
+    .form-card {
+      background: #fffdf7;
+      border: 1px solid #e5d8bc;
+      border-radius: 18px;
+      padding: 24px;
+      margin-bottom: 12px;
+      box-shadow: 0 6px 18px rgba(70, 53, 20, 0.045);
+      position: relative;
+    }
+
+    /* 顶部装饰线 */
+    .form-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #e5d8bc, transparent);
+      border-radius: 0 0 2px 2px;
+    }
+
+    /* 字段组 - 垂直布局 */
+    .field-group {
+      margin-bottom: 20px;
+    }
+    .field-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .field-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .field-icon {
+      width: 20px;
+      height: 20px;
+      color: #b79a5b;
+      flex-shrink: 0;
+    }
+
+    .field-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #74716a;
+      letter-spacing: 0.02em;
+    }
+
+    /* 输入框 */
+    .field-input {
+      width: 100%;
+      border: 2px solid #f2ead8;
+      background: #fbf9f5;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 16px;
+      font-weight: 500;
+      color: #34322f;
+      outline: none;
+      transition: all 0.25s;
+    }
+    .field-input:focus {
+      border-color: #d9c9a3;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(217, 201, 163, 0.1);
+    }
+    .field-input::placeholder {
+      color: #aaa8a1;
+      font-weight: 400;
+    }
+
+    /* 性别选择 - 中式风格 */
+    .gender-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .gender-btn {
+      height: 48px;
+      border-radius: 14px;
+      border: 2px solid #e8e1cf;
+      background: #fbf9f5;
+      font-size: 16px;
+      font-weight: 600;
+      color: #74716a;
+      cursor: pointer;
+      transition: all 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .gender-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(183, 154, 91, 0.08), transparent);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .gender-btn:hover::before {
+      opacity: 1;
+    }
+    .gender-btn.active {
+      background: linear-gradient(135deg, #9a5f1f, #b07222);
+      border-color: #9a5f1f;
+      color: #ffe1a1;
+      box-shadow:
+        0 4px 12px rgba(154, 95, 31, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    /* 选择按钮 - 中式框 */
+    .select-btn {
+      width: 100%;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 2px solid #e8e1cf;
+      background: #fbf9f5;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #55514a;
+      cursor: pointer;
+      transition: all 0.25s;
+      position: relative;
+    }
+    .select-btn:active {
+      transform: scale(0.98);
+    }
+    .select-btn svg {
+      width: 18px;
+      height: 18px;
+      color: #b79a5b;
+      flex-shrink: 0;
+    }
+    .select-btn-content {
+      flex: 1;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .location-dot {
+      color: #d9c9a3;
+      font-weight: 400;
+      font-size: 12px;
+    }
+
+    /* 开关区域 */
+    .switch-group {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px;
+      background: linear-gradient(135deg, #fbf9f5, #f8f6f2);
+      border: 1px solid #ebe7dd;
+      border-radius: 14px;
+      margin-bottom: 12px;
+    }
+
+    .switch-info {
+      flex: 1;
+    }
+    .switch-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #55514a;
+      margin-bottom: 4px;
+    }
+    .switch-desc {
+      font-size: 12px;
+      line-height: 1.5;
+      color: #9d9a92;
+    }
+
+    /* 开关 - 圆形设计 */
+    .toggle {
+      position: relative;
+      width: 50px;
+      height: 28px;
+      background: #e0dbce;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-shrink: 0;
+      border: 2px solid transparent;
+    }
+    .toggle.active {
+      background: linear-gradient(135deg, #b07222, #c98a3a);
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow:
+        0 2px 8px rgba(176, 114, 34, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    .toggle-knob {
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 999px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .toggle.active .toggle-knob {
+      transform: translateX(22px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+
+    /* 状态显示 */
+    .status-card {
+      background: linear-gradient(135deg, #f6edd9, #fbf4e4);
+      border: 1px solid #ead9b4;
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .status-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #b79a5b, #c9ad6f);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 16px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(183, 154, 91, 0.25);
+    }
+    .status-content {
+      flex: 1;
+    }
+    .status-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #8a7340;
+      margin-bottom: 2px;
+    }
+    .status-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #6a5d3e;
+    }
+    .status-value.inactive {
+      color: #aaa8a1;
+    }
+
+    /* 提交按钮 - 中式设计 */
+    .submit-btn {
+      width: 100%;
+      height: 58px;
+      margin-top: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 16px;
+      border: none;
+      background: linear-gradient(135deg, #2f2d2a, #000000);
+      color: #e8d4a7;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      transition: all 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .submit-btn::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .submit-btn:hover::before {
+      opacity: 1;
+    }
+    .submit-btn:active {
+      transform: translateY(2px);
+      box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    .submit-icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* 底部装饰 */
+    .footer-ornament {
+      margin-top: 40px;
+      text-align: center;
+      padding-bottom: 20px;
+    }
+    .ornament-line {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      opacity: 0.5;
+    }
+    .ornament-dot {
+      width: 4px;
+      height: 4px;
+      background: #d9c9a3;
+      border-radius: 50%;
+    }
+    .ornament-dash {
+      width: 32px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #d9c9a3, transparent);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-ornament"></div>
+
+    <!-- 顶部导航 -->
+    <header class="header">
+      <button class="back-btn" aria-label="返回">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </button>
+
+      <div class="title-group">
+        <h1 class="title">赛博八字</h1>
+        <div class="subtitle">
+          <span>命理排盘</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <main class="main-content">
+      <div class="section-title">基本信息</div>
+
+      <!-- 姓名与性别 -->
+      <div class="form-card">
+        <div class="field-group">
+          <div class="field-header">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <label class="field-label">姓名</label>
+          </div>
+          <input type="text" class="field-input" placeholder="请输入姓名" value="" />
+        </div>
+
+        <div class="field-group">
+          <div class="field-header">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+            <label class="field-label">性别</label>
+          </div>
+          <div class="gender-selector">
+            <button class="gender-btn active">男</button>
+            <button class="gender-btn">女</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">时空信息</div>
+
+      <!-- 出生时间 -->
+      <div class="form-card">
+        <div class="field-group">
+          <div class="field-header">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <label class="field-label">出生时间</label>
+          </div>
+          <button class="select-btn">
+            <span class="select-btn-content">请选择</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 出生地点 -->
+      <div class="form-card">
+        <div class="field-group">
+          <div class="field-header">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+            <label class="field-label">出生地点</label>
+          </div>
+          <button class="select-btn">
+            <span class="select-btn-content">
+              <span>北京市</span>
+              <span class="location-dot">·</span>
+              <span>北京市</span>
+              <span class="location-dot">·</span>
+              <span>东城区</span>
+            </span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="section-title">高级选项</div>
+
+      <!-- 真太阳时 -->
+      <div class="switch-group">
+        <div class="switch-info">
+          <div class="switch-title">真太阳时</div>
+          <div class="switch-desc">根据出生地经度校正时间</div>
+        </div>
+        <div class="toggle">
+          <div class="toggle-knob"></div>
+        </div>
+      </div>
+
+      <!-- 校正时间显示 -->
+      <div class="status-card">
+        <div class="status-icon">🕐</div>
+        <div class="status-content">
+          <div class="status-label">校正时间</div>
+          <div class="status-value inactive">未启用</div>
+        </div>
+      </div>
+
+      <!-- 提交按钮 -->
+      <button class="submit-btn">
+        <svg class="submit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <span>开始排盘</span>
+      </button>
+
+      <!-- 底部装饰 -->
+      <div class="footer-ornament">
+        <div class="ornament-line">
+          <span class="ornament-dot"></span>
+          <span class="ornament-dash"></span>
+          <span class="ornament-dot"></span>
+          <span class="ornament-dash"></span>
+          <span class="ornament-dot"></span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // 性别选择
+    document.querySelectorAll('.gender-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    // 开关切换
+    const toggle = document.querySelector('.toggle');
+    const statusValue = document.querySelector('.status-value');
+
+    toggle.addEventListener('click', () => {
+      toggle.classList.toggle('active');
+      if (toggle.classList.contains('active')) {
+        statusValue.textContent = '2024-01-01 12:15 (+8分)';
+        statusValue.classList.remove('inactive');
+      } else {
+        statusValue.textContent = '未启用';
+        statusValue.classList.add('inactive');
+      }
+    });
+  </script>
+</body>
+</html>

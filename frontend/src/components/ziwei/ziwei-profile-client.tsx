@@ -1,8 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, MapPin, Save, Stars } from "lucide-react";
-import Link from "next/link";
+import { CalendarClock, ChevronDown, ChevronRight, MapPin, Save, Stars } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -13,8 +12,17 @@ import {
   SharedFieldRow,
   SharedFormCard,
   formatDateTimeLocal,
+  formatPickerLabel,
   saveSharedProfile
 } from "@/components/shared/divination-profile-card";
+import {
+  DivinationFormBody,
+  DivinationFormShell,
+  DivinationSectionHeader,
+  DivinationSubmitBar,
+  divinationFormCardClass
+} from "@/components/shared/divination-form-shell";
+import { BaziLocationPickerSheet } from "@/components/bazi/bazi-location-picker-sheet";
 import { chinaLocationOptions } from "@/lib/locations/china";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +51,7 @@ const defaultValues: ZiweiProfileValues = {
 export function ZiweiProfileClient() {
   const router = useRouter();
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const {
     control,
     register,
@@ -111,101 +120,86 @@ export function ZiweiProfileClient() {
   }
 
   return (
-    <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-[#F8F7EE] pb-8 text-ink shadow-soft">
-      <header className="px-5 pb-2 pt-8">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="-ml-2 flex h-10 w-10 items-center justify-center" aria-label="返回首页">
-            <ArrowLeft size={24} />
-          </Link>
-          <h1 className="text-[24px] font-semibold">紫薇斗数</h1>
-          <span className="h-10 w-10" />
-        </div>
-      </header>
-
-      <div className="space-y-4 px-4 pt-4">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Controller
-            name="gender"
-            control={control}
-            render={({ field }) => (
-              <DivinationProfileCard
-                nameInputProps={register("name")}
-                nameError={errors.name?.message}
-                gender={field.value}
-                onGenderChange={field.onChange}
-                dateTime={birthTime}
-                dateTimeError={errors.birthTime?.message}
-                onOpenTimePicker={() => setTimePickerOpen(true)}
-                onApplyProfile={(profile) => {
-                  setValue("name", profile.name, { shouldDirty: true, shouldValidate: true });
-                  setValue("gender", profile.gender, { shouldDirty: true, shouldValidate: true });
-                  setValue("birthTime", profile.dateTime, { shouldDirty: true, shouldValidate: true });
-                }}
-              />
-            )}
-          />
-
-          <SharedFormCard>
-            <SharedFieldRow icon={MapPin} label="出生地点" error={errors.province?.message || errors.city?.message || errors.district?.message}>
-              <div className="grid min-w-0 grid-cols-3 gap-1.5">
-                <select {...register("province")} className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none" aria-label="省份">
-                  {chinaLocationOptions.map((item) => (
-                    <option key={item.province} value={item.province}>
-                      {item.province}
-                    </option>
-                  ))}
-                </select>
-                <select {...register("city")} className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none" aria-label="城市">
-                  {cities.map((item) => (
-                    <option key={item.city} value={item.city}>
-                      {item.city}
-                    </option>
-                  ))}
-                </select>
-                <select {...register("district")} className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none" aria-label="区县">
-                  {districts.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </SharedFieldRow>
-
-            <SharedFieldRow icon={Stars} label="排盘流派">
-              <span className="block text-right text-[18px] font-semibold text-[#55514a]">三合紫薇</span>
-            </SharedFieldRow>
-
+    <DivinationFormShell title="紫薇斗数" subtitle="命盘结构，洞察格局" icon={Stars} tone="gold">
+      <DivinationFormBody>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="space-y-4">
             <Controller
-              name="save"
+              name="gender"
               control={control}
               render={({ field }) => (
-                <SharedFieldRow icon={Save} label="保存记录" last>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => field.onChange(!field.value)}
-                      className={cn("relative h-8 w-14 overflow-hidden rounded-full transition-colors", field.value ? "bg-black" : "bg-[#d7d7d7]")}
-                      aria-pressed={field.value}
-                      aria-label="是否保存"
-                    >
-                      <span className={cn("absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-sm transition-transform", field.value ? "translate-x-6" : "translate-x-0")} />
-                    </button>
-                  </div>
-                </SharedFieldRow>
+                <DivinationProfileCard
+                  nameInputProps={register("name")}
+                  nameError={errors.name?.message}
+                  gender={field.value}
+                  onGenderChange={field.onChange}
+                  dateTime={birthTime}
+                  dateTimeError={errors.birthTime?.message}
+                  onOpenTimePicker={() => setTimePickerOpen(true)}
+                  showDateTime={false}
+                  cardClassName={divinationFormCardClass}
+                  header={<DivinationSectionHeader title="基本信息" description="用于命盘称呼与阴阳顺逆推演" tone="gold" />}
+                  onApplyProfile={(profile) => {
+                    setValue("name", profile.name, { shouldDirty: true, shouldValidate: true });
+                    setValue("gender", profile.gender, { shouldDirty: true, shouldValidate: true });
+                    setValue("birthTime", profile.dateTime, { shouldDirty: true, shouldValidate: true });
+                  }}
+                />
               )}
             />
-          </SharedFormCard>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="mx-auto mt-10 block h-14 w-[68%] rounded-full bg-black text-[22px] font-semibold text-[#e8d4a7] shadow-soft disabled:opacity-70"
-          >
-            开始排盘
-          </button>
+            <SharedFormCard className={divinationFormCardClass}>
+              <DivinationSectionHeader title="出生与排盘" description="确认出生资料及排盘记录设置" tone="gold" />
+              <SharedFieldRow icon={CalendarClock} label="出生时间" error={errors.birthTime?.message}>
+                <button
+                  type="button"
+                  onClick={() => setTimePickerOpen(true)}
+                  className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[17px] font-semibold text-[#55514a]"
+                  aria-label="选择出生时间"
+                >
+                  <span className="truncate">{birthTime ? formatPickerLabel(birthTime) : "请选择"}</span>
+                  <ChevronDown size={19} strokeWidth={2.4} className="shrink-0 text-[#77736b]" />
+                </button>
+              </SharedFieldRow>
+              <SharedFieldRow icon={MapPin} label="出生地点" error={errors.province?.message || errors.city?.message || errors.district?.message}>
+                <button type="button" onClick={() => setLocationPickerOpen(true)} className="flex min-w-0 items-center justify-end gap-1.5 text-right text-[17px] font-semibold text-[#55514a]" aria-label="选择出生地点">
+                  <span className="truncate">{province} · {city} · {district}</span>
+                  <ChevronRight size={19} className="shrink-0 text-[#8b8985]" />
+                </button>
+              </SharedFieldRow>
+
+              <SharedFieldRow icon={Stars} label="排盘流派">
+                <span className="block text-right text-[18px] font-semibold text-[#55514a]">三合紫薇</span>
+              </SharedFieldRow>
+
+              <Controller
+                name="save"
+                control={control}
+                render={({ field }) => (
+                  <SharedFieldRow icon={Save} label="保存记录" last>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => field.onChange(!field.value)}
+                        className={cn(
+                          "relative h-8 w-14 overflow-hidden rounded-full border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a58024]",
+                          field.value ? "border-black bg-black" : "border-[#d8d3c8] bg-[#e5e1d8]"
+                        )}
+                        aria-pressed={field.value}
+                        aria-label="是否保存"
+                      >
+                        <span className={cn("absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-sm transition-transform", field.value ? "translate-x-6" : "translate-x-0")} />
+                      </button>
+                    </div>
+                  </SharedFieldRow>
+                )}
+              />
+            </SharedFormCard>
+          </div>
+
+          <DivinationSubmitBar label="开始排盘" busyLabel="排盘中" isBusy={isSubmitting} icon={Stars} />
         </form>
-      </div>
+      </DivinationFormBody>
 
       <DivinationTimePickerSheet
         open={timePickerOpen}
@@ -217,7 +211,18 @@ export function ZiweiProfileClient() {
         }}
         ariaLabel="关闭出生时间选择"
       />
-    </main>
+      <BaziLocationPickerSheet
+        open={locationPickerOpen}
+        value={{ province, city, district }}
+        onClose={() => setLocationPickerOpen(false)}
+        onConfirm={(nextLocation) => {
+          setValue("province", nextLocation.province, { shouldDirty: true, shouldValidate: true });
+          setValue("city", nextLocation.city, { shouldDirty: true, shouldValidate: true });
+          setValue("district", nextLocation.district, { shouldDirty: true, shouldValidate: true });
+          setLocationPickerOpen(false);
+        }}
+      />
+    </DivinationFormShell>
   );
 }
 
