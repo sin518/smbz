@@ -91,7 +91,7 @@ export function ProfessionalDetail({
 function ProfessionalChart({ columns }: { columns: DetailColumn[] }) {
   return (
     <section className="mx-4 overflow-hidden rounded-[14px] border border-[#e4d9c5] bg-white shadow-[0_10px_30px_rgba(67,48,20,0.07)]" aria-label="专业细盘四柱排盘">
-      <div className="grid grid-cols-[64px_repeat(6,minmax(0,1fr))] text-center">
+      <div className="grid grid-cols-[64px_repeat(6,minmax(0,1fr))] text-center max-[380px]:grid-cols-[54px_repeat(6,minmax(0,1fr))]">
         <DetailLabel rowIndex={0}>日期</DetailLabel>
         {columns.map((column) => (
           <DetailCell key={column.title} rowIndex={0} muted>{column.title}</DetailCell>
@@ -189,9 +189,9 @@ function HiddenStemCell({ column }: { column: DetailColumn }) {
 
 function DetailShenshaCell({ items }: { items: string[] }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-1 border-b border-l border-[#e9e1d2] px-1 text-[10px] leading-[1.25]", getDetailRowClass(9, false, true))}>
+    <div className={cn("flex flex-col items-center justify-center gap-1 border-b border-l border-[#e9e1d2] px-1 text-[10px] leading-[1.25] max-[380px]:gap-0.5 max-[380px]:px-0.5 max-[380px]:text-[8px]", getDetailRowClass(9, false, true))}>
       {items.slice(0, 4).map((item) => (
-        <p key={item} className="max-w-full whitespace-nowrap rounded-[5px] border border-[#eadfca] bg-[#fdf9f1] px-1 py-0.5 text-[#8b672d]">{item}</p>
+        <p key={item} className="max-w-full whitespace-nowrap rounded-[5px] border border-[#eadfca] bg-[#fdf9f1] px-1 py-0.5 text-[#8b672d] max-[380px]:rounded-[4px] max-[380px]:px-0.5">{item}</p>
       ))}
     </div>
   );
@@ -208,8 +208,8 @@ function LuckScroller({ title, items, selectedIndex, onSelect }: { title: string
   const visibleItems = items.slice(0, title === "流月" ? 12 : 10);
 
   return (
-    <div className="mx-4 mt-4 grid grid-cols-[52px_1fr] overflow-hidden rounded-[14px] border border-[#e4d9c5] bg-white shadow-[0_10px_30px_rgba(67,48,20,0.07)]">
-      <div className="flex items-center justify-center border-r border-[#e9e1d2] bg-[#faf7f0] font-serif text-[22px] font-semibold text-[#81796d] [writing-mode:vertical-rl]">{title}</div>
+    <div className="mx-4 mt-4 grid grid-cols-[52px_1fr] overflow-hidden rounded-[14px] border border-[#e4d9c5] bg-white shadow-[0_10px_30px_rgba(67,48,20,0.07)] max-[380px]:grid-cols-[44px_1fr]">
+      <div className="flex items-center justify-center border-r border-[#e9e1d2] bg-[#faf7f0] font-serif text-[22px] font-semibold text-[#81796d] [writing-mode:vertical-rl] max-[380px]:text-[20px]">{title}</div>
       <div className="grid overflow-hidden" style={{ gridTemplateColumns: `repeat(${visibleItems.length}, minmax(0, 1fr))` }}>
         {visibleItems.map((item, index) => (
           <button
@@ -217,14 +217,14 @@ function LuckScroller({ title, items, selectedIndex, onSelect }: { title: string
             type="button"
             onClick={() => onSelect(index)}
             className={cn(
-              "min-w-0 border-r border-[#e9e1d2] px-0.5 py-2 text-center text-[11px] transition-colors hover:bg-[#fcfaf6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#a58024]",
+              "min-w-0 border-r border-[#e9e1d2] px-0.5 py-2 text-center text-[11px] transition-colors hover:bg-[#fcfaf6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#a58024] max-[380px]:px-0",
               index === selectedIndex && "bg-[#f3ead9] font-semibold shadow-[inset_0_2px_0_#b6382d]"
             )}
           >
-            <p className="truncate">{item.year}</p>
-            {item.age ? <p className="truncate text-[9px]">{title === "大运" ? formatLuckStartAge(item.age) : formatDenseAge(item.age)}</p> : null}
-            <p className={cn("mt-1 text-[20px] leading-tight", getStemColorClass(item.stem))}>{item.stem}</p>
-            <p className={cn("text-[20px] leading-tight", getStemColorClass(item.branch))}>{item.branch}</p>
+            <p className={cn("truncate", title === "流年" ? "text-[10px] max-[380px]:text-[8px]" : title === "流月" ? "text-[9px] max-[380px]:text-[8px]" : "text-[10px] max-[380px]:text-[9px]")}>{item.year}</p>
+            {item.age ? <p className="truncate text-[8px] max-[380px]:text-[7px]">{title === "大运" ? formatLuckStartAge(item.age) : formatDenseAge(item.age)}</p> : null}
+            <p className={cn("mt-1 text-[20px] leading-tight max-[380px]:text-[17px]", getStemColorClass(item.stem))}>{item.stem}</p>
+            <p className={cn("text-[20px] leading-tight max-[380px]:text-[17px]", getStemColorClass(item.branch))}>{item.branch}</p>
           </button>
         ))}
       </div>
