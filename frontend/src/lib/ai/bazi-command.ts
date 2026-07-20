@@ -126,6 +126,7 @@ export function buildAiCommandText({
   } = buildUsefulGodAnalysis(columns, luckCycles);
   const canonicalText = chart.canonicalText?.trim();
   const generatedAt = formatCurrentDateTime();
+  const currentYearGanZhi = getCurrentYearGanZhi();
 
   return [
     `
@@ -133,6 +134,7 @@ export function buildAiCommandText({
 "请根据提供的八字排盘信息，采用传统子平法进行分析。",
 "",
 当前时间：${generatedAt},
+当前流年：${currentYearGanZhi},
 姓名：${profile.name || "未填写"},
 性别：${profile.gender},
 出生时间：${profile.solar},
@@ -148,14 +150,15 @@ ${canonicalText || "未生成规范排盘文本，请仅基于下方结构化摘
 "请直接依据上方【规范排盘文本】提取四柱、藏干、十神、神煞、空亡、月令背景；必须先说明季节/月令环境。",
 "",
 ##"【2. 身强/身弱判定层（Mandatory）】",
-"【优先指令】若天干存在合化关系（如乙庚合、甲己合等），须优先判断合化是否成立。以乙庚合金为例：化神为金，须判断金是否当令（秋月或金处长生/临官之地）且有根气透干。若合化成立，合化后的五行将改变原局力量对比，须将合化结果纳入旺衰与喜忌的权重计算，不得跳过此步骤。若合化不成立，仍按原十神论。",
-日主强弱：${strength},
+"【合化判定】注意：前端提供的身强弱初判未考虑天干合化。若天干存在合化关系（如乙庚合金、甲己合土、丙辛合水、丁壬合木、戊癸合火），须独立判断合化是否成立。合化成立条件：①化神当令（如乙庚合金需秋月金旺）或化神有强根；②合化双方紧贴；③无强力克制化神。若合化成立，须将合化后的五行力量重新纳入旺衰判断，并覆盖下方初判结论。若合化不成立，按原十神关系论。",
+日主强弱初判：${strength},
 地支分析：${branchAnalysis},
 "请依据月令、通根、透干、帮扶、克泄耗、十二长生综合判断，结论限定为身强、身弱、中和偏强、中和偏弱、从格等，并给出3条以内关键证据。",
 "",
 ##"【3. 喜用神判定层（Mandatory）】",
 "【核心规则】用神判定必须遵循以下优先级：①格局用神（月令取格）> ②通关用神（五行流通）> ③调候用神（寒暖燥湿）> ④扶抑用神（强弱平衡）。",
-"【强制逻辑】若日主判定为身弱，印星与比劫必须归入喜神/用神体系，不得列为闲神或忌神；若日主判定为身强，官杀与食伤必须优先考虑为用神。此条优先级高于前端传入的任何字段。",
+"【强制逻辑-身弱时】若最终判定为身弱（包括合化后重判），印星与比劫必须列为喜神或用神，不得列为忌神。前端提供的喜用神字段已按此规则生成，但若你发现冲突，以身弱必喜印比原则为准。",
+"【强制逻辑-身强时】若最终判定为身强（包括合化后重判），官杀、食伤、财星须优先考虑为用神，用于泄身或制身。前端提供的喜用神字段已按此规则生成，但若你发现冲突，以身强必泄必耗原则为准。",
 
 格局初判：${pattern},
 调候判断：${climate},
@@ -168,16 +171,15 @@ ${canonicalText || "未生成规范排盘文本，请仅基于下方结构化摘
 "请先定格局平衡目标，再定用神，最后给喜神/忌神；不可只凭单一五行数量下结论。",
 "",
 ##"【4. 人生主题层】",
-"请从十神组合与地支刑冲合害提炼事业、财务、关系、健康、学习/表达；每个主题按‘趋势 + 原因’输出。若存在明确的可改善空间，可补充‘行动点’；若无解或凶性极大，须直言‘此局无解’或‘凶险难避’，不得强行编造改善方法。",
+"请从十神组合与地支刑冲合害提炼事业、财务、关系、健康、学习/表达；每个主题按’趋势 + 原因’输出。若存在明确的可改善空间，可补充’行动点’；若无解或凶性极大，须直言’此局无解’或’凶险难避’，不得强行编造改善方法。",
 "",
 ##"【5. 大运流年层（Mandatory）】",
 ${luckText},
-"【大运复核-完整列表】须覆盖排盘提供的全部大运，不得遗漏。若排盘已提供完整大运，则需逐运分析。",
-"【当前流年】根据当前时间${generatedAt}推算当前流年干支。以当前流年为基准，输出**当前年份及未来两年**共3年的流年吉凶判断，须明确标出各年份干支。",
+"【大运数据范围】前端已提供${luckCycles.filter((item) => item.stem !== "小" && item.branch !== "运").slice(0, AI_COMMAND_LUCK_CYCLE_LIMIT).length}步大运（最多显示前8步），需逐运分析至数据末端为止。若提供的大运少于完整生命周期，在分析完最后一步大运后，明确告知：’后续大运信息不足，无法继续推演。’严禁编造未提供的大运数据。",
+"【当前流年】当前流年为${currentYearGanZhi}（${new Date().getFullYear()}年）。以此为基准，输出当前年份及未来两年（共3年）的流年吉凶判断，须明确标出年份与干支。流年干支按六十甲子顺序推算：${currentYearGanZhi}（${new Date().getFullYear()}）→ ${getNextYearGanZhi(currentYearGanZhi, 1)}（${new Date().getFullYear() + 1}）→ ${getNextYearGanZhi(currentYearGanZhi, 2)}（${new Date().getFullYear() + 2}）。",
 大运复核：${luckReview},
 "说明：大运年份为前端排盘参考区间，实际交运需以规范排盘文本和具体起运信息为准。",
-"【数据边界】若${luckText}中仅包含部分大运，则分析至数据末端即止，并在该处明确告知用户：‘剩余大运信息不足，无法继续推演。’严禁编造后续大运数据。",
-"请根据当前年份定位当前大运步；先看大运十年基调，再看流年年度触发，再看流月短期波动；输出近3年流年吉凶判断。若吉，明言‘可攻’并给出方向；若平，明言‘宜守’；若凶或大凶，明言‘大凶，宜避/宜忍/宜静’，并直说可能发生的负面事件（如破财、官非、伤病、分离等），不得以‘谨慎’、‘注意’等模糊词掩盖凶性。",
+"请根据当前年份定位当前大运步；先看大运十年基调，再看流年年度触发，再看流月短期波动；输出近3年流年吉凶判断。若吉，明言’可攻’并给出方向；若平，明言’宜守’；若凶或大凶，明言’大凶，宜避/宜忍/宜静’，并直说可能发生的负面事件（如破财、官非、伤病、分离等），不得以’谨慎’、’注意’等模糊词掩盖凶性。",
 "",
 "【人生节点】",
 "工作、婚姻、生子、迁居、疾病、破财、发财等年份：暂无用户补充。请在分析中提示用户可补充已发生年份，用于反推与交叉验证。",
@@ -777,6 +779,13 @@ function formatBranchHidden(columns: ChartColumn[], dayStem: string) {
 
 function analyzeBranchRelations(columns: ChartColumn[]) {
   const branches = columns.map((column) => column.pillar.branch);
+  const dayBranch = columns.find((column) => column.title === "日柱")?.pillar
+    .branch;
+  const monthBranch = columns.find((column) => column.title === "月柱")?.pillar
+    .branch;
+  const timeBranch = columns.find((column) => column.title === "时柱")?.pillar
+    .branch;
+
   const clashes = findPairRelations(branches, BRANCH_CHONG);
   const punishments = findPairRelations(branches, BRANCH_XING);
   const relations = [
@@ -788,22 +797,17 @@ function analyzeBranchRelations(columns: ChartColumn[]) {
   ];
   const notes: string[] = [];
 
-  if (clashes.includes("子午冲")) {
+  // 动态判断日支冲
+  if (dayBranch && clashes.some(clash => clash.includes(dayBranch))) {
+    const dayClash = clashes.find(clash => clash.includes(dayBranch));
     notes.push(
-      "子午冲作用到日支午时，需重点观察夫妻宫/日常关系、情绪冷热、工作与家庭节奏拉扯",
+      `${dayClash}直接作用于日支，需重点观察夫妻宫/日常关系、情绪冷热、工作与家庭节奏拉扯`,
     );
   }
 
   if (punishments.includes("子卯刑")) {
-    notes.push("子卯刑只作辅助信息，权重低于子午冲，不作为核心判断");
+    notes.push("子卯刑只作辅助信息，权重低于日支冲克，不作为核心判断");
   }
-
-  const dayBranch = columns.find((column) => column.title === "日柱")?.pillar
-    .branch;
-  const monthBranch = columns.find((column) => column.title === "月柱")?.pillar
-    .branch;
-  const timeBranch = columns.find((column) => column.title === "时柱")?.pillar
-    .branch;
 
   if (
     dayBranch &&
@@ -891,15 +895,40 @@ function analyzePassage(counts: Record<FiveElement, number>) {
   );
   const passages = [...generatedPassages];
 
+  // 针对各种克关系的特殊通关逻辑
   if (counts.水 >= counts.火 + 1) {
     passages.unshift(
       "水旺克火时，主要通关路径为水 → 木 → 火；木可化官生身，是关键通关五行",
     );
     if (counts.土 > 0) {
       passages.push(
-        "土可制水，但土亦泄火，属于有条件使用，不宜简单列为绝对喜忌",
+        "土可制水，但土亦泄火，属于有条件使用，须视火力强弱与土之剂量而定",
       );
     }
+  }
+
+  if (counts.木 >= counts.土 + 1) {
+    passages.push(
+      "木旺克土时，火可通关（木生火，火生土）；但火亦耗木，需视木之根基与火之强弱而定",
+    );
+  }
+
+  if (counts.火 >= counts.金 + 1) {
+    passages.push(
+      "火旺克金时，土可通关（火生土，土生金）；土既可泄火护金，亦可生金，为理想通关",
+    );
+  }
+
+  if (counts.土 >= counts.水 + 1) {
+    passages.push(
+      "土旺克水时，金可通关（土生金，金生水）；但需防金埋土重，金力不足则通关失效",
+    );
+  }
+
+  if (counts.金 >= counts.木 + 1) {
+    passages.push(
+      "金旺克木时，水可通关（金生水，水生木）；但需防水寒木湿，冬月尤甚",
+    );
   }
 
   return {
@@ -938,24 +967,33 @@ function selectGods({
   officerElement: FiveElement;
   outputElement: FiveElement;
 }) {
+  // 平衡五行：身弱时取印比，身旺时取官伤财
   const balanceElements =
     supportLevel.value === "弱"
       ? [resourceElement, dayElement]
       : supportLevel.value === "旺"
         ? pressureElements
         : [];
+
+  // 条件用神：食伤在身弱时可能过泄，需视情况而定
   const conditional = dedupe(
-    [outputElement].filter(
-      (item) => item !== resourceElement && item !== dayElement,
-    ),
+    supportLevel.value === "弱"
+      ? [outputElement].filter(
+          (item) => item !== resourceElement && item !== dayElement,
+        )
+      : [],
   );
+
+  // 忌神判定
   const rawUnfavorable =
     supportLevel.value === "弱"
       ? dedupe([officerElement, getGeneratingElement(officerElement)])
       : supportLevel.value === "旺"
         ? supportElements
         : getHighElementsFromList([...supportElements, ...pressureElements]);
-  const useful = dedupe([
+
+  // 主用神：格局 > 通关 > 调候 > 平衡，但必须符合身强身弱原则
+  let useful = dedupe([
     ...passage.elements.slice(0, 1),
     ...climate.elements.slice(0, 1),
     structureElement,
@@ -965,6 +1003,21 @@ function selectGods({
       (item) => !rawUnfavorable.includes(item) && !conditional.includes(item),
     )
     .slice(0, 3);
+
+  // 强制逻辑：身弱时必保印比在用神体系，身强时必保泄耗在用神体系
+  if (supportLevel.value === "弱") {
+    const mustInclude = [resourceElement, dayElement].filter(
+      (item) => !useful.includes(item),
+    );
+    useful = dedupe([...useful, ...mustInclude]).slice(0, 3);
+  } else if (supportLevel.value === "旺") {
+    const mustInclude = pressureElements.filter(
+      (item) => !useful.includes(item),
+    );
+    useful = dedupe([...useful, ...mustInclude]).slice(0, 3);
+  }
+
+  // fallback：若主用神为空，至少保留调候或印比
   const fallbackUseful = useful.length
     ? useful
     : dedupe(
@@ -972,9 +1025,13 @@ function selectGods({
           (item): item is FiveElement => isFiveElement(item),
         ),
       ).filter((item) => !rawUnfavorable.includes(item));
+
+  // 忌神需排除已选用神
   const unfavorable = rawUnfavorable.filter(
     (item) => !fallbackUseful.includes(item),
   );
+
+  // 喜神：辅助用神，调候次要 + 通关次要 + 平衡次要
   const favorable = dedupe([
     ...climate.elements.slice(1),
     ...passage.elements,
@@ -1215,4 +1272,37 @@ function isFiveElement(value: string | undefined): value is FiveElement {
 
 function formatCount(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+// 六十甲子顺序表
+const SIXTY_JIAZI = [
+  "甲子", "乙丑", "丙寅", "丁卯", "戊辰", "己巳", "庚午", "辛未", "壬申", "癸酉",
+  "甲戌", "乙亥", "丙子", "丁丑", "戊寅", "己卯", "庚辰", "辛巳", "壬午", "癸未",
+  "甲申", "乙酉", "丙戌", "丁亥", "戊子", "己丑", "庚寅", "辛卯", "壬辰", "癸巳",
+  "甲午", "乙未", "丙申", "丁酉", "戊戌", "己亥", "庚子", "辛丑", "壬寅", "癸卯",
+  "甲辰", "乙巳", "丙午", "丁未", "戊申", "己酉", "庚戌", "辛亥", "壬子", "癸丑",
+  "甲寅", "乙卯", "丙辰", "丁巳", "戊午", "己未", "庚申", "辛酉", "壬戌", "癸亥",
+];
+
+/**
+ * 根据公元年份计算干支
+ * 公式：甲子年为公元 4 年，每 60 年一个循环
+ */
+function getCurrentYearGanZhi(): string {
+  const currentYear = new Date().getFullYear();
+  // 公元 4 年为甲子年，计算偏移量
+  const offset = (currentYear - 4) % 60;
+  return SIXTY_JIAZI[offset];
+}
+
+/**
+ * 获取未来 N 年的干支
+ */
+function getNextYearGanZhi(currentGanZhi: string, yearsLater: number): string {
+  const currentIndex = SIXTY_JIAZI.indexOf(currentGanZhi);
+  if (currentIndex === -1) {
+    return "干支待定";
+  }
+  const nextIndex = (currentIndex + yearsLater) % 60;
+  return SIXTY_JIAZI[nextIndex];
 }
