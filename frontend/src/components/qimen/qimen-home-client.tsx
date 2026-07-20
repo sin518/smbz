@@ -99,7 +99,7 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
   }
 
   return (
-    <DivinationFormShell title="奇门遁甲" subtitle="起局分析，辅助决策" icon={Compass} tone="brown" embedded={embedded}>
+    <DivinationFormShell title="奇门遁甲" subtitle="起局分析，辅助决策" icon={Compass} moduleMark="qimen" tone="brown" embedded={embedded}>
       <DivinationFormBody embedded={embedded}>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">

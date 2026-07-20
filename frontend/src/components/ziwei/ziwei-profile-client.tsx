@@ -120,7 +120,7 @@ export function ZiweiProfileClient() {
   }
 
   return (
-    <DivinationFormShell title="紫薇斗数" subtitle="命盘结构，洞察格局" icon={Stars} tone="gold">
+    <DivinationFormShell title="紫薇斗数" subtitle="命盘结构，洞察格局" icon={Stars} moduleMark="ziwei" tone="gold">
       <DivinationFormBody>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">

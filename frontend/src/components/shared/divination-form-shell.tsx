@@ -2,6 +2,7 @@ import { ArrowLeft, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { DivinationModuleMark, type DivinationModuleKey } from "@/components/shared/divination-module-mark";
 import { cn } from "@/lib/utils";
 
 export type DivinationTone = "red" | "purple" | "gold" | "brown";
@@ -32,6 +33,7 @@ export function DivinationFormShell({
   title,
   subtitle,
   icon: Icon,
+  moduleMark,
   tone,
   embedded = false,
   backHref = "/",
@@ -40,6 +42,7 @@ export function DivinationFormShell({
   title: string;
   subtitle: string;
   icon: LucideIcon;
+  moduleMark?: DivinationModuleKey;
   tone: DivinationTone;
   embedded?: boolean;
   backHref?: string;
@@ -82,7 +85,7 @@ export function DivinationFormShell({
                 )}
                 aria-hidden="true"
               >
-                <Icon size={16} strokeWidth={1.9} />
+                {moduleMark ? <DivinationModuleMark moduleKey={moduleMark} size="header" /> : <Icon size={16} strokeWidth={1.9} />}
               </span>
             </span>
           </div>

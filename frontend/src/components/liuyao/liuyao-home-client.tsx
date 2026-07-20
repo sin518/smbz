@@ -293,7 +293,7 @@ export function LiuyaoHomeClient() {
   }
 
   return (
-    <DivinationFormShell title="六爻断事" subtitle="一事一问，推演变化" icon={Hexagon} tone="purple">
+    <DivinationFormShell title="六爻断事" subtitle="一事一问，推演变化" icon={Hexagon} moduleMark="liuyao" tone="purple">
       <DivinationFormBody>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">

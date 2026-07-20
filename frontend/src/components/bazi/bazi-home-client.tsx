@@ -215,7 +215,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
   }
 
   return (
-    <DivinationFormShell title="赛博八字" subtitle="推演你的命理图谱" icon={Sparkles} tone="red" embedded={embedded} backHref={backHref}>
+    <DivinationFormShell title="赛博八字" subtitle="推演你的命理图谱" icon={Sparkles} moduleMark="bazi" tone="red" embedded={embedded} backHref={backHref}>
       <DivinationFormBody embedded={embedded}>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">

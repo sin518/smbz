@@ -1,9 +1,8 @@
 "use client";
 
-import { Compass, Hexagon, ScrollText, Sparkles, Stars } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { AppBottomNav } from "@/components/app-bottom-nav";
+import { DivinationModuleMark, type DivinationModuleKey } from "@/components/shared/divination-module-mark";
 import { cn } from "@/lib/utils";
 
 type HomeCard = {
@@ -11,7 +10,7 @@ type HomeCard = {
   subtitle: string;
   suitable?: string[];
   href?: string;
-  icon: LucideIcon;
+  moduleKey: DivinationModuleKey;
   tone: "red" | "purple" | "brown" | "gold";
 };
 
@@ -21,7 +20,7 @@ const homeCards: HomeCard[] = [
     subtitle: "四柱排盘 看清自己",
     suitable: ["看长期运势"],
     href: "/bazi",
-    icon: Sparkles,
+    moduleKey: "bazi",
     tone: "red"
   },
   {
@@ -29,7 +28,7 @@ const homeCards: HomeCard[] = [
     subtitle: "一事一问 推演变化",
     suitable: ["问具体事情"],
     href: "/liuyao",
-    icon: Hexagon,
+    moduleKey: "liuyao",
     tone: "purple"
   },
   {
@@ -37,7 +36,7 @@ const homeCards: HomeCard[] = [
     subtitle: "命盘结构 洞察格局",
     suitable: ["看人生格局"],
     href: "/ziwei/profile",
-    icon: Stars,
+    moduleKey: "ziwei",
     tone: "gold"
   },
   {
@@ -45,7 +44,7 @@ const homeCards: HomeCard[] = [
     subtitle: "起局分析 辅助决策",
     suitable: ["择时定方向"],
     href: "/qimen",
-    icon: Compass,
+    moduleKey: "qimen",
     tone: "brown"
   },
   {
@@ -53,7 +52,7 @@ const homeCards: HomeCard[] = [
     subtitle: "起课问事 推演人事",
     suitable: ["断人事吉凶"],
     href: "/daliuren",
-    icon: ScrollText,
+    moduleKey: "daliuren",
     tone: "brown"
   }
 ];
@@ -84,7 +83,6 @@ export function MetaphysicsHomeClient() {
 }
 
 function HomeFeatureCard({ card }: { card: HomeCard }) {
-  const Icon = card.icon;
   const content = (
     <div className="group relative min-h-[132px] overflow-hidden rounded-[16px] border border-[#e5d8bc] bg-[#fffdf7] px-5 py-[18px] shadow-[0_8px_22px_rgba(70,53,20,0.055)] transition duration-200 active:scale-[0.99] sm:min-h-[150px] sm:px-6 sm:py-5">
       <Corner className="left-3 top-3 rotate-180" />
@@ -102,7 +100,7 @@ function HomeFeatureCard({ card }: { card: HomeCard }) {
               card.tone === "gold" && "border-[#d9a450] bg-[#b07222] text-[#ffe0a6]"
             )}
           >
-            <Icon size={25} strokeWidth={1.8} />
+            <DivinationModuleMark moduleKey={card.moduleKey} />
           </span>
         </div>
 

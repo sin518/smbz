@@ -86,7 +86,7 @@ export function DaliurenHomeClient() {
   }
 
   return (
-    <DivinationFormShell title="大六壬" subtitle="起课问事，推演人事" icon={ScrollText} tone="brown">
+    <DivinationFormShell title="大六壬" subtitle="起课问事，推演人事" icon={ScrollText} moduleMark="daliuren" tone="brown">
       <DivinationFormBody>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
