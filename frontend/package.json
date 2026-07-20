@@ -9,7 +9,7 @@
     "prebuild": "pnpm run build:core",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src",
     "pretypecheck": "pnpm run build:core",
     "typecheck": "tsc --noEmit --incremental false"
   },

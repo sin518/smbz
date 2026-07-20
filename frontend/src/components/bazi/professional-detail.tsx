@@ -65,16 +65,16 @@ export function ProfessionalDetail({
   }
 
   return (
-    <section className="bg-paper pb-8 pt-4">
+    <section className="bg-transparent pb-8 pt-3">
       <ProfessionalChart columns={detailColumns} />
       <div className="px-4 py-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[22px] bg-white px-4 py-4 text-[15px] leading-7 text-[#444] shadow-soft">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[14px] border border-[#e4d9c5] bg-white px-4 py-4 text-[14px] leading-7 text-[#45423d] shadow-[0_10px_30px_rgba(67,48,20,0.07)]">
           <div>
             <p>起运：{luckStartText ?? "—"}</p>
             <p>交运：{luckTransferText ?? "—"}</p>
           </div>
           <div className="text-right">
-            <p className="text-[18px]">{currentAgeText ?? "—"}</p>
+            <p className="font-serif text-[18px] font-semibold">{currentAgeText ?? "—"}</p>
             <p>
               司令：<span className={getStemColorClass(getCommanderStem(commander))}>{getCommanderStem(commander)}</span>
             </p>
@@ -90,7 +90,7 @@ export function ProfessionalDetail({
 
 function ProfessionalChart({ columns }: { columns: DetailColumn[] }) {
   return (
-    <section className="mx-4 overflow-hidden rounded-[22px] bg-white shadow-soft">
+    <section className="mx-4 overflow-hidden rounded-[14px] border border-[#e4d9c5] bg-white shadow-[0_10px_30px_rgba(67,48,20,0.07)]" aria-label="专业细盘四柱排盘">
       <div className="grid grid-cols-[64px_repeat(6,minmax(0,1fr))] text-center">
         <DetailLabel rowIndex={0}>日期</DetailLabel>
         {columns.map((column) => (
@@ -148,7 +148,7 @@ function ProfessionalChart({ columns }: { columns: DetailColumn[] }) {
 
 function DetailLabel({ children, rowIndex, large, stack }: { children: React.ReactNode; rowIndex: number; large?: boolean; stack?: boolean }) {
   return (
-    <div className={cn("flex items-center justify-center border-b border-[#ececec] px-2 text-[18px] text-[#999]", getDetailRowClass(rowIndex, large, stack))}>
+    <div className={cn("flex items-center justify-center border-b border-[#e9e1d2] bg-[#faf7f0] px-2 text-[13px] font-medium text-[#81796d]", getDetailRowClass(rowIndex, large, stack))}>
       {children}
     </div>
   );
@@ -156,7 +156,7 @@ function DetailLabel({ children, rowIndex, large, stack }: { children: React.Rea
 
 function DetailCell({ children, rowIndex, muted }: { children: React.ReactNode; rowIndex: number; muted?: boolean }) {
   return (
-    <div className={cn("flex items-center justify-center border-b border-l border-[#ececec] px-1 text-[18px]", getDetailRowClass(rowIndex), muted && "text-[#999]")}>
+    <div className={cn("flex items-center justify-center border-b border-l border-[#e9e1d2] px-1 text-[14px]", getDetailRowClass(rowIndex), muted && "font-medium text-[#6f6a62]")}>
       {children}
     </div>
   );
@@ -164,7 +164,7 @@ function DetailCell({ children, rowIndex, muted }: { children: React.ReactNode; 
 
 function DetailPillarCell({ value, rowIndex }: { value: string; rowIndex: number }) {
   return (
-    <div className={cn("flex items-center justify-center border-b border-l border-[#ececec] px-1 text-[38px] font-semibold", getDetailRowClass(rowIndex, true), getStemColorClass(value))}>
+    <div className={cn("flex items-center justify-center border-b border-l border-[#e9e1d2] px-1 font-serif text-[32px] font-semibold", getDetailRowClass(rowIndex, true), getStemColorClass(value))}>
       {value}
     </div>
   );
@@ -172,7 +172,7 @@ function DetailPillarCell({ value, rowIndex }: { value: string; rowIndex: number
 
 function HiddenStemCell({ column }: { column: DetailColumn }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center border-b border-l border-[#ececec] px-1 text-[15px] leading-7", getDetailRowClass(4, false, true))}>
+    <div className={cn("flex flex-col items-center justify-center border-b border-l border-[#e9e1d2] px-1 text-[12px] leading-6", getDetailRowClass(4, false, true))}>
       {column.hiddenStems.map((item, index) => {
         const stem = item.slice(0, 1);
 
@@ -189,9 +189,9 @@ function HiddenStemCell({ column }: { column: DetailColumn }) {
 
 function DetailShenshaCell({ items }: { items: string[] }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center border-b border-l border-[#ececec] px-1 text-[14px] leading-6 text-[#9b8749]", getDetailRowClass(9, false, true))}>
+    <div className={cn("flex flex-col items-center justify-center gap-1 border-b border-l border-[#e9e1d2] px-1 text-[10px] leading-[1.25]", getDetailRowClass(9, false, true))}>
       {items.slice(0, 4).map((item) => (
-        <p key={item} className="whitespace-nowrap">{item}</p>
+        <p key={item} className="max-w-full whitespace-nowrap rounded-[5px] border border-[#eadfca] bg-[#fdf9f1] px-1 py-0.5 text-[#8b672d]">{item}</p>
       ))}
     </div>
   );
@@ -199,8 +199,8 @@ function DetailShenshaCell({ items }: { items: string[] }) {
 
 function getDetailRowClass(rowIndex: number, large?: boolean, stack?: boolean) {
   return cn(
-    rowIndex % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]",
-    large ? "min-h-[86px]" : stack ? "min-h-[114px] py-3" : "min-h-[58px] py-3"
+    rowIndex % 2 === 0 ? "bg-white" : "bg-[#fcfaf6]",
+    large ? "min-h-[76px] py-2" : stack ? "min-h-[114px] py-3" : "min-h-[42px] py-2"
   );
 }
 
@@ -208,8 +208,8 @@ function LuckScroller({ title, items, selectedIndex, onSelect }: { title: string
   const visibleItems = items.slice(0, title === "流月" ? 12 : 10);
 
   return (
-    <div className="mx-4 mt-4 grid grid-cols-[52px_1fr] overflow-hidden rounded-[22px] bg-white shadow-soft">
-      <div className="flex items-center justify-center border-r border-[#ebe7dd] text-[24px] font-semibold text-mutedInk [writing-mode:vertical-rl]">{title}</div>
+    <div className="mx-4 mt-4 grid grid-cols-[52px_1fr] overflow-hidden rounded-[14px] border border-[#e4d9c5] bg-white shadow-[0_10px_30px_rgba(67,48,20,0.07)]">
+      <div className="flex items-center justify-center border-r border-[#e9e1d2] bg-[#faf7f0] font-serif text-[22px] font-semibold text-[#81796d] [writing-mode:vertical-rl]">{title}</div>
       <div className="grid overflow-hidden" style={{ gridTemplateColumns: `repeat(${visibleItems.length}, minmax(0, 1fr))` }}>
         {visibleItems.map((item, index) => (
           <button
@@ -217,8 +217,8 @@ function LuckScroller({ title, items, selectedIndex, onSelect }: { title: string
             type="button"
             onClick={() => onSelect(index)}
             className={cn(
-              "min-w-0 border-r border-[#ebe7dd] px-0.5 py-2 text-center text-[11px]",
-              index === selectedIndex && "bg-[#f6f0e2] font-semibold"
+              "min-w-0 border-r border-[#e9e1d2] px-0.5 py-2 text-center text-[11px] transition-colors hover:bg-[#fcfaf6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#a58024]",
+              index === selectedIndex && "bg-[#f3ead9] font-semibold shadow-[inset_0_2px_0_#b6382d]"
             )}
           >
             <p className="truncate">{item.year}</p>

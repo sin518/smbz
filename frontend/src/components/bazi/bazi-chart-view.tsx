@@ -50,18 +50,18 @@ export function BaziChartView({
   };
 
   return (
-    <main className="light-surface-text-scope app-responsive-shell min-h-screen bg-paper pb-5 text-ink shadow-soft [font-family:'PingFang_SC','Microsoft_YaHei',sans-serif]">
-      <header className="sticky top-0 z-30 bg-[#F8F7EE] pt-4">
+    <main className="bazi-chart-scope light-surface-text-scope app-responsive-shell min-h-screen bg-[#f7f3e9] pb-5 text-ink shadow-soft [font-family:'PingFang_SC','Microsoft_YaHei',sans-serif]">
+      <header className="sticky top-0 z-30 border-b border-[#e9dfcc] bg-[rgba(247,243,233,0.94)] pt-3 backdrop-blur-md">
         <div className="flex h-12 items-center justify-between px-4">
-          <Link href={backHref} className="flex h-10 w-10 items-center justify-center" aria-label="返回">
-            <ChevronLeft size={30} strokeWidth={1.8} />
+          <Link href={backHref} className="flex h-10 w-10 items-center justify-center rounded-[10px] transition-colors hover:bg-[#eee5d4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b6382d]" aria-label="返回">
+            <ChevronLeft size={27} strokeWidth={1.8} />
           </Link>
-          <h1 className="text-[18px] font-semibold">赛博八字</h1>
+          <h1 className="font-serif text-[19px] font-semibold tracking-[0.12em]">赛博八字</h1>
           <span className="h-10 w-10" aria-hidden="true" />
         </div>
-        <nav className="grid grid-cols-3 px-2 pb-2 text-center text-[14px] font-medium text-mutedInk">
+        <nav className="grid grid-cols-3 px-2 pb-1 text-center text-[14px] font-medium text-mutedInk" aria-label="八字排盘内容">
           {tabs.map((tab) => (
-            <Link key={tab.key} href={getTabHref(tab.key)} className={cn("relative py-2", activeTab === tab.key && "font-semibold text-ink after:absolute after:bottom-0 after:left-1/2 after:h-[2px] after:w-6 after:-translate-x-1/2 after:rounded-full after:bg-[#a58024]")}>
+            <Link key={tab.key} href={getTabHref(tab.key)} aria-current={activeTab === tab.key ? "page" : undefined} className={cn("relative rounded-t-[8px] py-2.5 transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#b6382d]", activeTab === tab.key && "font-semibold text-[#982f27] after:absolute after:bottom-0 after:left-1/2 after:h-[2px] after:w-7 after:-translate-x-1/2 after:rounded-full after:bg-[#b6382d]")}>
               {tab.label}
             </Link>
           ))}
@@ -77,8 +77,8 @@ export function BaziChartView({
       />
 
       {activeTab === "info" ? (
-        <section className="px-4 pb-4 pt-4">
-          <div className="rounded-[22px] bg-white px-4 py-3 text-[14px] leading-[1.8] text-mutedInk shadow-soft">
+        <section className="px-4 pb-4 pt-3">
+          <div className="overflow-hidden rounded-[14px] border border-[#e4d9c5] bg-white px-4 py-3 text-[14px] leading-[1.8] text-mutedInk shadow-[0_10px_30px_rgba(67,48,20,0.07)]">
             <InfoRow left={`姓名： ${profileView.name} (阴 乾造)`} right={`性别： ${profileView.gender}`} />
             <InfoRow left={`农历： ${profileView.lunar}`} right={`生肖： ${profileView.zodiac}`} muted />
             <InfoRow left={`阳历： ${profileView.solar}`} />
@@ -94,7 +94,7 @@ export function BaziChartView({
       ) : null}
 
       {activeTab === "chart" ? (
-        <section className="mx-4 mt-4 overflow-hidden rounded-[22px] bg-white shadow-soft">
+        <section className="mx-4 mt-3 overflow-hidden rounded-[14px] border border-[#e4d9c5] bg-white shadow-[0_10px_30px_rgba(67,48,20,0.07)]" aria-label="四柱基本排盘">
           <div className="grid grid-cols-[72px_repeat(4,minmax(0,1fr))] text-center">
             <TableLabel rowIndex={0}>日期</TableLabel>
             {columns.map((column) => (
@@ -169,7 +169,7 @@ export function BaziChartView({
 
 function InfoRow({ left, right, muted }: { left: string; right?: string; muted?: boolean }) {
   return (
-    <div className={cn("flex min-h-[36px] items-center gap-3 border-b border-[#f3ead6] py-1.5 text-[14px] last:border-b-0", muted && "bg-[#fbfaf4]")}>
+    <div className={cn("flex min-h-[38px] items-center gap-3 border-b border-[#eee5d5] px-1 py-1.5 text-[14px] last:border-b-0", muted && "bg-[#fcfaf6]")}>
       <p className="min-w-0 flex-1 truncate whitespace-nowrap">{highlightInfoValue(left)}</p>
       {right ? <p className="max-w-[42%] shrink-0 truncate whitespace-nowrap text-right">{highlightInfoValue(right)}</p> : null}
     </div>
@@ -182,13 +182,13 @@ function DayMasterFeature({ columns }: { columns: ChartColumn[] }) {
   const feature = getDayMasterFeature(stem);
 
   return (
-    <div className="border-b border-[#f3ead6] bg-[#fbfaf4] py-3">
+    <div className="border-b border-[#eee5d5] bg-[#fcfaf6] px-1 py-3">
       <div className="mb-2 flex items-center gap-1.5 text-[13px] text-mutedInk">
         <UserRound size={14} strokeWidth={1.8} />
         <span>日主特征</span>
       </div>
       <div className="flex items-center gap-3">
-        <div className={cn("flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[8px] text-[28px] font-semibold text-white", getDayMasterBadgeClass(feature.element))}>
+        <div className={cn("flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[10px] font-serif text-[28px] font-semibold text-white shadow-[0_6px_14px_rgba(16,14,10,0.1)]", getDayMasterBadgeClass(feature.element))}>
           {stem || "?"}
         </div>
         <div className="min-w-0 flex-1">
@@ -255,13 +255,13 @@ function ChartInsightActions({
   const relations = buildOriginalRelations(columns);
 
   return (
-    <section className="mx-4 rounded-[22px] bg-white px-4 py-5 shadow-soft">
-      <ProtectedAiCommandLink href={aiCommandHref} className="w-full" />
+    <section className="mx-4 rounded-[14px] border border-[#e4d9c5] bg-white px-4 py-4 shadow-[0_10px_30px_rgba(67,48,20,0.07)]">
+      <ProtectedAiCommandLink href={aiCommandHref} className="w-full rounded-[12px] bg-black text-[#e8d4a7] shadow-[0_8px_18px_rgba(16,14,10,0.16)] hover:bg-[#25231f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a58024] focus-visible:ring-offset-2" />
 
-      <div className="mt-5 space-y-3 text-[15px] leading-7 text-[#444]">
-        <p><span className="font-semibold text-[#a58024]">原局天干：</span>{relations.stems}</p>
-        <p><span className="font-semibold text-[#a58024]">原局地支：</span>{relations.branches}</p>
-        <p><span className="font-semibold text-[#a58024]">原局整柱：</span>{relations.pillars}</p>
+      <div className="mt-4 divide-y divide-[#eee5d5] text-[14px] leading-6 text-[#45423d]">
+        <p className="py-2 first:pt-0"><span className="font-semibold text-[#93651b]">原局天干：</span>{relations.stems}</p>
+        <p className="py-2"><span className="font-semibold text-[#93651b]">原局地支：</span>{relations.branches}</p>
+        <p className="py-2 last:pb-0"><span className="font-semibold text-[#93651b]">原局整柱：</span>{relations.pillars}</p>
       </div>
     </section>
   );
@@ -437,12 +437,12 @@ function getDetailRowClass(rowIndex: number, large?: boolean, stack?: boolean) {
 }
 
 function TableLabel({ children, rowIndex, large, stack }: { children: React.ReactNode; rowIndex: number; large?: boolean; stack?: boolean }) {
-  return <div className={cn("flex items-center justify-center border-b border-[#ebe7dd] px-2 text-[13px] text-mutedInk", getRowClass(rowIndex, large, stack))}>{children}</div>;
+  return <div className={cn("flex items-center justify-center border-b border-[#e9e1d2] bg-[#faf7f0] px-2 text-[12px] font-medium text-[#81796d]", getRowClass(rowIndex, large, stack))}>{children}</div>;
 }
 
 function TableCell({ children, muted, rowIndex }: { children: React.ReactNode; muted?: boolean; rowIndex: number }) {
   return (
-    <div className={cn("flex items-center justify-center border-b border-l border-[#ebe7dd] px-1 text-[14px] text-ink", getRowClass(rowIndex), muted && "text-mutedInk")}>
+    <div className={cn("flex items-center justify-center border-b border-l border-[#e9e1d2] px-1 text-[14px] text-ink", getRowClass(rowIndex), muted && "font-medium text-[#6f6a62]")}>
       {children}
     </div>
   );
@@ -451,21 +451,21 @@ function TableCell({ children, muted, rowIndex }: { children: React.ReactNode; m
 function StemBranchCell({ value, rowIndex }: { value: string; rowIndex: number }) {
   const color = getStemColorClass(value);
 
-  return <div className={cn("flex items-center justify-center border-b border-l border-[#ebe7dd] px-1 text-[32px] font-semibold", getRowClass(rowIndex, true), color)}>{value}</div>;
+  return <div className={cn("flex items-center justify-center border-b border-l border-[#e9e1d2] px-1 font-serif text-[34px] font-semibold", getRowClass(rowIndex, true), color)}>{value}</div>;
 }
 
 function StackCell({ items, gold, rowIndex }: { items: string[]; gold?: boolean; rowIndex: number }) {
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center border-b border-l border-[#ebe7dd] px-1",
-        rowIndex === 10 ? "text-[11px] leading-[1.5]" : "text-[12px] leading-[1.4]",
+        "flex flex-col items-center justify-center border-b border-l border-[#e9e1d2] px-1",
+        rowIndex === 10 ? "gap-1 text-[10px] leading-[1.25]" : "text-[12px] leading-[1.45]",
         getRowClass(rowIndex, false, true),
         gold ? "text-[#9b8749]" : "text-ink"
       )}
     >
       {items.map((item) => (
-        <p key={item} className={gold && rowIndex === 4 ? getStemColorClass(item.slice(0, 1)) : undefined}>{item}</p>
+        <p key={item} className={cn(gold && rowIndex === 4 ? getStemColorClass(item.slice(0, 1)) : undefined, rowIndex === 10 && "max-w-full rounded-[5px] border border-[#eadfca] bg-[#fdf9f1] px-1.5 py-0.5 text-[#8b672d]")}>{item}</p>
       ))}
     </div>
   );
@@ -473,8 +473,8 @@ function StackCell({ items, gold, rowIndex }: { items: string[]; gold?: boolean;
 
 function getRowClass(rowIndex: number, large?: boolean, stack?: boolean) {
   return cn(
-    rowIndex % 2 === 0 ? "bg-white" : "bg-[#fbfaf4]",
-    large ? "min-h-[76px] py-2" : stack ? (rowIndex === 10 ? "min-h-[116px] py-3" : "min-h-[86px] py-3") : "min-h-[40px] py-2"
+    rowIndex % 2 === 0 ? "bg-white" : "bg-[#fcfaf6]",
+    large ? "min-h-[76px] py-2" : stack ? (rowIndex === 10 ? "min-h-[124px] py-3" : "min-h-[86px] py-3") : "min-h-[42px] py-2"
   );
 }
 

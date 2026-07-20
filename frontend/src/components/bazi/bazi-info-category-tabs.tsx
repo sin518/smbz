@@ -51,7 +51,7 @@ export function BaziInfoCategoryTabs() {
   }
 
   return (
-    <div className="sticky top-[104px] z-20 -mx-4 border-b border-[#eee6d7] bg-[#fbfaf4] px-4">
+    <div className="sticky top-[104px] z-20 -mx-4 border-y border-[#eee5d5] bg-[rgba(252,250,246,0.96)] px-4 backdrop-blur-md">
       <div className="grid grid-cols-4 text-center">
         {baziInfoCategories.map((category) => (
           <button
@@ -62,8 +62,8 @@ export function BaziInfoCategoryTabs() {
             className={cn(
               "relative min-h-11 min-w-0 px-1 text-[12px] font-semibold leading-5 transition",
               activeCategory === category
-                ? "text-[#c78a42] after:absolute after:bottom-0 after:left-1/2 after:h-[2px] after:w-6 after:-translate-x-1/2 after:rounded-full after:bg-[#c78a42]"
-                : "text-[#8d8b84] hover:text-[#a26d2d]"
+                ? "text-[#982f27] after:absolute after:bottom-0 after:left-1/2 after:h-[2px] after:w-6 after:-translate-x-1/2 after:rounded-full after:bg-[#b6382d]"
+                : "text-[#81796d] hover:text-[#93651b]"
             )}
           >
             {category}
