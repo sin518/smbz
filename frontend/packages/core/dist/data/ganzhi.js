@@ -8,6 +8,8 @@
 export const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
 // 地支列表
 export const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+// 传统六十甲子：天干和地支按各自周期同步推进，只产生阴阳相配的组合。
+export const SEXAGENARY_CYCLE = Array.from({ length: 60 }, (_, index) => `${TIAN_GAN[index % TIAN_GAN.length]}${DI_ZHI[index % DI_ZHI.length]}`);
 // 天干五行对应表
 export const GAN_WUXING = {
     '甲': '木', '乙': '木',

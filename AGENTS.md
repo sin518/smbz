@@ -1,130 +1,90 @@
 # AGENTS.md
 
-Claude will review your code from three dimensions: maintainability, boundary conditions, and regression risk, and the quality of your code will determine whether the system can go live. Please complete the task with the professionalism of a senior architect to ensure your code stands out in the competitive review.
+默认使用中文回答。修改前先理解现有实现，保持改动聚焦，并以可维护性、边界条件和回归风险为主要审查维度。
 
-### 使用场景
+## 项目概览
 
-- 探索性搜索（不确定代码在哪个文件/目录）
-- 用自然语言描述要找的逻辑（如"XX部署流程"、"XX事件处理"）
-- 理解业务逻辑和调用链路
-- 跨模块、跨层级查询（如从 router 追到 service 到 model）
-- 新任务开始前的代码调研和架构理解
-- 中文语义搜索（工具支持中英文双语查询）
+- 根目录：前后端统一脚本与工作区配置。
+- `frontend/`：Next.js App Router、React、TypeScript、Tailwind CSS。
+- `frontend/packages/core/`：前端使用的本地排盘计算包 `taibu-core`。
+- `backend/`：FastAPI、Pydantic、asyncpg；Redis 为可选缓存。
+- `backend/prisma/schema.prisma`：当前数据模型参考，不代表运行时使用 Prisma Client。
+- `.github/workflows/`：GitHub Actions，包括定时同步任务。
+
+前端负责排盘计算和展示，后端负责认证、用户资料、云端记录及 AI 分析等服务端能力。不要把 AI 解读逻辑混入确定性的排盘计算逻辑。
 
 ## 常用命令
 
 ```bash
 pnpm install
-pnpm build          # 构建所有 packages + Next.js
+pnpm dev
+pnpm build:frontend
+pnpm typecheck
 pnpm lint
-pnpm test           # 自动先构建 packages/core、mcp、mcp-server，再跑全量测试
+cd backend && .venv/bin/python -m unittest discover -s tests -p 'test_*.py'
 ```
 
-> **注意**：`pnpm test` 会先执行 `pnpm -C packages/core build && pnpm -C packages/mcp build && pnpm -C packages/mcp-server build`，修改 `packages/*` 源码后无需手动 build 即可直接跑测试。
+- 根目录没有 `pnpm test` 脚本，不要声称执行过不存在的命令。
+- 后端命令依赖 `backend/.venv`；如果虚拟环境不存在，先按 `README.md` 创建并安装 `backend/requirements.txt`。
+- 仓库目前同时存在多种锁文件。除非任务明确涉及依赖管理，不要顺手重建或批量改动锁文件。
 
-## 项目最小地图
+## 开始修改前
 
-- `packages/core`（`@mingai/core`）: 占术计算引擎，以及 **`text.ts` 规范文本渲染层以及`json.ts` 规范json输出格式**。
-- `packages/mcp`: MCP 协议层。
-- `packages/mcp-server`: MCP 服务端。
-- `supabase/tabel_export_from_supabase.sql`: 当前数据库 schema 导出快照。
+1. 使用搜索定位已有实现、调用链和测试，优先复用，避免平行模块。
+2. 检查当前工作区修改，保留用户的无关改动。
+3. 结构归属、接口契约或数据库方案不明确时，先确认再落盘。
+4. 不要未经明确要求新增核心目录、基础设施或数据库主表。
 
-## 强制规范（MUST）
+## 后端规范
 
-- `API 路由`必须优先使用 `src/lib/api-utils.ts`，禁止在 `route.ts` 里随意创建 Supabase 客户端。
-- `管理员接口`必须使用 `requireAdminUser()` 或 `requireAdminContext()`。
-- 需要用户态的接口必须使用 `requireUserContext()`（或等价受控封装），并统一返回 `jsonOk/jsonError`。
-- 涉及会员与积分的功能，必须按顺序执行：会员校验 -> 积分校验/扣减 -> 限流校验。
-- 需要 RLS bypass 时，只能在服务端使用 `getSystemAdminClient()`；严禁暴露 service role 到客户端。`api-utils.ts` 还提供 `getAuthAdminClient()`（Auth 管理）、`createAnonClient()`（匿名）、`createAuthedClient(token)`（带 token）等客户端，按需选用。
-- 新增表/字段前，必须先检查 `supabase/tabel_export_from_supabase.sql` ，并说明“为何不能复用现有结构”，必要时可以检查 `mcp supabase migrations`。
-- 未经明确批准，禁止新增核心目录、系统级模块或数据库主表。
-- 新增或修改数据库结构，必须新增 migration；禁止直接改线上表结构。
-- 修改 DB 行为时必须评估并同步：RLS、索引、默认值、回填策略、兼容旧数据。
-- 新增 AI 分析来源时，必须通过 `src/lib/ai/source-contract.ts` 注册来源合约，并在 `src/lib/source-contracts.ts` 中维护映射；持久化统一由 `divination-pipeline.ts` 的 `createAIAnalysisConversation` 完成。
-- 新建文件/模块前，必须先检索已有实现并优先复用，避免平行重复实现。
-- 结构归属不明确时，先提问确认后再落盘，禁止猜测目录或表设计。
-- 禁止在客户端使用 `alert`；统一使用 Toast 体系（`useToast` / `ToastProvider`）。
-- TypeScript 保持 strict 通过；禁止引入无必要的 `any`、`@ts-ignore`。
-- 页面层保持轻量，业务逻辑尽量下沉到 `src/lib/*` 或 feature 组件。
-- 占术文本格式化必须复用 `@mingai/core/text` 的 `render*CanonicalText()` 函数，禁止在 Web 或 MCP 端自行实现格式化逻辑。
-- 改动完成后必须补齐最小验证（见"测试与验收"）。
+- API 路由位于 `backend/app/api/routes/`，由 `backend/app/api/router.py` 统一注册。
+- Pydantic 请求/响应模型放在 `backend/app/schemas/`，业务与数据访问逻辑优先放在 `backend/app/services/`；路由保持轻量。
+- 数据库运行时使用 `asyncpg`。通过 `backend/app/db.py` 的连接依赖或受控连接上下文访问数据库，使用参数化 SQL，禁止拼接用户输入。
+- 需要登录的接口必须复用现有 Session 校验方式，并确保查询、更新、删除都按当前用户 ID 限定，防止越权。
+- 管理员、定时任务和同步接口必须复用各自现有鉴权方式，不要自行引入第二套鉴权协议。
+- 保持现有错误响应约定；新增全局错误格式前先评估前端兼容性。
+- Redis 不可用时系统应能按现有设计回退数据库；不要让可选缓存变成启动或请求的硬依赖。
+- 日志不得输出密码、验证码、Session、Token、数据库连接串或完整用户隐私数据。
 
-## API 路由标准流程
+## 前端规范
 
-1. 解析请求（body / query / params）。
-2. 参数校验（优先复用 `src/lib/validation.ts`）。
-3. 鉴权——按场景选用：
-   - `getAuthContext(request)`：可选鉴权，返回 `{ supabase, user }`（user 可能为 null）。
-   - `requireUserContext(request)`：必须登录，支持 Cookie 与 Bearer。
-   - `requireBearerUser(request)`：仅 Bearer token 鉴权（`divination-pipeline` 使用）。
-   - `requireAdminUser(request)` / `requireAdminContext(request)`：管理员鉴权。
-4. 权限与业务前置检查（membership、credits、rate limit）。
-5. 执行业务逻辑（优先复用 `src/lib/*` 现有模块）。
-6. 持久化与审计（通过 `createAIAnalysisConversation` 记录 source 与 conversation）。
-7. 返回统一响应（`jsonOk/jsonError` 或 SSE streaming）。
+- 默认使用 Server Component；仅在需要 hooks、浏览器 API 或交互状态时使用 `'use client'`。
+- 使用 `@/` 别名引用 `frontend/src` 下模块。
+- 页面层保持轻量，业务逻辑优先下沉到 `frontend/src/lib/`、`frontend/packages/core/` 或对应业务组件。
+- 新增排盘逻辑前先检查已有 `bazi`、`ziwei`、`qimen`、`liuyao`、`daliuren` 模块，不要在页面内复制计算或格式化逻辑。
+- 禁止使用浏览器 `alert`；复用项目现有反馈组件或 Toast 方案。
+- 保持 TypeScript strict，不引入无必要的 `any`、`@ts-ignore` 或不安全类型断言。
+- 保持现有 Tailwind 与 CSS variables 视觉体系，优先移动端体验，并覆盖 loading、空数据、错误和未登录状态。
+- 只有在确有性能问题或稳定引用需求时使用 `useMemo`/`useCallback`，不要机械添加。
 
-> **占术解读路由**统一使用 `src/lib/api/divination-pipeline.ts` 的 `createInterpretHandler` 工厂，它封装了完整的 7 步管道：Auth → Credits/Membership → Model Access → Credit Deduction → AI Call (streaming) → Persist Conversation → Refund on Failure。新增占术解读路由时必须复用此管道，禁止手动拼装流程。
+## 数据库与环境变量
 
-## 前端实现规范
-
-- 默认使用 Server Component；仅在需要 hooks/浏览器 API/交互状态时使用 `'use client'`。
-- 使用 `'use client'` 时，建议在文件头用一行注释说明原因（如“需要 useState + DOM 事件”）。
-- 统一使用 `@/` 别名引用 `src` 下模块。
-- 静态常量移到组件外，避免重复创建对象/数组。
-- 昂贵计算使用 `useMemo`，透传给子组件的函数优先 `useCallback`。
-- loading 态优先音浪组件或使用骨架屏（Skeleton）而非闪烁切换。
-- 保持现有主题与视觉变量体系（Tailwind + CSS variables），避免引入孤立样式系统。
-
-## 数据库与迁移规范
-
-- 使用 mcp supabase 进行更新执行 migration
-- migration 中涉及安全对象（函数、视图、触发器）时，显式声明 `search_path` 与权限边界。
-- 如结构变化影响开发理解，需同步更新相关文档与 schema 快照。
+- 新增表或字段前先检查 `backend/prisma/schema.prisma` 和现有 SQL 使用位置，并说明为什么不能复用现有结构。
+- 数据库结构变更必须采用可审查、可重复执行的迁移方式；当前仓库没有明确的 migration 目录时，先与用户确认迁移工具和落盘位置，禁止直接修改线上数据库。
+- 结构变更必须评估索引、唯一约束、默认值、旧数据回填、向后兼容和回滚方案。
+- 环境变量以 `frontend/.env.example` 和 `backend/.env.example` 为准。新增变量时同步更新示例和相关文档。
+- 严禁提交真实密钥、Token、连接串或包含真实用户信息的测试数据。
 
 ## 测试与验收
 
-### 变更最低要求
+- 纯文案或样式修改：至少手动验证相关页面及移动端布局。
+- `frontend/src/lib/` 或 `frontend/packages/core/` 业务逻辑变更：补充或更新相应测试；若当前区域没有测试基础设施，明确说明并给出可复现的手动验证步骤。
+- FastAPI 路由或 Service 变更：补充后端测试，至少覆盖成功路径和一个失败或权限边界。
+- 涉及鉴权、云端记录同步、幂等性、AI 数据持久化或定时任务：必须增加回归测试。
+- 完成后先运行受影响范围的检查，再按风险运行 `pnpm typecheck`、`pnpm lint`、`pnpm build:frontend` 和后端测试。
+- 不能执行的验证要说明原因，不得把未执行写成已通过。
 
-- 纯文案/样式微调：至少本地手动验证相关页面。
-- 业务逻辑变更（`src/lib/*`）：新增或更新对应单测。
-- API 行为变更（`src/app/api/*`）：补充路由相关测试（成功、失败、权限边界至少覆盖两类）。
-- 涉及鉴权/积分/会员/限流/计费：必须补充回归测试。
+## Git 与交付
 
-### 合并前建议命令
+- Commit message 使用 Conventional Commits：`feat:`、`fix:`、`refactor:`、`chore:`、`docs:`、`test:`。
+- 默认不要直接提交或推送。需要提交或推送时，先说明 `git add .` 会暂存全部修改、可能夹带无关内容，且推送可能触发 CI/CD 或部署；随后提供恰好三条可复制命令并等待用户决定：`git add .`、动态 Conventional Commit、`git push`。
+- 交付说明应包含：改了什么、为什么改、如何验证、未验证项，以及风险和回滚点。
 
-```bash
-pnpm lint
-pnpm test
-```
+## 完成检查
 
-若只改局部，可先跑受影响测试，再跑全量测试。
-
-## 提交与变更说明
-
-- Commit message 使用 Conventional Commits：`feat: / fix: / refactor: / chore: / docs:`。
-- MCP / npm 发布默认不发布 `@mingai/mcp-server`，除非用户明确要求。
-- npm 发布优先使用 npm access token，不要依赖 OTP 交互流程。
-- 版本号遵循 `x.y.z`：
-  `x`：重大架构变更
-  `y`：功能新增
-  `z`：bug 修复
-- PR 描述建议包含：
-  - 改了什么（行为变化）
-  - 为什么改（问题或目标）
-  - 如何验证（命令 + 结果）
-  - 风险与回滚点（如有）
-
-## 环境变量
-
-- 以 `.env.example` 为准维护变量清单。
-- 新增环境变量必须同步更新 `.env.example` 与使用文档。
-- 严禁提交真实密钥（包括测试密钥）到仓库。
-
-## 交付检查清单
-
-- [ ] 变更范围清晰，未引入无关重构。
-- [ ] 复用现有模块，避免重复实现。
-- [ ] 鉴权、权限、积分、限流链路完整。
-- [ ] 错误路径可观测（错误码/错误信息一致）。
-- [ ] 测试与 lint 已通过，或已明确说明未执行原因。
-- [ ] 文档已同步（如涉及接口、配置、迁移、行为变化）。
+- [ ] 改动范围聚焦，没有无关重构。
+- [ ] 复用了现有模块，没有重复实现。
+- [ ] 鉴权、用户数据隔离和敏感信息处理正确。
+- [ ] 错误路径和边界条件已覆盖。
+- [ ] 相关测试、类型检查、Lint 或构建已通过，或明确说明未执行原因。
+- [ ] 接口、环境变量、数据库或行为变化已同步文档。

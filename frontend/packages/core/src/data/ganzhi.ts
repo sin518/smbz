@@ -15,6 +15,12 @@ export type TianGan = TianGanType;
 export const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const;
 export type DiZhi = DiZhiType;
 
+// 传统六十甲子：天干和地支按各自周期同步推进，只产生阴阳相配的组合。
+export const SEXAGENARY_CYCLE = Array.from(
+  { length: 60 },
+  (_, index) => `${TIAN_GAN[index % TIAN_GAN.length]}${DI_ZHI[index % DI_ZHI.length]}`,
+) as readonly string[];
+
 // 天干五行对应表
 export const GAN_WUXING: Record<string, string> = {
   '甲': '木', '乙': '木',

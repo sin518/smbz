@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Clock3, MapPin } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clock3, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ReadonlyURLSearchParams } from "next/navigation";
@@ -10,11 +10,12 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import {
   DivinationProfileCard,
-  DivinationTimePickerSheet,
   SharedFieldRow,
   SharedFormCard,
   saveSharedProfile
 } from "@/components/shared/divination-profile-card";
+import { BaziBirthTimePickerSheet } from "@/components/bazi/bazi-birth-time-picker-sheet";
+import { BaziLocationPickerSheet } from "@/components/bazi/bazi-location-picker-sheet";
 import { calculateBaziChart, type BaziCalculationRequest } from "@/lib/bazi/api";
 import type { DemoBaziChart } from "@/lib/bazi/demo";
 import { saveLocalBaziRecord, scheduleBaziRecordAutoSync } from "@/lib/bazi/local-records";
@@ -81,6 +82,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
   const searchParams = useSearchParams();
   const initialValues = useMemo(() => getInitialFormValues(searchParams), [searchParams]);
   const [birthPickerOpen, setBirthPickerOpen] = useState(false);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
   const [remoteLocationMeta, setRemoteLocationMeta] = useState<LocationCoordinate | null>(null);
   const [locationLookupState, setLocationLookupState] = useState<LocationLookupState>("idle");
   const {
@@ -94,6 +96,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
     defaultValues: initialValues
   });
   const birthTime = useWatch({ control, name: "birthTime" });
+  const calendar = useWatch({ control, name: "calendar" });
   const province = useWatch({ control, name: "province" });
   const city = useWatch({ control, name: "city" });
   const district = useWatch({ control, name: "district" });
@@ -169,7 +172,10 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
       longitude: selectedLocationMeta?.longitude,
       latitude: selectedLocationMeta?.latitude
     };
-    const chartJson = calculateBaziChart(calculationInput);
+    const chartJson = calculateBaziChart({
+      ...calculationInput,
+      calendar: values.calendar === "pillars" ? "solar" : values.calendar
+    });
 
     window.localStorage.setItem(
       "sm1:last-bazi-input",
@@ -245,29 +251,10 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
 
           <SharedFormCard>
             <SharedFieldRow icon={MapPin} label="出生地点" error={errors.province?.message || errors.city?.message || errors.district?.message}>
-              <div className="grid min-w-0 grid-cols-3 gap-1.5">
-                <select {...register("province")} className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none" aria-label="省份">
-                  {chinaLocationOptions.map((item) => (
-                    <option key={item.province} value={item.province}>
-                      {item.province}
-                    </option>
-                  ))}
-                </select>
-                <select {...register("city")} className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none" aria-label="城市">
-                  {cities.map((item) => (
-                    <option key={item.city} value={item.city}>
-                      {item.city}
-                    </option>
-                  ))}
-                </select>
-                <select {...register("district")} className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none" aria-label="区县">
-                  {districts.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <button type="button" onClick={() => setLocationPickerOpen(true)} className="flex min-w-0 items-center justify-end gap-1.5 text-right text-[17px] font-semibold text-[#55514a]" aria-label="选择出生地点">
+                <span className="truncate">{province} · {city} · {district}</span>
+                <ChevronRight size={19} className="shrink-0 text-[#8b8985]" />
+              </button>
             </SharedFieldRow>
 
             <Controller
@@ -315,14 +302,26 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
         </form>
       </div>
 
-      <DivinationTimePickerSheet
+      <BaziBirthTimePickerSheet
         open={birthPickerOpen}
         value={birthTime}
-        ariaLabel="关闭出生时间选择"
+        calendar={calendar === "pillars" ? "pillars" : "solar"}
         onClose={() => setBirthPickerOpen(false)}
-        onConfirm={(nextValue) => {
+        onConfirm={(nextValue, nextCalendar) => {
           setValue("birthTime", nextValue, { shouldDirty: true, shouldValidate: true });
+          setValue("calendar", nextCalendar, { shouldDirty: true, shouldValidate: true });
           setBirthPickerOpen(false);
+        }}
+      />
+      <BaziLocationPickerSheet
+        open={locationPickerOpen}
+        value={{ province, city, district }}
+        onClose={() => setLocationPickerOpen(false)}
+        onConfirm={(nextLocation) => {
+          setValue("province", nextLocation.province, { shouldDirty: true, shouldValidate: true });
+          setValue("city", nextLocation.city, { shouldDirty: true, shouldValidate: true });
+          setValue("district", nextLocation.district, { shouldDirty: true, shouldValidate: true });
+          setLocationPickerOpen(false);
         }}
       />
     </Shell>
@@ -484,7 +483,7 @@ function toGender(value: string | null): BaziFormValues["gender"] {
 }
 
 function toCalendarValue(value: string | null): BaziFormValues["calendar"] {
-  return "solar";
+  return value === "pillars" ? "pillars" : value === "lunar" ? "lunar" : "solar";
 }
 
 function toBooleanParam(value: string | null) {

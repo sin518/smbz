@@ -13,7 +13,7 @@ import {
 
 export {
   DI_ZHI,
-  GAN_WUXING, getStemYinYang, STEM_ELEMENTS, TIAN_GAN, YI_MA_MAP, ZHI_WUXING
+  GAN_WUXING, getStemYinYang, SEXAGENARY_CYCLE, STEM_ELEMENTS, TIAN_GAN, YI_MA_MAP, ZHI_WUXING
 } from '../data/ganzhi.js';
 export type { DiZhi, TianGan } from '../data/ganzhi.js';
 

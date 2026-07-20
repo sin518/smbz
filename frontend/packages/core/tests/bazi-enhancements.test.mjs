@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { LunarMonth, LunarYear, Solar } from 'lunar-javascript';
 
 import * as mcpCore from 'taibu-core';
+import { SEXAGENARY_CYCLE } from '../dist/data/ganzhi.js';
 
 const SAMPLE_INPUT = {
   gender: 'male',
@@ -17,6 +18,14 @@ const SAMPLE_INPUT = {
 function toPillarString(pillar) {
   return `${pillar.stem}${pillar.branch}`;
 }
+
+test('sexagenary cycle should follow the traditional 60-pillar order', () => {
+  assert.equal(SEXAGENARY_CYCLE.length, 60);
+  assert.deepEqual(SEXAGENARY_CYCLE.slice(0, 6), ['甲子', '乙丑', '丙寅', '丁卯', '戊辰', '己巳']);
+  assert.equal(SEXAGENARY_CYCLE.at(-1), '癸亥');
+  assert.equal(SEXAGENARY_CYCLE.includes('甲丑'), false);
+  assert.equal(new Set(SEXAGENARY_CYCLE).size, 60);
+});
 
 test('bazi should expose enhanced pillar fields', async () => {
   const result = await mcpCore.calculateBazi(SAMPLE_INPUT);

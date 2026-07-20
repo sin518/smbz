@@ -9,6 +9,7 @@ export declare const TIAN_GAN: readonly ["甲", "乙", "丙", "丁", "戊", "己
 export type TianGan = TianGanType;
 export declare const DI_ZHI: readonly ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
 export type DiZhi = DiZhiType;
+export declare const SEXAGENARY_CYCLE: readonly string[];
 export declare const GAN_WUXING: Record<string, string>;
 /** @deprecated 使用 GAN_WUXING 代替 */
 export declare const STEM_ELEMENTS: Record<string, string>;

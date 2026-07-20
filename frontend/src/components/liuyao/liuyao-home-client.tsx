@@ -3,12 +3,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, CalendarClock, Check, ChevronDown, Compass, Hand, Hash, Info, ListChecks, MessageSquareText, X } from "lucide-react";
 import { Lunar, Solar } from "lunar-typescript";
+import { resolveBaziPillars } from "taibu-core/bazi-pillars-resolve";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, type UseFormRegisterReturn, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { SharedFieldRow, SharedFormCard, SharedSegmentedPill, formatDateTimeLocal } from "@/components/shared/divination-profile-card";
+import { GanzhiPillarSelector } from "@/components/shared/ganzhi-pillar-selector";
 import { castLiuyaoLine, type LiuyaoLine } from "@/lib/liuyao/casting";
 import { cn } from "@/lib/utils";
 
@@ -125,14 +127,6 @@ const branchNumbers = {
   戌: 11,
   亥: 12
 } as const;
-
-const heavenlyStems = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"] as const;
-const earthlyBranches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"] as const;
-const jiaziCycle = Array.from({ length: 60 }, (_, index) => `${heavenlyStems[index % 10]}${earthlyBranches[index % 12]}`);
-const stemGroupedGanzhiOptions = heavenlyStems.map((stem) => ({
-  stem,
-  values: earthlyBranches.map((branch) => `${stem}${branch}`)
-}));
 
 const trigramKeysByNumber = {
   1: "111",
@@ -717,13 +711,6 @@ type LiuyaoTimePickerResult = {
 };
 
 const PICKER_ITEM_HEIGHT = 48;
-const ganzhiFieldLabels: Record<keyof GanzhiSelection, string> = {
-  year: "年柱",
-  month: "月柱",
-  day: "日柱",
-  hour: "时柱"
-};
-
 function LiuyaoTimePickerSheet({
   open,
   calendar,
@@ -744,7 +731,8 @@ function LiuyaoTimePickerSheet({
   const [draftCalendar, setDraftCalendar] = useState<LiuyaoFormValues["castingCalendar"]>(calendar);
   const [draftTime, setDraftTime] = useState(() => parseDateTimeLocalParts(value));
   const [draftGanzhi, setDraftGanzhi] = useState<GanzhiSelection>(ganzhi);
-  const [activeGanzhiField, setActiveGanzhiField] = useState<keyof GanzhiSelection>("year");
+  const [resolveError, setResolveError] = useState("");
+  const [resolving, setResolving] = useState(false);
   const years = useMemo(() => buildNumberRange(1920, 2050), []);
   const months = useMemo(() => buildNumberRange(1, 12), []);
   const hours = useMemo(() => buildNumberRange(0, 23), []);
@@ -756,6 +744,8 @@ function LiuyaoTimePickerSheet({
       setDraftCalendar(calendar);
       setDraftTime(parseDateTimeLocalParts(value));
       setDraftGanzhi(ganzhi);
+      setResolveError("");
+      setResolving(false);
     }
   }, [calendar, ganzhi, open, value]);
 
@@ -774,13 +764,41 @@ function LiuyaoTimePickerSheet({
     setDraftTime((current) => ({ ...current, [key]: nextValue }));
   };
 
-  const updateGanzhi = (key: keyof GanzhiSelection, nextValue: string) => {
-    setDraftGanzhi((current) => ({ ...current, [key]: nextValue }));
-  };
-
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const nextValue = toDateTimeValue(draftTime);
-    const resolvedValue = draftCalendar === "lunar" ? findSolarDateTimeForGanzhi(draftGanzhi, nextValue) ?? nextValue : nextValue;
+    let resolvedValue = nextValue;
+
+    if (draftCalendar === "lunar") {
+      setResolving(true);
+      setResolveError("");
+      try {
+        const result = await resolveBaziPillars({
+          yearPillar: draftGanzhi.year,
+          monthPillar: draftGanzhi.month,
+          dayPillar: draftGanzhi.day,
+          hourPillar: draftGanzhi.hour
+        });
+        const referenceTime = new Date(nextValue).getTime();
+        const candidates = result.candidates
+          .map((candidate) => ({ ...candidate, time: new Date(candidate.solarText.replace(" ", "T")).getTime() }))
+          .filter((candidate) => Number.isFinite(candidate.time));
+        const nearest = candidates.reduce<(typeof candidates)[number] | undefined>((best, candidate) => {
+          if (!best) return candidate;
+          return Math.abs(candidate.time - referenceTime) < Math.abs(best.time - referenceTime) ? candidate : best;
+        }, undefined);
+
+        if (!nearest) {
+          setResolveError("没有找到匹配时间，请检查四柱组合。");
+          return;
+        }
+        resolvedValue = nearest.solarText.replace(" ", "T");
+      } catch (error) {
+        setResolveError(error instanceof Error ? error.message : "四柱反查失败，请稍后再试。");
+        return;
+      } finally {
+        setResolving(false);
+      }
+    }
 
     onConfirm({
       calendar: draftCalendar,
@@ -838,56 +856,24 @@ function LiuyaoTimePickerSheet({
           </div>
         ) : (
           <div className="mt-6 border-t border-[#f0f0ef] pt-4">
-            <div className="grid grid-cols-4 gap-2">
-              {(Object.keys(ganzhiFieldLabels) as Array<keyof GanzhiSelection>).map((field) => (
-                <button
-                  key={field}
-                  type="button"
-                  onClick={() => setActiveGanzhiField(field)}
-                  className={cn(
-                    "min-h-[66px] rounded-2xl border px-2 text-center transition-colors",
-                    activeGanzhiField === field ? "border-black bg-black text-[#e8d4a7]" : "border-[#ece5d6] bg-[#fffdf8] text-[#5a554d]"
-                  )}
-                >
-                  <span className="block text-[12px] font-semibold leading-5 opacity-75">{ganzhiFieldLabels[field]}</span>
-                  <span className="block text-[22px] font-semibold leading-8">{draftGanzhi[field]}</span>
-                </button>
-              ))}
-            </div>
-            <div className="mt-4 rounded-2xl bg-[#f6f3ec] p-3">
-              <div className="mb-3 flex items-center justify-between px-1">
-                <span className="text-[15px] font-semibold text-[#4d4537]">选择{ganzhiFieldLabels[activeGanzhiField]}</span>
-                <span className="text-[13px] font-semibold text-[#a58024]">当前 {draftGanzhi[activeGanzhiField]}</span>
-              </div>
-              <div className="max-h-[240px] space-y-3 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {stemGroupedGanzhiOptions.map((group) => (
-                  <div key={group.stem} className="grid grid-cols-[28px_minmax(0,1fr)] gap-2">
-                    <span className="flex h-9 items-center justify-center rounded-full bg-[#eadfca] text-[15px] font-semibold text-[#7a642a]">{group.stem}</span>
-                    <div className="grid grid-cols-4 gap-2">
-                      {group.values.map((item) => {
-                        const selected = draftGanzhi[activeGanzhiField] === item;
-
-                        return (
-                          <button
-                            key={item}
-                            type="button"
-                            onClick={() => updateGanzhi(activeGanzhiField, item)}
-                            className={cn(
-                              "h-9 rounded-xl text-[15px] font-semibold transition-colors",
-                              selected ? "bg-black text-[#e8d4a7]" : "bg-white text-[#5a554d]"
-                            )}
-                          >
-                            {item}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <GanzhiPillarSelector
+              value={{
+                yearPillar: draftGanzhi.year,
+                monthPillar: draftGanzhi.month,
+                dayPillar: draftGanzhi.day,
+                hourPillar: draftGanzhi.hour
+              }}
+              onChange={(nextValue) => setDraftGanzhi({
+                year: nextValue.yearPillar,
+                month: nextValue.monthPillar,
+                day: nextValue.dayPillar,
+                hour: nextValue.hourPillar
+              })}
+            />
           </div>
         )}
+
+        {resolveError ? <p className="mt-3 text-center text-sm font-semibold text-red-600" role="alert">{resolveError}</p> : null}
 
         <div className="mt-5 grid grid-cols-[1fr_1.35fr] items-center gap-3">
           <button
@@ -899,10 +885,11 @@ function LiuyaoTimePickerSheet({
           </button>
           <button
             type="button"
-            onClick={handleConfirm}
+            disabled={resolving}
+            onClick={() => void handleConfirm()}
             className="h-12 rounded-full bg-black text-[20px] font-semibold text-[#e8d4a7]"
           >
-            确定
+            {resolving ? "正在反查" : "确定"}
           </button>
         </div>
       </section>
@@ -1413,43 +1400,6 @@ function getGanzhiFromTimeParts(date: TimeParts): GanzhiSelection {
     day: `${lunar.getDayGan()}${lunar.getDayZhi()}`,
     hour: `${lunar.getTimeGan()}${lunar.getTimeZhi()}`
   };
-}
-
-function findSolarDateTimeForGanzhi(target: GanzhiSelection, fallbackValue: string) {
-  const fallback = parseDateTimeLocalParts(fallbackValue);
-  const fallbackDate = new Date(fallback.year, fallback.month - 1, fallback.day, fallback.hour, fallback.minute);
-  const minute = fallback.minute;
-  const start = new Date(fallbackDate);
-  start.setHours(12, minute, 0, 0);
-
-  for (let offset = 0; offset <= 36525; offset += 1) {
-    const directions = offset === 0 ? [0] : [offset, -offset];
-
-    for (const direction of directions) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + direction);
-
-      for (let hour = 0; hour < 24; hour += 1) {
-        const parts = {
-          year: date.getFullYear(),
-          month: date.getMonth() + 1,
-          day: date.getDate(),
-          hour,
-          minute
-        };
-
-        if (isSameGanzhi(getGanzhiFromTimeParts(parts), target)) {
-          return toDateTimeValue(parts);
-        }
-      }
-    }
-  }
-
-  return undefined;
-}
-
-function isSameGanzhi(first: GanzhiSelection, second: GanzhiSelection) {
-  return first.year === second.year && first.month === second.month && first.day === second.day && first.hour === second.hour;
 }
 
 function parseDateTimeLocalParts(value: string): TimeParts {

@@ -5,6 +5,13 @@ import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
+import type { BaziPillarsResolveCandidate } from "taibu-core";
+import { resolveBaziPillars } from "taibu-core/bazi-pillars-resolve";
+import { Solar } from "lunar-typescript";
+import {
+  GanzhiPillarSelector,
+  type GanzhiPillarSelection
+} from "@/components/shared/ganzhi-pillar-selector";
 import { cn } from "@/lib/utils";
 
 type GenderValue = "male" | "female";
@@ -332,15 +339,23 @@ export function DivinationTimePickerSheet({
   value,
   onClose,
   onConfirm,
+  header,
   ariaLabel = "关闭时间选择"
 }: {
   open: boolean;
   value: string;
   onClose: () => void;
   onConfirm: (value: string) => void;
+  header?: ReactNode;
   ariaLabel?: string;
 }) {
   const [draft, setDraft] = useState(() => parseDateTime(value));
+  const [draftMode, setDraftMode] = useState<"solar" | "pillars">("solar");
+  const [pillars, setPillars] = useState<GanzhiPillarSelection>(() => getGanzhiPillars(value));
+  const [resolveStatus, setResolveStatus] = useState<"idle" | "loading" | "choosing">("idle");
+  const [resolveError, setResolveError] = useState("");
+  const [candidates, setCandidates] = useState<BaziPillarsResolveCandidate[]>([]);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const years = useMemo(() => buildNumberRange(1920, 2050), []);
   const months = useMemo(() => buildNumberRange(1, 12), []);
   const hours = useMemo(() => buildNumberRange(0, 23), []);
@@ -350,6 +365,12 @@ export function DivinationTimePickerSheet({
   useEffect(() => {
     if (open) {
       setDraft(parseDateTime(value));
+      setDraftMode("solar");
+      setPillars(getGanzhiPillars(value));
+      setResolveStatus("idle");
+      setResolveError("");
+      setCandidates([]);
+      setSelectedCandidateId(null);
     }
   }, [open, value]);
 
@@ -368,15 +389,47 @@ export function DivinationTimePickerSheet({
     setDraft((current) => ({ ...current, [key]: nextValue }));
   };
 
+  const confirmPillars = async () => {
+    setResolveStatus("loading");
+    setResolveError("");
+    try {
+      const result = await resolveBaziPillars(pillars);
+      const now = Date.now();
+      const available = result.candidates.filter((candidate) => new Date(candidate.solarText.replace(" ", "T")).getTime() <= now);
+      if (available.length === 0) {
+        setResolveStatus("idle");
+        setResolveError("1900 年至今没有匹配时间，请检查四柱组合。");
+      } else if (available.length === 1) {
+        onConfirm(available[0].solarText.replace(" ", "T"));
+      } else {
+        setCandidates(available);
+        setSelectedCandidateId(available[0].candidateId);
+        setResolveStatus("choosing");
+      }
+    } catch (error) {
+      setResolveStatus("idle");
+      setResolveError(error instanceof Error ? error.message : "四柱反查失败，请稍后再试。");
+    }
+  };
+
+  const confirmSelectedCandidate = () => {
+    const selected = candidates.find((candidate) => candidate.candidateId === selectedCandidateId);
+    if (selected) onConfirm(selected.solarText.replace(" ", "T"));
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65">
       <button className="absolute inset-0 cursor-default" type="button" aria-label={ariaLabel} onClick={onClose} />
       <section className="relative w-full max-w-[430px] rounded-t-[28px] bg-white px-5 pb-8 pt-7 shadow-soft">
-        <div className="grid h-12 grid-cols-1 rounded-full bg-[#f4f4f3] p-1">
-          <span className="flex items-center justify-center rounded-full bg-white text-[18px] font-semibold text-ink shadow-sm">公历</span>
-        </div>
+        {header ?? (
+          <div className="grid h-12 grid-cols-2 rounded-full bg-[#f4f4f3] p-1" role="tablist" aria-label="选择时间输入方式">
+            {([['公历', 'solar'], ['农历', 'pillars']] as const).map(([label, mode]) => (
+              <button key={mode} type="button" role="tab" aria-selected={draftMode === mode} onClick={() => { setDraftMode(mode); setResolveStatus("idle"); setResolveError(""); }} className={cn("rounded-full text-[18px] font-semibold", draftMode === mode ? "bg-white text-ink shadow-sm" : "text-[#8b8985]")}>{label}</button>
+            ))}
+          </div>
+        )}
 
-        <div className="mt-6 border-t border-[#f0f0ef] pt-4">
+        {draftMode === "solar" || header ? <div className="mt-6 border-t border-[#f0f0ef] pt-4">
           <div className="grid grid-cols-5 text-center text-[20px] font-semibold text-[#3d3a36]">
             <span className="rounded-full bg-[#f4f1ed] py-3 text-[#a99156]">年</span>
             <span className="py-3">月</span>
@@ -392,27 +445,59 @@ export function DivinationTimePickerSheet({
             <PickerColumn values={hours} selected={draft.hour} onSelect={(nextValue) => updateDraft("hour", nextValue)} padValue />
             <PickerColumn values={minutes} selected={draft.minute} onSelect={(nextValue) => updateDraft("minute", nextValue)} padValue />
           </div>
-        </div>
+        </div> : resolveStatus === "choosing" ? (
+          <div className="mt-6 border-t border-[#f0f0ef] pt-4">
+            <h2 className="text-lg font-semibold text-ink">选择匹配的时间</h2>
+            <p className="mt-1 text-sm text-[#8b8985]">同一组四柱可能每隔六十年再次出现。</p>
+            <div className="mt-3 max-h-[330px] space-y-2 overflow-y-auto">
+              {candidates.map((candidate) => (
+                <label key={candidate.candidateId} className={cn("flex cursor-pointer gap-3 rounded-2xl border px-4 py-3", selectedCandidateId === candidate.candidateId ? "border-[#a58024] bg-[#fbf6e9]" : "border-[#e8e4da]") }>
+                  <input type="radio" name="shared-ganzhi-candidate" checked={selectedCandidateId === candidate.candidateId} onChange={() => setSelectedCandidateId(candidate.candidateId)} />
+                  <span><strong className="block text-ink">公历 {candidate.solarText}</strong><span className="text-sm text-[#77736c]">{candidate.lunarText}</span></span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 border-t border-[#f0f0ef] pt-4">
+            <p className="mb-3 text-center text-sm text-[#8b8985]">按六旬选择年、月、日、时四柱</p>
+            <GanzhiPillarSelector value={pillars} onChange={(nextValue) => { setPillars(nextValue); setResolveError(""); }} />
+          </div>
+        )}
+
+        {resolveError ? <p className="mt-3 text-center text-sm font-semibold text-red-600" role="alert">{resolveError}</p> : null}
 
         <div className="mt-5 grid grid-cols-[1fr_1.35fr] items-center gap-3">
           <button
             type="button"
-            onClick={() => onConfirm(formatDateTimeLocal(new Date()))}
+            onClick={resolveStatus === "choosing" ? () => setResolveStatus("idle") : () => onConfirm(formatDateTimeLocal(new Date()))}
             className="h-12 rounded-full bg-[#f4f4f3] text-[18px] font-semibold text-ink"
           >
-            今
+            {resolveStatus === "choosing" ? "返回修改" : "今"}
           </button>
           <button
             type="button"
-            onClick={() => onConfirm(toDateTimeValue(draft))}
+            disabled={resolveStatus === "loading"}
+            onClick={draftMode === "solar" || header ? () => onConfirm(toDateTimeValue(draft)) : resolveStatus === "choosing" ? confirmSelectedCandidate : () => void confirmPillars()}
             className="h-12 rounded-full bg-black text-[20px] font-semibold text-[#e8d4a7]"
           >
-            确定
+            {resolveStatus === "loading" ? "正在反查" : resolveStatus === "choosing" ? "使用此时间" : "确定"}
           </button>
         </div>
       </section>
     </div>
   );
+}
+
+function getGanzhiPillars(value: string): GanzhiPillarSelection {
+  const time = parseDateTime(value);
+  const lunar = Solar.fromYmdHms(time.year, time.month, time.day, time.hour, time.minute, 0).getLunar();
+  return {
+    yearPillar: `${lunar.getYearGan()}${lunar.getYearZhi()}`,
+    monthPillar: `${lunar.getMonthGan()}${lunar.getMonthZhi()}`,
+    dayPillar: `${lunar.getDayGan()}${lunar.getDayZhi()}`,
+    hourPillar: `${lunar.getTimeGan()}${lunar.getTimeZhi()}`
+  };
 }
 
 type TimeParts = {
