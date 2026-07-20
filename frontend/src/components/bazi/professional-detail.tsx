@@ -91,7 +91,7 @@ export function ProfessionalDetail({
 function ProfessionalChart({ columns }: { columns: DetailColumn[] }) {
   return (
     <section className="mx-4 overflow-hidden rounded-[14px] border border-[#e4d9c5] bg-white shadow-[0_10px_30px_rgba(67,48,20,0.07)]" aria-label="专业细盘四柱排盘">
-      <div className="grid grid-cols-[64px_repeat(6,minmax(0,1fr))] text-center max-[380px]:grid-cols-[54px_repeat(6,minmax(0,1fr))]">
+      <div className="grid grid-cols-[64px_repeat(6,minmax(0,1fr))] text-center max-[430px]:grid-cols-[54px_repeat(6,minmax(0,1fr))]">
         <DetailLabel rowIndex={0}>日期</DetailLabel>
         {columns.map((column) => (
           <DetailCell key={column.title} rowIndex={0} muted>{column.title}</DetailCell>
@@ -189,9 +189,9 @@ function HiddenStemCell({ column }: { column: DetailColumn }) {
 
 function DetailShenshaCell({ items }: { items: string[] }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-1 border-b border-l border-[#e9e1d2] px-1 text-[10px] leading-[1.25] max-[380px]:gap-0.5 max-[380px]:px-0.5 max-[380px]:text-[8px]", getDetailRowClass(9, false, true))}>
+    <div className={cn("flex flex-col items-center justify-center gap-1 border-b border-l border-[#e9e1d2] px-1 text-[10px] leading-[1.25] max-[430px]:gap-0.5 max-[430px]:px-0.5 max-[430px]:text-[9px] max-[380px]:text-[8px]", getDetailRowClass(9, false, true))}>
       {items.slice(0, 4).map((item) => (
-        <p key={item} className="max-w-full whitespace-nowrap rounded-[5px] border border-[#eadfca] bg-[#fdf9f1] px-1 py-0.5 text-[#8b672d] max-[380px]:rounded-[4px] max-[380px]:px-0.5">{item}</p>
+        <p key={item} className="max-w-full whitespace-nowrap rounded-[5px] border border-[#eadfca] bg-[#fdf9f1] px-1 py-0.5 text-[#8b672d] max-[430px]:rounded-[4px] max-[430px]:px-0.5">{item}</p>
       ))}
     </div>
   );
