@@ -23,7 +23,16 @@ function buildBaziCanonicalStemRelations(result) {
         relationParts.push(value);
     };
     for (const item of result.tianGanWuHe) {
-        pushUnique(`${item.stemA}${item.stemB}合${item.resultElement}`);
+        let heText = `${item.stemA}${item.stemB}合${item.resultElement}`;
+        if (item.isTransformed !== undefined) {
+            if (item.isTransformed) {
+                heText += `（合化成立：${item.transformReason}）`;
+            }
+            else {
+                heText += `（合化不成立：${item.notTransformReason}）`;
+            }
+        }
+        pushUnique(heText);
     }
     for (const item of result.tianGanChongKe) {
         pushUnique(`${item.stemA}${item.stemB}冲克`);

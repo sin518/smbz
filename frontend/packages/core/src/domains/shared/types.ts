@@ -49,6 +49,12 @@ export interface TianGanWuHeItem {
   stemB: string;
   resultElement: string;
   positions: [PillarPosition, PillarPosition];
+  /** 合化是否成立 */
+  isTransformed?: boolean;
+  /** 合化成立原因（如："化神当令"、"化神有强根"等） */
+  transformReason?: string;
+  /** 合化不成立原因（如："化神不得令"、"有强克"等） */
+  notTransformReason?: string;
 }
 
 export interface DiZhiBanHeItem {

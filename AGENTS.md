@@ -88,3 +88,17 @@ cd backend && .venv/bin/python -m unittest discover -s tests -p 'test_*.py'
 - [ ] 错误路径和边界条件已覆盖。
 - [ ] 相关测试、类型检查、Lint 或构建已通过，或明确说明未执行原因。
 - [ ] 接口、环境变量、数据库或行为变化已同步文档。
+
+## Agent skills
+
+### Issue tracker
+
+问题通过 GitHub Issues 追踪，使用 `gh` CLI。外部 PR 不作为分类来源。详见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+使用默认标签词汇表：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+单一上下文布局：仓库根目录的 `CONTEXT.md`，ADR 位于 `docs/adr/`。详见 `docs/agents/domain.md`。

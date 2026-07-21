@@ -224,12 +224,35 @@ const TIAN_GAN_WU_HE_RESULT: Record<string, string> = {
   '戊癸': '火', '癸戊': '火',
 };
 
+// 化神对应的地支（用于判断化神是否有根）
+const HUA_SHEN_ROOTS: Record<string, string[]> = {
+  '土': ['辰', '戌', '丑', '未'],
+  '金': ['申', '酉'],
+  '水': ['亥', '子'],
+  '木': ['寅', '卯'],
+  '火': ['巳', '午'],
+};
+
+// 月令对应的当令五行（用于判断化神是否当令）
+const MONTH_BRANCH_ELEMENT: Record<string, string> = {
+  '寅': '木', '卯': '木',
+  '巳': '火', '午': '火',
+  '申': '金', '酉': '金',
+  '亥': '水', '子': '水',
+  '辰': '土', '戌': '土', '丑': '土', '未': '土',
+};
+
 function analyzeTianGanWuHe(
   yearStem: string, monthStem: string, dayStem: string, hourStem: string,
+  yearBranch: string, monthBranch: string, dayBranch: string, hourBranch: string,
 ): TianGanWuHeItem[] {
   const stems = [yearStem, monthStem, dayStem, hourStem];
+  const branches = [yearBranch, monthBranch, dayBranch, hourBranch];
   const pillarNames: PillarPosition[] = ['年支', '月支', '日支', '时支'];
   const result: TianGanWuHeItem[] = [];
+
+  // 月令当令五行
+  const monthElement = MONTH_BRANCH_ELEMENT[monthBranch];
 
   // Check all pillar pairs (including day master vs. non-adjacent stems)
   for (let i = 0; i < stems.length; i++) {
@@ -237,17 +260,109 @@ function analyzeTianGanWuHe(
       const pair = `${stems[i]}${stems[j]}`;
       const element = TIAN_GAN_WU_HE_RESULT[pair];
       if (element) {
+        // 判断合化是否成立
+        const { isTransformed, transformReason, notTransformReason } = checkHeHuaTransformation(
+          element,
+          i,
+          j,
+          branches,
+          monthElement,
+          stems,
+        );
+
         result.push({
           stemA: stems[i],
           stemB: stems[j],
           resultElement: element,
           positions: [pillarNames[i], pillarNames[j]],
+          isTransformed,
+          transformReason,
+          notTransformReason,
         });
       }
     }
   }
 
   return result;
+}
+
+/**
+ * 判断天干合化是否成立
+ * 合化成立三个条件：
+ * 1. 化神当令（月令五行 = 化神五行）或化神有强根（地支有化神对应的地支）
+ * 2. 合化双方紧贴（相邻柱位）
+ * 3. 无强力克制化神（地支中克制化神的五行不过多）
+ */
+function checkHeHuaTransformation(
+  huaShenElement: string,
+  posA: number,
+  posB: number,
+  branches: string[],
+  monthElement: string,
+  stems: string[],
+): {
+  isTransformed: boolean;
+  transformReason?: string;
+  notTransformReason?: string;
+} {
+  const reasons: string[] = [];
+  const failReasons: string[] = [];
+
+  // 条件1：化神当令或有强根
+  const isDangLing = monthElement === huaShenElement;
+  const huaShenRoots = HUA_SHEN_ROOTS[huaShenElement] || [];
+  const rootCount = branches.filter(b => huaShenRoots.includes(b)).length;
+  const hasStrongRoot = rootCount >= 2;
+
+  if (isDangLing) {
+    reasons.push('化神当令');
+  } else if (hasStrongRoot) {
+    reasons.push(`化神有强根（地支有${rootCount}个${huaShenElement}根）`);
+  } else {
+    failReasons.push(`化神不得令且无强根（月令为${monthElement}，地支仅${rootCount}个${huaShenElement}根）`);
+  }
+
+  // 条件2：紧贴判定（相邻柱位）
+  const isAdjacent = Math.abs(posA - posB) === 1;
+  if (isAdjacent) {
+    reasons.push('双方紧贴');
+  } else {
+    failReasons.push(`双方不紧贴（相隔${Math.abs(posA - posB) - 1}柱）`);
+  }
+
+  // 条件3：无强克（简化判定：地支中克制化神的五行不超过2个）
+  const keElements = getKeElement(huaShenElement);
+  const keCount = branches.filter(b => {
+    const branchElement = MONTH_BRANCH_ELEMENT[b];
+    return keElements.includes(branchElement);
+  }).length;
+
+  if (keCount >= 2) {
+    failReasons.push(`有强克（地支中有${keCount}个克${huaShenElement}的五行）`);
+  }
+
+  // 最终判定：条件1和2必须满足，条件3不能强克
+  const isTransformed = (isDangLing || hasStrongRoot) && isAdjacent && keCount < 2;
+
+  return {
+    isTransformed,
+    transformReason: isTransformed ? reasons.join('，') : undefined,
+    notTransformReason: !isTransformed ? failReasons.join('；') : undefined,
+  };
+}
+
+/**
+ * 获取克制指定五行的五行列表
+ */
+function getKeElement(element: string): string[] {
+  const keMap: Record<string, string[]> = {
+    '木': ['金'],
+    '火': ['水'],
+    '土': ['木'],
+    '金': ['火'],
+    '水': ['土'],
+  };
+  return keMap[element] || [];
 }
 
 // ===== 地支半合 =====
@@ -944,7 +1059,7 @@ export function calculateBaziData(input: BaziInput): BaziOutput {
   fourPillars.day.tenGod = undefined;
 
   const relations = analyzePillarRelations(yearBranch, monthBranch, dayBranch, hourBranch);
-  const tianGanWuHe = analyzeTianGanWuHe(yearStem, monthStem, dayStem, hourStem);
+  const tianGanWuHe = analyzeTianGanWuHe(yearStem, monthStem, dayStem, hourStem, yearBranch, monthBranch, dayBranch, hourBranch);
   const tianGanChongKe = analyzeTianGanChongKe(yearStem, monthStem, dayStem, hourStem);
   const diZhiBanHe = analyzeDiZhiBanHe(yearBranch, monthBranch, dayBranch, hourBranch);
   const diZhiSanHui = analyzeDiZhiSanHui(yearBranch, monthBranch, dayBranch, hourBranch);
