@@ -85,6 +85,26 @@ async def delete_divination_record(connection: asyncpg.Connection, user_id: str,
     return result == "DELETE 1"
 
 
+async def delete_divination_records(
+    connection: asyncpg.Connection,
+    user_id: str,
+    record_ids: list[str],
+) -> tuple[list[str], list[str]]:
+    rows = await connection.fetch(
+        '''
+        DELETE FROM "DivinationRecord"
+        WHERE "userId" = $1 AND id = ANY($2::text[])
+        RETURNING id
+        ''',
+        user_id,
+        record_ids,
+    )
+    deleted_set = {str(row["id"]) for row in rows}
+    deleted_ids = [record_id for record_id in record_ids if record_id in deleted_set]
+    missing_ids = [record_id for record_id in record_ids if record_id not in deleted_set]
+    return deleted_ids, missing_ids
+
+
 def normalize_payload(value: object) -> dict[str, object]:
     if isinstance(value, str):
         parsed = json.loads(value)

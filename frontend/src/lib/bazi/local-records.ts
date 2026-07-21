@@ -103,8 +103,16 @@ export function getLocalBaziRecord(id: string) {
 }
 
 export function deleteLocalBaziRecord(id: string) {
-  const nextRecords = getLocalBaziRecords().filter((record) => record.id !== id && record.serverId !== id);
+  return deleteLocalBaziRecords([id]);
+}
+
+export function deleteLocalBaziRecords(ids: Iterable<string>) {
+  const idSet = new Set(ids);
+  const currentRecords = getLocalBaziRecords();
+  const deletedRecords = currentRecords.filter((record) => idSet.has(record.id) || Boolean(record.serverId && idSet.has(record.serverId)));
+  const nextRecords = currentRecords.filter((record) => !idSet.has(record.id) && !Boolean(record.serverId && idSet.has(record.serverId)));
   writeRecords(nextRecords);
+  deleteSharedProfilesByRecords(idSet, deletedRecords);
   return nextRecords;
 }
 
@@ -164,9 +172,7 @@ export async function deleteCloudBaziRecord(serverId: string) {
 }
 
 export function deleteUnifiedBaziRecord(id: string) {
-  const deletedLocalRecord = getLocalBaziRecords().find((record) => record.id === id || record.serverId === id);
   deleteLocalBaziRecord(id);
-  deleteSharedProfileByRecordId(id, deletedLocalRecord);
   return getUnifiedBaziRecords().filter((record) => record.id !== id && record.serverId !== id);
 }
 
@@ -186,7 +192,6 @@ export async function deleteUnifiedBaziRecordWithRemote(id: string) {
   }
 
   deleteLocalBaziRecord(id);
-  deleteSharedProfileByRecordId(id, deletedLocalRecord);
   return getUnifiedBaziRecords().filter((record) => record.id !== id && record.serverId !== id);
 }
 
@@ -354,7 +359,7 @@ function extractPillars(chart: DemoBaziChart) {
   return chart.columns.map((column) => `${column.pillar.stem}${column.pillar.branch}`).join(" ");
 }
 
-function deleteSharedProfileByRecordId(id: string, localRecord?: LocalBaziRecord) {
+function deleteSharedProfilesByRecords(ids: Set<string>, deletedRecords: LocalBaziRecord[]) {
   if (typeof window === "undefined") {
     return;
   }
@@ -367,20 +372,18 @@ function deleteSharedProfileByRecordId(id: string, localRecord?: LocalBaziRecord
       return;
     }
 
+    const deletedIdentityKeys = new Set(deletedRecords.map(getRecordIdentityKey));
+
     const nextProfiles = parsed.filter((item) => {
       if (!isSharedProfileValue(item)) {
         return false;
       }
 
-      if (item.id === id) {
+      if (item.id && ids.has(item.id)) {
         return false;
       }
 
-      if (!localRecord) {
-        return true;
-      }
-
-      return getProfileIdentityKey(item) !== getRecordIdentityKey(localRecord);
+      return !deletedIdentityKeys.has(getProfileIdentityKey(item));
     });
 
     window.localStorage.setItem(SHARED_PROFILE_CACHE_KEY, JSON.stringify(nextProfiles));

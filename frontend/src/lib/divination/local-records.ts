@@ -144,7 +144,12 @@ export function getLocalDivinationRecords() {
 }
 
 export function deleteLocalDivinationRecord(id: string) {
-  const nextRecords = getLocalDivinationRecords().filter((record) => record.id !== id);
+  return deleteLocalDivinationRecords([id]);
+}
+
+export function deleteLocalDivinationRecords(ids: Iterable<string>) {
+  const idSet = new Set(ids);
+  const nextRecords = getLocalDivinationRecords().filter((record) => !idSet.has(record.id));
   writeRecords(nextRecords);
   return nextRecords;
 }

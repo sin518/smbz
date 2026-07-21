@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppBottomNav } from "@/components/app-bottom-nav";
 import {
   deleteCloudBaziRecord,
+  deleteLocalBaziRecords,
   deleteUnifiedBaziRecordWithRemote,
   fetchCloudBaziRecords,
   getUnifiedBaziRecords,
@@ -16,12 +17,14 @@ import {
 } from "@/lib/bazi/local-records";
 import {
   deleteDivinationRecordWithRemote,
+  deleteLocalDivinationRecords,
   fetchCloudDivinationRecords,
   getLocalDivinationRecords,
   restoreLocalDivinationRecord,
   syncAllPendingRecords,
   type LocalDivinationRecord
 } from "@/lib/divination/local-records";
+import { deleteCloudRecordsInBulk } from "@/lib/records/bulk-delete";
 import { DivinationSyncStatusBadge as DivinationSyncBadge } from "@/components/divination/divination-sync-status-badge";
 import { cn } from "@/lib/utils";
 
@@ -234,7 +237,7 @@ export default function RecordsPage() {
       return;
     }
 
-    const cloudCount = selectedRecords.filter((item) => Boolean(item.record.serverId)).length;
+    const cloudCount = selectedRecords.filter((item) => Boolean(getRemoteRecordId(item))).length;
     const confirmed = window.confirm(
       `确定删除选中的 ${selectedRecords.length} 条记录吗？${cloudCount > 0 ? `其中 ${cloudCount} 条已关联云端，将同步删除云端记录。` : ""}删除后无法恢复。`
     );
@@ -243,25 +246,57 @@ export default function RecordsPage() {
     }
 
     setBulkDeleting(true);
-    setSyncMessage("");
-    let successCount = 0;
-    let failedCount = 0;
+    setSyncMessage(`正在批量删除 ${selectedRecords.length} 条记录。`);
 
-    for (const item of selectedRecords) {
-      try {
-        await deleteRecordItem(item);
-        successCount += 1;
-      } catch {
-        failedCount += 1;
+    try {
+      const baziRemoteIds = selectedRecords
+        .filter((item) => item.kind === "bazi")
+        .map(getRemoteRecordId)
+        .filter((id): id is string => Boolean(id));
+      const divinationRemoteIds = selectedRecords
+        .filter((item) => item.kind === "divination")
+        .map(getRemoteRecordId)
+        .filter((id): id is string => Boolean(id));
+      const [resolvedBaziIds, resolvedDivinationIds] = await Promise.all([
+        deleteCloudRecordsInBulk("/api/bazi/charts", baziRemoteIds),
+        deleteCloudRecordsInBulk("/api/sync/records", divinationRemoteIds),
+      ]);
+      const successfullyDeleted = selectedRecords.filter((item) => {
+        const remoteId = getRemoteRecordId(item);
+        if (!remoteId) {
+          return true;
+        }
+
+        return item.kind === "bazi" ? resolvedBaziIds.has(remoteId) : resolvedDivinationIds.has(remoteId);
+      });
+      const baziLocalIds = successfullyDeleted.filter((item) => item.kind === "bazi").map((item) => item.record.id);
+      const divinationLocalIds = successfullyDeleted
+        .filter((item) => item.kind === "divination")
+        .map((item) => item.record.id);
+
+      if (baziLocalIds.length > 0) {
+        deleteLocalBaziRecords(baziLocalIds);
       }
-    }
+      if (divinationLocalIds.length > 0) {
+        deleteLocalDivinationRecords(divinationLocalIds);
+      }
 
-    setRecords(await fetchRecordsPageItemsFromCloud());
-    setSelectedRecordKeys(new Set());
-    setSelectionMode(false);
-    setBulkDeleting(false);
-    setSyncMessage(failedCount > 0 ? `已删除 ${successCount} 条，${failedCount} 条删除失败并已保留。` : `已删除 ${successCount} 条记录。`);
-    window.setTimeout(() => setSyncMessage(""), 3600);
+      const successCount = successfullyDeleted.length;
+      const failedCount = selectedRecords.length - successCount;
+      setRecords(await fetchRecordsPageItemsFromCloud());
+      setSelectedRecordKeys(new Set());
+      setSelectionMode(false);
+      setSyncMessage(
+        failedCount > 0
+          ? `已删除 ${successCount} 条，${failedCount} 条云端删除未确认成功并已保留。`
+          : `已删除 ${successCount} 条记录。`,
+      );
+    } catch {
+      setSyncMessage("批量删除未完成，未确认成功的本机记录已保留，请稍后重试。");
+    } finally {
+      setBulkDeleting(false);
+      window.setTimeout(() => setSyncMessage(""), 3600);
+    }
   }
 
   return (
@@ -328,7 +363,7 @@ export default function RecordsPage() {
               className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#b95c4f] px-4 text-[13px] font-semibold text-white disabled:opacity-40"
             >
               {bulkDeleting ? <RefreshCw size={15} className="animate-spin" /> : <Trash2 size={15} />}
-              删除
+              {bulkDeleting ? "删除中" : "删除"}
             </button>
           </div>
         </section>
@@ -351,14 +386,14 @@ export default function RecordsPage() {
           </div>
           <p className="mt-2 text-[14px] leading-6 text-mutedInk">登录后会读取云端记录；本机新记录会每 10 分钟自动尝试上传。</p>
           {syncing || syncMessage ? (
-            <div className="mt-4 overflow-hidden rounded-2xl bg-[#f6f0e2] px-4 py-3">
+            <div aria-live="polite" className="mt-4 overflow-hidden rounded-2xl bg-[#f6f0e2] px-4 py-3">
               <div className="flex items-center gap-3">
                 <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-[#e8d4a7]">
                   <RefreshCw size={16} className={syncing ? "animate-spin" : undefined} />
                   {syncing ? <span className="absolute inset-[-4px] animate-ping rounded-full border border-black/25" /> : null}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-semibold text-[#4d4537]">{syncing ? "正在上传资料" : "上传状态"}</p>
+                  <p className="text-[14px] font-semibold text-[#4d4537]">{syncing ? "正在上传资料" : "操作状态"}</p>
                   <p className="mt-0.5 text-[13px] leading-5 text-[#8f7b52]">{syncMessage}</p>
                 </div>
               </div>
@@ -675,6 +710,18 @@ function getRecordGroupKey(item: RecordsPageItem): RecordGroupKey {
 
 function getRecordKey(item: RecordsPageItem) {
   return `${item.kind}-${item.record.id}`;
+}
+
+function getRemoteRecordId(item: RecordsPageItem) {
+  if (item.record.serverId) {
+    return item.record.serverId;
+  }
+
+  if (item.kind === "bazi" && item.record.syncStatus === "synced") {
+    return item.record.id;
+  }
+
+  return undefined;
 }
 
 function getRecordTitle(item: RecordsPageItem) {

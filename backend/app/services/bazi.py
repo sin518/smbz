@@ -252,6 +252,51 @@ async def delete_bazi_chart(connection: asyncpg.Connection, user_id: str, chart_
     return True
 
 
+async def delete_bazi_charts(
+    connection: asyncpg.Connection,
+    user_id: str,
+    chart_ids: list[str],
+) -> tuple[list[str], list[str]]:
+    await ensure_bazi_tables(connection)
+    rows = await connection.fetch(
+        '''
+        SELECT c.id, c."profileId"
+        FROM "BaziChart" c
+        INNER JOIN "BaziProfile" p ON p.id = c."profileId"
+        WHERE p."userId" = $1 AND c.id = ANY($2::text[])
+        ''',
+        user_id,
+        chart_ids,
+    )
+    found_ids = {str(row["id"]) for row in rows}
+    deleted_ids = [chart_id for chart_id in chart_ids if chart_id in found_ids]
+    missing_ids = [chart_id for chart_id in chart_ids if chart_id not in found_ids]
+
+    if not deleted_ids:
+        return deleted_ids, missing_ids
+
+    profile_ids = list(dict.fromkeys(str(row["profileId"]) for row in rows))
+    async with connection.transaction():
+        await connection.execute(
+            'DELETE FROM "BaziChart" WHERE id = ANY($1::text[])',
+            deleted_ids,
+        )
+        await connection.execute(
+            '''
+            DELETE FROM "BaziProfile" p
+            WHERE p."userId" = $1
+              AND p.id = ANY($2::text[])
+              AND NOT EXISTS (
+                SELECT 1 FROM "BaziChart" c WHERE c."profileId" = p.id
+              )
+            ''',
+            user_id,
+            profile_ids,
+        )
+
+    return deleted_ids, missing_ids
+
+
 def chart_detail_from_parts(row: asyncpg.Record, body: BaziChartInput, profile_id: str) -> BaziChartDetail:
     return BaziChartDetail(
         id=row["id"],

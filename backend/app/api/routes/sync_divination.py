@@ -8,8 +8,14 @@ from app.schemas.divination_records import (
     DivinationRecordSyncResponse,
     DivinationRecordType,
 )
+from app.schemas.bulk_delete import BulkDeleteRequest, BulkDeleteResponse
 from app.services.auth import get_user_by_session_token
-from app.services.divination_records import delete_divination_record, list_divination_records, upsert_divination_record
+from app.services.divination_records import (
+    delete_divination_record,
+    delete_divination_records,
+    list_divination_records,
+    upsert_divination_record,
+)
 
 
 router = APIRouter(prefix="/sync", tags=["sync"])
@@ -22,6 +28,17 @@ async def get_cloud_divination_records(
 ) -> DivinationRecordCloudListResponse:
     user_id = await require_user_id(connection, request)
     return DivinationRecordCloudListResponse(records=await list_divination_records(connection, user_id))
+
+
+@router.delete("/records", response_model=BulkDeleteResponse)
+async def remove_cloud_divination_records(
+    body: BulkDeleteRequest,
+    request: Request,
+    connection: asyncpg.Connection = Depends(get_connection),
+) -> BulkDeleteResponse:
+    user_id = await require_user_id(connection, request)
+    deleted_ids, missing_ids = await delete_divination_records(connection, user_id, body.ids)
+    return BulkDeleteResponse(deletedIds=deleted_ids, missingIds=missing_ids)
 
 
 @router.delete("/records/{record_id}")

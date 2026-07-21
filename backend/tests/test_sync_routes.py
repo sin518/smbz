@@ -9,7 +9,13 @@ from app.api.routes import bazi, sync_bazi, sync_divination
 from app.db import get_connection
 from app.schemas.bazi import BaziChartDetail, BaziCloudChart
 from app.schemas.divination_records import DivinationRecordCloudItem, DivinationRecordSyncRequest
-from app.services.divination_records import delete_divination_record, list_divination_records, upsert_divination_record
+from app.services.bazi import delete_bazi_charts
+from app.services.divination_records import (
+    delete_divination_record,
+    delete_divination_records,
+    list_divination_records,
+    upsert_divination_record,
+)
 
 
 class FakeConnection:
@@ -18,25 +24,40 @@ class FakeConnection:
         self.last_args: tuple[object, ...] = ()
         self.rows: list[dict[str, object]] = []
         self.execute_result = "OK"
+        self.query_calls: list[tuple[str, tuple[object, ...]]] = []
 
     async def execute(self, query: str, *args: object) -> str:
         self.last_query = query
         self.last_args = args
+        self.query_calls.append((query, args))
         return self.execute_result
 
     async def fetch(self, query: str, *args: object) -> list[dict[str, object]]:
         self.last_query = query
         self.last_args = args
+        self.query_calls.append((query, args))
         return self.rows
 
     async def fetchrow(self, query: str, *args: object) -> dict[str, object]:
         self.last_query = query
         self.last_args = args
+        self.query_calls.append((query, args))
         return {
             "id": "server-record-id",
             "updatedAt": datetime(2026, 7, 16, tzinfo=UTC),
             "created": False,
         }
+
+    def transaction(self):
+        return FakeTransaction()
+
+
+class FakeTransaction:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+        return None
 
 
 def create_test_client(connection: FakeConnection) -> TestClient:
@@ -125,6 +146,38 @@ class SyncDivinationRouteTests(unittest.TestCase):
             response = self.client.get("/api/sync/records")
 
         self.assertEqual(response.status_code, 401)
+
+    def test_cloud_records_can_be_bulk_deleted(self) -> None:
+        self.connection.rows = [{"id": "record-1"}, {"id": "record-2"}]
+        session = {"user": {"id": "user-1"}}
+
+        with patch.object(sync_divination, "get_user_by_session_token", new=AsyncMock(return_value=session)):
+            response = self.client.request(
+                "DELETE",
+                "/api/sync/records",
+                json={"ids": ["record-1", "record-2", "record-missing"]},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "deletedIds": ["record-1", "record-2"],
+                "missingIds": ["record-missing"],
+            },
+        )
+
+    def test_bulk_delete_requires_login_and_non_empty_ids(self) -> None:
+        with patch.object(sync_divination, "get_user_by_session_token", new=AsyncMock(return_value=None)):
+            unauthorized = self.client.request(
+                "DELETE",
+                "/api/sync/records",
+                json={"ids": ["record-1"]},
+            )
+
+        empty = self.client.request("DELETE", "/api/sync/records", json={"ids": []})
+        self.assertEqual(unauthorized.status_code, 401)
+        self.assertEqual(empty.status_code, 422)
 
     def test_unsupported_type_is_rejected(self) -> None:
         response = self.client.post("/api/sync/tarot", json=request_body())
@@ -221,6 +274,74 @@ class CloudBaziRouteTests(unittest.TestCase):
         self.assertEqual(response.json()["charts"][0]["localId"], "local-bazi-1")
         self.assertNotIn("chartJson", response.json()["charts"][0])
 
+    def test_cloud_bazi_records_can_be_bulk_deleted(self) -> None:
+        app = FastAPI()
+        app.include_router(bazi.router, prefix="/api/bazi")
+        connection = FakeConnection()
+        connection.rows = [{"id": "bazi-1", "profileId": "profile-1"}]
+
+        async def override_connection():
+            yield connection
+
+        app.dependency_overrides[get_connection] = override_connection
+        with patch.object(bazi, "require_user_id", new=AsyncMock(return_value="user-1")):
+            response = TestClient(app).request(
+                "DELETE",
+                "/api/bazi/charts",
+                json={"ids": ["bazi-1", "bazi-missing"]},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"deletedIds": ["bazi-1"], "missingIds": ["bazi-missing"]},
+        )
+
+    def test_cloud_bazi_bulk_delete_requires_login(self) -> None:
+        app = FastAPI()
+        app.include_router(bazi.router, prefix="/api/bazi")
+
+        async def override_connection():
+            yield FakeConnection()
+
+        app.dependency_overrides[get_connection] = override_connection
+        with patch.object(bazi, "get_user_by_session_token", new=AsyncMock(return_value=None)):
+            response = TestClient(app).request(
+                "DELETE",
+                "/api/bazi/charts",
+                json={"ids": ["bazi-1"]},
+            )
+
+        self.assertEqual(response.status_code, 401)
+
+
+class BaziServiceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_bulk_delete_is_scoped_to_current_user_and_cleans_orphan_profiles(self) -> None:
+        connection = FakeConnection()
+        connection.rows = [
+            {"id": "bazi-1", "profileId": "profile-1"},
+            {"id": "bazi-2", "profileId": "profile-2"},
+        ]
+
+        deleted_ids, missing_ids = await delete_bazi_charts(
+            connection,
+            "user-1",
+            ["bazi-1", "bazi-2", "bazi-missing"],
+        )
+
+        self.assertEqual(deleted_ids, ["bazi-1", "bazi-2"])
+        self.assertEqual(missing_ids, ["bazi-missing"])
+        select_query, select_args = next(
+            (query, args)
+            for query, args in connection.query_calls
+            if 'SELECT c.id, c."profileId"' in query
+        )
+        self.assertIn('p."userId" = $1', select_query)
+        self.assertIn('c.id = ANY($2::text[])', select_query)
+        self.assertEqual(select_args, ("user-1", ["bazi-1", "bazi-2", "bazi-missing"]))
+        self.assertTrue(any('DELETE FROM "BaziChart"' in query for query, _ in connection.query_calls))
+        self.assertTrue(any('DELETE FROM "BaziProfile"' in query for query, _ in connection.query_calls))
+
 
 class DivinationRecordServiceTests(unittest.IsolatedAsyncioTestCase):
     async def test_upsert_uses_user_type_and_local_id_as_idempotency_key(self) -> None:
@@ -261,6 +382,22 @@ class DivinationRecordServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(deleted)
         self.assertIn('id = $1 AND "userId" = $2', connection.last_query)
         self.assertEqual(connection.last_args, ("server-record-id", "user-1"))
+
+    async def test_bulk_delete_is_scoped_to_current_user_and_reports_missing_ids(self) -> None:
+        connection = FakeConnection()
+        connection.rows = [{"id": "record-1"}, {"id": "record-2"}]
+
+        deleted_ids, missing_ids = await delete_divination_records(
+            connection,
+            "user-1",
+            ["record-1", "record-2", "record-missing"],
+        )
+
+        self.assertEqual(deleted_ids, ["record-1", "record-2"])
+        self.assertEqual(missing_ids, ["record-missing"])
+        self.assertIn('"userId" = $1', connection.last_query)
+        self.assertIn('id = ANY($2::text[])', connection.last_query)
+        self.assertEqual(connection.last_args, ("user-1", ["record-1", "record-2", "record-missing"]))
 
 
 if __name__ == "__main__":

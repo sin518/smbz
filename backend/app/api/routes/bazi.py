@@ -3,8 +3,9 @@ import asyncpg
 
 from app.db import get_connection
 from app.schemas.bazi import BaziChartInput, BaziChartResponse, BaziChartsResponse
+from app.schemas.bulk_delete import BulkDeleteRequest, BulkDeleteResponse
 from app.services.auth import get_user_by_session_token
-from app.services.bazi import create_bazi_chart, delete_bazi_chart, get_bazi_chart, list_bazi_charts
+from app.services.bazi import create_bazi_chart, delete_bazi_chart, delete_bazi_charts, get_bazi_chart, list_bazi_charts
 from app.services.record_save_helper import save_record_with_cache
 
 
@@ -36,6 +37,17 @@ async def save_chart(
     except Exception:
         # Redis 不可用时降级到直接保存
         return {"chart": await create_bazi_chart(connection, user_id, body)}
+
+
+@router.delete("/charts", response_model=BulkDeleteResponse)
+async def delete_charts(
+    body: BulkDeleteRequest,
+    request: Request,
+    connection: asyncpg.Connection = Depends(get_connection),
+) -> BulkDeleteResponse:
+    user_id = await require_user_id(connection, request)
+    deleted_ids, missing_ids = await delete_bazi_charts(connection, user_id, body.ids)
+    return BulkDeleteResponse(deletedIds=deleted_ids, missingIds=missing_ids)
 
 
 @router.get("/charts/{chart_id}", response_model=BaziChartResponse)
