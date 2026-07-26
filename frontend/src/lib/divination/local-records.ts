@@ -1,6 +1,12 @@
-import type { QimenOutput } from "taibu-core/qimen";
 import type { DaliurenOutput } from "taibu-core/daliuren";
+import type { QimenOutput } from "taibu-core/qimen";
 import type { LiuyaoStoredCasting, LiuyaoStoredInput } from "@/lib/liuyao/chart";
+import { buildRecordIdentity, type RecordIdentityInput } from "@/lib/records/record-identity";
+import {
+  getBrowserRecordStore,
+  getCurrentRecordScope,
+  type StoredPanRecord
+} from "@/lib/records/record-store";
 import type { ZiweiChart } from "@/lib/ziwei/calculate";
 
 export type LocalDivinationRecordType = "liuyao" | "qimen" | "ziwei" | "daliuren";
@@ -8,6 +14,10 @@ export type LocalDivinationRecordType = "liuyao" | "qimen" | "ziwei" | "daliuren
 export type LocalDivinationRecord = {
   id: string;
   type: LocalDivinationRecordType;
+  recordKey: string;
+  identityVersion: number;
+  calculationVersion: number;
+  lifecycleVersion: number;
   question: string;
   summary: string;
   detail: string;
@@ -15,9 +25,10 @@ export type LocalDivinationRecord = {
   updatedAt: string;
   sourceSavedAt: string;
   payload: unknown;
-  syncStatus?: "pending" | "synced" | "failed";
+  syncStatus: "pending" | "synced" | "failed";
   serverId?: string;
   origin?: "local" | "cloud";
+  payloadState?: "summary" | "full";
 };
 
 export type LocalQimenRecordPayload = {
@@ -25,6 +36,12 @@ export type LocalQimenRecordPayload = {
     question?: string;
     dateTime?: string;
     birthYear?: number;
+    plateType?: string;
+    juMethod?: string;
+    zhiFuJiGong?: string;
+    manualDunType?: string;
+    manualJu?: number;
+    juMode?: string;
   };
   chart: QimenOutput;
   savedAt: string;
@@ -58,13 +75,21 @@ export type LocalDaliurenRecordPayload = {
   canonicalText: string;
 };
 
-const LOCAL_DIVINATION_RECORDS_KEY = "sm1:divination-records";
-const CLOUD_SYNC_TIMEOUT_MS = 25000;
+type DivinationSummary = {
+  question: string;
+  summary: string;
+  detail: string;
+  sourceSavedAt: string;
+  payloadState: "summary" | "full";
+};
 
-export function saveLocalQimenRecord(payload: LocalQimenRecordPayload) {
+const CALCULATION_VERSION = 1;
+const CLOUD_SYNC_TIMEOUT_MS = 25000;
+const RETRY_DELAY_MS = 10 * 60 * 1000;
+
+export async function saveLocalQimenRecord(payload: LocalQimenRecordPayload) {
   const question = payload.input?.question?.trim() || payload.chart.question?.trim() || "未填写占事";
   const createdAt = payload.savedAt || new Date().toISOString();
-
   return saveLocalDivinationRecord({
     type: "qimen",
     question,
@@ -73,15 +98,26 @@ export function saveLocalQimenRecord(payload: LocalQimenRecordPayload) {
     createdAt,
     sourceSavedAt: createdAt,
     payload,
-    syncStatus: "pending"
+    identityInput: {
+      type: "qimen",
+      question,
+      dateTime: payload.input?.dateTime ?? createdAt,
+      birthYear: payload.input?.birthYear,
+      plateType: payload.input?.plateType,
+      juMethod: payload.input?.juMethod,
+      zhiFuJiGong: payload.input?.zhiFuJiGong,
+      manualDunType: payload.input?.manualDunType,
+      manualJu: payload.input?.manualJu,
+      juMode: payload.input?.juMode
+    }
   });
 }
 
-export function saveLocalLiuyaoRecord(payload: LocalLiuyaoRecordPayload) {
+export async function saveLocalLiuyaoRecord(payload: LocalLiuyaoRecordPayload) {
   const input = payload.input?.input;
   const question = input?.question?.trim() || "未填写占事";
   const createdAt = payload.casting?.completedAt || payload.input?.savedAt || new Date().toISOString();
-
+  const lines = [...(payload.casting?.lines ?? [])].sort((left, right) => left.position - right.position);
   return saveLocalDivinationRecord({
     type: "liuyao",
     question,
@@ -90,14 +126,20 @@ export function saveLocalLiuyaoRecord(payload: LocalLiuyaoRecordPayload) {
     createdAt,
     sourceSavedAt: `${payload.input?.savedAt || ""}-${payload.casting?.completedAt || ""}`,
     payload,
-    syncStatus: "pending"
+    identityInput: {
+      type: "liuyao",
+      question,
+      completedAt: createdAt,
+      castingTime: input?.castingTime,
+      castingMethod: input?.castingMethod,
+      lineTotals: lines.map((line) => line.total)
+    }
   });
 }
 
-export function saveLocalZiweiRecord(payload: LocalZiweiRecordPayload) {
+export async function saveLocalZiweiRecord(payload: LocalZiweiRecordPayload) {
   const createdAt = payload.profile.savedAt || new Date().toISOString();
   const name = payload.profile.name?.trim() || "未填写姓名";
-
   return saveLocalDivinationRecord({
     type: "ziwei",
     question: name,
@@ -106,82 +148,317 @@ export function saveLocalZiweiRecord(payload: LocalZiweiRecordPayload) {
     createdAt,
     sourceSavedAt: createdAt,
     payload,
-    syncStatus: "pending"
+    identityInput: {
+      type: "ziwei",
+      name,
+      gender: payload.profile.gender,
+      birthTime: payload.profile.birthTime,
+      locationKey: payload.profile.location
+    }
   });
 }
 
-export function saveLocalDaliurenRecord(payload: LocalDaliurenRecordPayload) {
+export async function saveLocalDaliurenRecord(payload: LocalDaliurenRecordPayload) {
   const createdAt = payload.savedAt || new Date().toISOString();
-
+  const question = payload.input.question.trim() || "未填写占事";
   return saveLocalDivinationRecord({
     type: "daliuren",
-    question: payload.input.question.trim() || "未填写占事",
+    question,
     summary: "大六壬",
     detail: `${payload.chart.keName} · ${payload.chart.dateInfo.solarDate}`,
     createdAt,
     sourceSavedAt: createdAt,
     payload,
-    syncStatus: "pending"
+    identityInput: {
+      type: "daliuren",
+      question,
+      dateTime: payload.input.dateTime,
+      birthYear: payload.input.birthYear,
+      gender: payload.input.gender
+    }
   });
 }
 
-export function getLocalDivinationRecords() {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(LOCAL_DIVINATION_RECORDS_KEY);
-    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter(isLocalDivinationRecord).sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
-  } catch {
-    return [];
-  }
+export async function getLocalDivinationRecords() {
+  const records = await getBrowserRecordStore().list(getCurrentRecordScope());
+  return records.filter((record) => record.type !== "bazi").map(toLocalRecord);
 }
 
-export function deleteLocalDivinationRecord(id: string) {
-  return deleteLocalDivinationRecords([id]);
+export async function deleteLocalDivinationRecord(id: string) {
+  return getBrowserRecordStore().markDeleted(getCurrentRecordScope(), id);
 }
 
-export function deleteLocalDivinationRecords(ids: Iterable<string>) {
-  const idSet = new Set(ids);
-  const nextRecords = getLocalDivinationRecords().filter((record) => !idSet.has(record.id));
-  writeRecords(nextRecords);
-  return nextRecords;
+export async function deleteLocalDivinationRecords(ids: Iterable<string>) {
+  await Promise.all(
+    Array.from(ids, (id) => getBrowserRecordStore().markDeleted(getCurrentRecordScope(), id))
+  );
+  return getLocalDivinationRecords();
 }
 
 export async function fetchCloudDivinationRecords(): Promise<LocalDivinationRecord[]> {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
   const response = await fetchWithTimeout(
     "/api/sync/records",
-    {
-      method: "GET",
-      credentials: "include"
-    },
+    { method: "GET", credentials: "include" },
     CLOUD_SYNC_TIMEOUT_MS
   );
-
   if (response.status === 401) {
     return [];
   }
-
   if (!response.ok) {
     throw new Error("云端占术记录读取失败");
   }
 
   const data = (await response.json()) as { records?: CloudDivinationRecord[] };
-  return (data.records ?? []).filter(isCloudDivinationRecord).map((record) => ({
+  const mappedRecords = await Promise.all(
+    (data.records ?? []).filter(isCloudDivinationRecord).map((record) => toCloudRecord(record, "summary"))
+  );
+  const records = consolidateCloudDivinationRecords(mappedRecords);
+  await Promise.all(
+    records.map((record) =>
+      getBrowserRecordStore().cacheRemote({
+        id: record.id,
+        scope: getCurrentRecordScope(),
+        type: record.type,
+        recordKey: record.recordKey,
+        identityVersion: record.identityVersion,
+        calculationVersion: record.calculationVersion,
+        lifecycleVersion: record.lifecycleVersion,
+        summary: {
+          question: record.question,
+          summary: record.summary,
+          detail: record.detail,
+          sourceSavedAt: record.sourceSavedAt,
+          payloadState: "summary"
+        },
+        payload: record.payload,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        serverId: record.serverId!,
+        syncStatus: "synced",
+        origin: "cloud"
+      })
+    )
+  );
+  return records;
+}
+
+export async function fetchCloudDivinationRecord(serverId: string) {
+  const response = await fetchWithTimeout(
+    `/api/sync/records/${encodeURIComponent(serverId)}`,
+    { method: "GET", credentials: "include" },
+    CLOUD_SYNC_TIMEOUT_MS
+  );
+  if (!response.ok) {
+    throw new Error(response.status === 404 ? "云端记录已不存在" : "云端记录详情读取失败");
+  }
+  const raw = (await response.json()) as unknown;
+  if (!isCloudDivinationRecord(raw)) {
+    throw new Error("云端记录详情格式无效");
+  }
+  const record = await toCloudRecord(raw, "full");
+  await getBrowserRecordStore().cacheRemote({
+    id: record.id,
+    scope: getCurrentRecordScope(),
+    type: record.type,
+    recordKey: record.recordKey,
+    identityVersion: record.identityVersion,
+    calculationVersion: record.calculationVersion,
+    lifecycleVersion: record.lifecycleVersion,
+    summary: {
+      question: record.question,
+      summary: record.summary,
+      detail: record.detail,
+      sourceSavedAt: record.sourceSavedAt,
+      payloadState: "full"
+    },
+    payload: record.payload,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    serverId: record.serverId!,
+    syncStatus: "synced",
+    origin: "cloud",
+    replaceEqual: true
+  });
+  return record;
+}
+
+export async function deleteDivinationRecordWithRemote(record: LocalDivinationRecord) {
+  if (record.serverId) {
+    const response = await fetchWithTimeout(
+      `/api/sync/records/${encodeURIComponent(record.serverId)}`,
+      { method: "DELETE", credentials: "include" },
+      CLOUD_SYNC_TIMEOUT_MS
+    );
+    if (!response.ok && response.status !== 404) {
+      throw new Error("云端删除失败");
+    }
+  }
+  await deleteLocalDivinationRecord(record.id);
+}
+
+export function restoreLocalDivinationRecord(record: LocalDivinationRecord) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  if (record.type === "qimen" && isLocalQimenRecordPayload(record.payload)) {
+    window.localStorage.setItem("sm1:current-qimen-result", JSON.stringify(record.payload));
+    return;
+  }
+  if (record.type === "liuyao" && isLocalLiuyaoRecordPayload(record.payload)) {
+    if (record.payload.input) {
+      window.localStorage.setItem("sm1:current-liuyao-input", JSON.stringify(record.payload.input));
+    }
+    if (record.payload.casting) {
+      window.localStorage.setItem("sm1:current-liuyao-casting", JSON.stringify(record.payload.casting));
+    }
+    return;
+  }
+  if (record.type === "ziwei" && isLocalZiweiRecordPayload(record.payload)) {
+    window.localStorage.setItem("sm1:current-ziwei-profile", JSON.stringify(record.payload.profile));
+    return;
+  }
+  if (record.type === "daliuren" && isLocalDaliurenRecordPayload(record.payload)) {
+    window.localStorage.setItem(
+      "sm1:current-daliuren-input",
+      JSON.stringify({ input: record.payload.input, savedAt: record.payload.savedAt })
+    );
+  }
+}
+
+export async function syncDivinationToCloud(
+  record: LocalDivinationRecord,
+  submissionMode: "background" | "explicit" = "background"
+) {
+  try {
+    const response = await fetchWithTimeout(
+      `/api/sync/${record.type}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          localId: record.id,
+          recordKey: record.recordKey,
+          identityVersion: record.identityVersion,
+          calculationVersion: record.calculationVersion,
+          lifecycleVersion: record.lifecycleVersion,
+          submissionMode,
+          question: record.question,
+          summary: record.summary,
+          detail: record.detail,
+          payload: record.payload,
+          createdAt: record.createdAt
+        })
+      },
+      CLOUD_SYNC_TIMEOUT_MS
+    );
+    if (!response.ok) {
+      await getBrowserRecordStore().markFailed(getCurrentRecordScope(), record.id);
+      scheduleRetry(record);
+      return false;
+    }
+    const result = (await response.json()) as SyncResponse;
+    await getBrowserRecordStore().markSynced(getCurrentRecordScope(), record.id, {
+      serverId: result.serverId,
+      syncedAt: result.syncedAt,
+      recordKey: result.recordKey,
+      identityVersion: result.identityVersion,
+      calculationVersion: result.calculationVersion,
+      lifecycleVersion: result.lifecycleVersion
+    });
+    return true;
+  } catch {
+    await getBrowserRecordStore().markFailed(getCurrentRecordScope(), record.id);
+    scheduleRetry(record);
+    return false;
+  }
+}
+
+export async function syncAllPendingRecords(): Promise<{ success: number; failed: number }> {
+  const records = (await getLocalDivinationRecords()).filter((record) => record.syncStatus !== "synced");
+  let success = 0;
+  for (const record of records) {
+    if (await syncDivinationToCloud(record)) {
+      success += 1;
+    }
+  }
+  return { success, failed: records.length - success };
+}
+
+async function saveLocalDivinationRecord(input: {
+  type: LocalDivinationRecordType;
+  question: string;
+  summary: string;
+  detail: string;
+  createdAt: string;
+  sourceSavedAt: string;
+  payload: unknown;
+  identityInput: RecordIdentityInput;
+}) {
+  const identity = await buildRecordIdentity(input.identityInput);
+  const stored = await getBrowserRecordStore().upsert({
+    scope: getCurrentRecordScope(),
+    type: input.type,
+    recordKey: identity.recordKey,
+    identityVersion: identity.identityVersion,
+    calculationVersion: CALCULATION_VERSION,
+    summary: {
+      question: input.question,
+      summary: input.summary,
+      detail: input.detail,
+      sourceSavedAt: input.sourceSavedAt,
+      payloadState: "full"
+    },
+    payload: input.payload,
+    createdAt: input.createdAt,
+    submissionMode: "explicit",
+    origin: "local"
+  });
+  const record = toLocalRecord(stored);
+  void syncDivinationToCloud(record, "explicit");
+  return record;
+}
+
+function toLocalRecord(record: StoredPanRecord): LocalDivinationRecord {
+  const summary = record.summary as DivinationSummary;
+  return {
+    id: record.id,
+    serverId: record.serverId,
+    type: record.type as LocalDivinationRecordType,
+    recordKey: record.recordKey,
+    identityVersion: record.identityVersion,
+    calculationVersion: record.calculationVersion,
+    lifecycleVersion: record.lifecycleVersion,
+    question: summary.question,
+    summary: summary.summary,
+    detail: summary.detail,
+    sourceSavedAt: summary.sourceSavedAt,
+    payload: record.payload,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    syncStatus: record.syncStatus,
+    origin: record.origin === "cloud" ? "cloud" : "local",
+    payloadState: summary.payloadState ?? "full"
+  };
+}
+
+async function toCloudRecord(
+  record: CloudDivinationRecord,
+  payloadState: "summary" | "full"
+): Promise<LocalDivinationRecord> {
+  const identity = record.recordKey
+    ? null
+    : await buildRecordIdentity(
+        identityInputFromPayload(record.type, record.payload, record.question, record.createdAt)
+      );
+  return {
     id: record.localId,
     serverId: record.id,
     type: record.type,
+    recordKey: record.recordKey ?? identity!.recordKey,
+    identityVersion: record.identityVersion ?? identity?.identityVersion ?? 1,
+    calculationVersion: record.calculationVersion ?? 1,
+    lifecycleVersion: record.lifecycleVersion ?? 1,
     question: record.question,
     summary: record.summary,
     detail: record.detail,
@@ -190,114 +467,95 @@ export async function fetchCloudDivinationRecords(): Promise<LocalDivinationReco
     updatedAt: record.updatedAt,
     sourceSavedAt: getSourceSavedAt(record.payload, record.localId),
     syncStatus: "synced",
-    origin: "cloud"
-  }));
-}
-
-export async function deleteDivinationRecordWithRemote(record: LocalDivinationRecord) {
-  if (record.serverId) {
-    const response = await fetchWithTimeout(
-      `/api/sync/records/${encodeURIComponent(record.serverId)}`,
-      {
-        method: "DELETE",
-        credentials: "include"
-      },
-      CLOUD_SYNC_TIMEOUT_MS
-    );
-
-    if (!response.ok && response.status !== 404) {
-      throw new Error("云端删除失败");
-    }
-  }
-
-  deleteLocalDivinationRecord(record.id);
-}
-
-export function restoreLocalDivinationRecord(record: LocalDivinationRecord) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  if (record.origin === "cloud") {
-    cacheCloudDivinationRecord(record);
-  }
-
-  if (record.type === "qimen" && isLocalQimenRecordPayload(record.payload)) {
-    window.localStorage.setItem("sm1:current-qimen-result", JSON.stringify(record.payload));
-    window.localStorage.setItem("sm1:last-qimen-input", JSON.stringify(record.payload));
-    return;
-  }
-
-  if (record.type === "liuyao" && isLocalLiuyaoRecordPayload(record.payload)) {
-    if (record.payload.input) {
-      window.localStorage.setItem("sm1:current-liuyao-input", JSON.stringify(record.payload.input));
-    }
-
-    if (record.payload.casting) {
-      window.localStorage.setItem("sm1:current-liuyao-casting", JSON.stringify(record.payload.casting));
-    }
-    return;
-  }
-
-  if (record.type === "ziwei" && isLocalZiweiRecordPayload(record.payload)) {
-    window.localStorage.setItem("sm1:current-ziwei-profile", JSON.stringify(record.payload.profile));
-    return;
-  }
-
-  if (record.type === "daliuren" && isLocalDaliurenRecordPayload(record.payload)) {
-    window.localStorage.setItem(
-      "sm1:current-daliuren-input",
-      JSON.stringify({
-        input: record.payload.input,
-        savedAt: record.payload.savedAt
-      })
-    );
-  }
-}
-
-function saveLocalDivinationRecord(input: Omit<LocalDivinationRecord, "id" | "updatedAt">) {
-  const now = new Date().toISOString();
-  const currentRecords = getLocalDivinationRecords();
-  const duplicateIndex = currentRecords.findIndex((record) => record.type === input.type && record.sourceSavedAt === input.sourceSavedAt);
-  const record: LocalDivinationRecord = {
-    ...input,
-    id: duplicateIndex >= 0 ? currentRecords[duplicateIndex].id : `local-${input.type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    updatedAt: now,
-    serverId: duplicateIndex >= 0 ? currentRecords[duplicateIndex].serverId : input.serverId,
-    syncStatus: duplicateIndex >= 0 ? currentRecords[duplicateIndex].syncStatus : input.syncStatus || "pending",
-    origin: duplicateIndex >= 0 ? currentRecords[duplicateIndex].origin : input.origin || "local"
+    origin: "cloud",
+    payloadState
   };
-  const nextRecords =
-    duplicateIndex >= 0
-      ? currentRecords.map((item, index) => (index === duplicateIndex ? record : item))
-      : [record, ...currentRecords].slice(0, 80);
-
-  writeRecords(nextRecords);
-
-  // 自动触发后台同步
-  if (record.syncStatus === "pending") {
-    scheduleDivinationAutoSync(record);
-  }
-
-  return record;
 }
 
-function cacheCloudDivinationRecord(record: LocalDivinationRecord) {
-  const currentRecords = getLocalDivinationRecords();
-  const duplicateIndex = currentRecords.findIndex((item) => item.id === record.id || item.serverId === record.serverId);
-  const nextRecords =
-    duplicateIndex >= 0
-      ? currentRecords.map((item, index) => (index === duplicateIndex ? { ...record, origin: "local" as const } : item))
-      : [{ ...record, origin: "local" as const }, ...currentRecords].slice(0, 200);
-  writeRecords(nextRecords);
+function scheduleRetry(record: LocalDivinationRecord) {
+  if (typeof window !== "undefined") {
+    window.setTimeout(() => void syncDivinationToCloud(record), RETRY_DELAY_MS);
+  }
 }
 
-function writeRecords(records: LocalDivinationRecord[]) {
-  if (typeof window === "undefined") {
-    return;
+function identityInputFromPayload(
+  type: LocalDivinationRecordType,
+  payload: Record<string, unknown>,
+  question: string,
+  createdAt: string
+): RecordIdentityInput {
+  if (type === "qimen") {
+    const input = objectOr(payload.input);
+    return {
+      type,
+      question: stringOr(input.question, question),
+      dateTime: stringOr(input.dateTime, createdAt),
+      birthYear: numberOrNull(input.birthYear),
+      plateType: stringOrNull(input.plateType),
+      juMethod: stringOrNull(input.juMethod),
+      zhiFuJiGong: stringOrNull(input.zhiFuJiGong),
+      manualDunType: stringOrNull(input.manualDunType),
+      manualJu: numberOrNull(input.manualJu),
+      juMode: stringOrNull(input.juMode)
+    };
   }
+  if (type === "ziwei") {
+    const profile = objectOr(payload.profile);
+    return {
+      type,
+      name: stringOr(profile.name, question),
+      gender: profile.gender === "female" ? "female" : "male",
+      birthTime: stringOr(profile.birthTime, createdAt),
+      locationKey: stringOrNull(profile.location)
+    };
+  }
+  if (type === "daliuren") {
+    const input = objectOr(payload.input);
+    return {
+      type,
+      question: stringOr(input.question, question),
+      dateTime: stringOr(input.dateTime, createdAt),
+      birthYear:
+        typeof input.birthYear === "number" ? input.birthYear : new Date(createdAt).getFullYear(),
+      gender: input.gender === "female" ? "female" : "male"
+    };
+  }
+  const storedInput = objectOr(payload.input);
+  const input = objectOr(storedInput.input);
+  const casting = objectOr(payload.casting);
+  const lines = Array.isArray(casting.lines)
+    ? casting.lines
+        .filter(isObject)
+        .sort((left, right) => Number(left.position ?? 0) - Number(right.position ?? 0))
+    : [];
+  return {
+    type,
+    question: stringOr(input.question, question),
+    completedAt: stringOr(casting.completedAt, stringOr(storedInput.savedAt, createdAt)),
+    castingTime: stringOrNull(input.castingTime),
+    castingMethod: stringOrNull(input.castingMethod),
+    lineTotals: lines.map((line) => Number(line.total ?? 0))
+  };
+}
 
-  window.localStorage.setItem(LOCAL_DIVINATION_RECORDS_KEY, JSON.stringify(records));
+function consolidateCloudDivinationRecords(records: LocalDivinationRecord[]) {
+  const byIdentity = new Map<string, LocalDivinationRecord>();
+  for (const record of records) {
+    const current = byIdentity.get(record.recordKey);
+    if (!current) {
+      byIdentity.set(record.recordKey, record);
+      continue;
+    }
+    const newest = Date.parse(record.updatedAt) > Date.parse(current.updatedAt) ? record : current;
+    byIdentity.set(record.recordKey, {
+      ...newest,
+      createdAt:
+        Date.parse(record.createdAt) < Date.parse(current.createdAt)
+          ? record.createdAt
+          : current.createdAt
+    });
+  }
+  return Array.from(byIdentity.values());
 }
 
 function formatCastingMethod(value: string | undefined) {
@@ -308,7 +566,6 @@ function formatCastingMethod(value: string | undefined) {
     time: "时间",
     text: "汉字"
   };
-
   return value ? labels[value] ?? value : "起卦方式未知";
 }
 
@@ -316,66 +573,30 @@ function formatDateTime(value: string | undefined) {
   return value ? value.replace("T", " ") : "时间未知";
 }
 
-function isLocalDivinationRecord(value: unknown): value is LocalDivinationRecord {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const record = value as Record<string, unknown>;
-
-  return (
-    typeof record.id === "string" &&
-    (record.type === "liuyao" || record.type === "qimen" || record.type === "ziwei" || record.type === "daliuren") &&
-    typeof record.question === "string" &&
-    typeof record.summary === "string" &&
-    typeof record.detail === "string" &&
-    typeof record.createdAt === "string" &&
-    typeof record.updatedAt === "string" &&
-    typeof record.sourceSavedAt === "string" &&
-    Boolean(record.payload)
-  );
-}
-
 function isLocalQimenRecordPayload(value: unknown): value is LocalQimenRecordPayload {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const payload = value as Record<string, unknown>;
-  return Boolean(payload.chart) && typeof payload.savedAt === "string";
+  return isObject(value) && Boolean(value.chart) && typeof value.savedAt === "string";
 }
 
 function isLocalLiuyaoRecordPayload(value: unknown): value is LocalLiuyaoRecordPayload {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const payload = value as Record<string, unknown>;
-  return Boolean(payload.input || payload.casting);
+  return isObject(value) && Boolean(value.input || value.casting);
 }
 
 function isLocalZiweiRecordPayload(value: unknown): value is LocalZiweiRecordPayload {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const payload = value as Record<string, unknown>;
-  return Boolean(payload.profile && payload.chart);
+  return isObject(value) && Boolean(value.profile && value.chart);
 }
 
 function isLocalDaliurenRecordPayload(value: unknown): value is LocalDaliurenRecordPayload {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const payload = value as Record<string, unknown>;
-  return Boolean(payload.input && payload.chart && typeof payload.savedAt === "string");
+  return isObject(value) && Boolean(value.input && value.chart && typeof value.savedAt === "string");
 }
 
 type CloudDivinationRecord = {
   id: string;
   localId: string;
   type: LocalDivinationRecordType;
+  recordKey?: string | null;
+  identityVersion?: number | null;
+  calculationVersion?: number | null;
+  lifecycleVersion?: number;
   question: string;
   summary: string;
   detail: string;
@@ -384,23 +605,27 @@ type CloudDivinationRecord = {
   updatedAt: string;
 };
 
-function isCloudDivinationRecord(value: unknown): value is CloudDivinationRecord {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
+type SyncResponse = {
+  serverId: string;
+  syncedAt: string;
+  recordKey: string;
+  identityVersion: number;
+  calculationVersion: number;
+  lifecycleVersion: number;
+};
 
-  const record = value as Record<string, unknown>;
+function isCloudDivinationRecord(value: unknown): value is CloudDivinationRecord {
   return (
-    typeof record.id === "string" &&
-    typeof record.localId === "string" &&
-    (record.type === "liuyao" || record.type === "qimen" || record.type === "ziwei" || record.type === "daliuren") &&
-    typeof record.question === "string" &&
-    typeof record.summary === "string" &&
-    typeof record.detail === "string" &&
-    typeof record.createdAt === "string" &&
-    typeof record.updatedAt === "string" &&
-    Boolean(record.payload) &&
-    typeof record.payload === "object"
+    isObject(value) &&
+    typeof value.id === "string" &&
+    typeof value.localId === "string" &&
+    (value.type === "liuyao" || value.type === "qimen" || value.type === "ziwei" || value.type === "daliuren") &&
+    typeof value.question === "string" &&
+    typeof value.summary === "string" &&
+    typeof value.detail === "string" &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string" &&
+    isObject(value.payload)
   );
 }
 
@@ -408,125 +633,42 @@ function getSourceSavedAt(payload: Record<string, unknown>, fallback: string) {
   if (typeof payload.savedAt === "string") {
     return payload.savedAt;
   }
-
-  const profile = payload.profile;
-  if (profile && typeof profile === "object" && typeof (profile as Record<string, unknown>).savedAt === "string") {
-    return (profile as Record<string, unknown>).savedAt as string;
+  const profile = isObject(payload.profile) ? payload.profile : null;
+  if (profile && typeof profile.savedAt === "string") {
+    return profile.savedAt;
   }
-
-  const input = payload.input;
-  const casting = payload.casting;
-  if (input && typeof input === "object") {
-    const inputSavedAt = (input as Record<string, unknown>).savedAt;
-    const completedAt =
-      casting && typeof casting === "object" ? (casting as Record<string, unknown>).completedAt : undefined;
-    if (typeof inputSavedAt === "string" || typeof completedAt === "string") {
-      return `${typeof inputSavedAt === "string" ? inputSavedAt : ""}-${typeof completedAt === "string" ? completedAt : ""}`;
-    }
+  const input = isObject(payload.input) ? payload.input : null;
+  const casting = isObject(payload.casting) ? payload.casting : null;
+  const inputSavedAt = input?.savedAt;
+  const completedAt = casting?.completedAt;
+  if (typeof inputSavedAt === "string" || typeof completedAt === "string") {
+    return `${typeof inputSavedAt === "string" ? inputSavedAt : ""}-${typeof completedAt === "string" ? completedAt : ""}`;
   }
-
   return fallback;
 }
 
-// ==================== 云端同步功能 ====================
-
-export async function syncDivinationToCloud(record: LocalDivinationRecord): Promise<boolean> {
-  try {
-    const response = await fetchWithTimeout(
-      `/api/sync/${record.type}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          localId: record.id,
-          question: record.question,
-          summary: record.summary,
-          detail: record.detail,
-          payload: record.payload,
-          createdAt: record.createdAt
-        })
-      },
-      CLOUD_SYNC_TIMEOUT_MS
-    );
-
-    if (!response.ok) {
-      updateRecordSyncStatus(record.id, "failed");
-      return false;
-    }
-
-    const result = await response.json();
-
-    if (result.success && result.serverId) {
-      updateRecordSyncStatus(record.id, "synced", result.serverId);
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.error(`${record.type} 记录同步失败:`, error);
-    updateRecordSyncStatus(record.id, "failed");
-    return false;
-  }
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-/**
- * 更新记录的同步状态
- */
-function updateRecordSyncStatus(
-  recordId: string,
-  status: "pending" | "synced" | "failed",
-  serverId?: string
-) {
-  const records = getLocalDivinationRecords();
-  const updated = records.map((r) =>
-    r.id === recordId
-      ? { ...r, syncStatus: status, serverId: serverId || r.serverId, updatedAt: new Date().toISOString() }
-      : r
-  );
-  writeRecords(updated);
+function objectOr(value: unknown) {
+  return isObject(value) ? value : {};
 }
 
-/**
- * 安排自动同步(10分钟后)
- */
-function scheduleDivinationAutoSync(record: LocalDivinationRecord) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.setTimeout(() => {
-    syncDivinationToCloud(record).catch(console.error);
-  }, 10 * 60 * 1000);
+function stringOr(value: unknown, fallback: string) {
+  return typeof value === "string" ? value : fallback;
 }
 
-/**
- * 手动同步所有待同步的记录
- */
-export async function syncAllPendingRecords(): Promise<{ success: number; failed: number }> {
-  const records = getLocalDivinationRecords().filter((r) => r.syncStatus !== "synced");
-  let success = 0;
-  let failed = 0;
+function stringOrNull(value: unknown) {
+  return typeof value === "string" && value ? value : null;
+}
 
-  for (const record of records) {
-    const result = await syncDivinationToCloud(record);
-
-    if (result) {
-      success++;
-    } else {
-      failed++;
-    }
-  }
-
-  return { success, failed };
+function numberOrNull(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs = 5000) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-
-  return fetch(input, {
-    ...init,
-    signal: controller.signal
-  }).finally(() => window.clearTimeout(timeout));
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => window.clearTimeout(timeout));
 }

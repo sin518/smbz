@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
+import { markExplicitSaveIntent } from "@/lib/records/save-intent";
 import {
   DivinationProfileCard,
   DivinationTimePickerSheet,
@@ -104,6 +105,7 @@ export function ZiweiProfileClient() {
     };
 
     window.localStorage.setItem("sm1:current-ziwei-profile", JSON.stringify(payload));
+    markExplicitSaveIntent("ziwei", payload.savedAt);
 
     if (values.save) {
       window.localStorage.setItem("sm1:last-ziwei-profile", JSON.stringify(payload));

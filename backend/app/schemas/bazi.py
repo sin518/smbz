@@ -29,6 +29,11 @@ class BaziChartSummary(BaseModel):
     pillars: str
     createdAt: str
     updatedAt: str
+    recordKey: str | None = None
+    identityVersion: int | None = None
+    calculationVersion: int | None = None
+    lifecycleVersion: int = 1
+    deletedAt: str | None = None
 
 
 class BaziChartDetail(BaziChartSummary):

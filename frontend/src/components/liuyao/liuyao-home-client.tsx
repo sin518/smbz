@@ -18,6 +18,7 @@ import {
 } from "@/components/shared/divination-form-shell";
 import { GanzhiPillarSelector } from "@/components/shared/ganzhi-pillar-selector";
 import { castLiuyaoLine, type LiuyaoLine } from "@/lib/liuyao/casting";
+import { markExplicitSaveIntent } from "@/lib/records/save-intent";
 import { cn } from "@/lib/utils";
 
 const liuyaoFormSchema = z.object({
@@ -281,14 +282,16 @@ export function LiuyaoHomeClient() {
     }
 
     window.localStorage.removeItem("sm1:current-liuyao-draft");
+    const completedAt = new Date().toISOString();
     window.localStorage.setItem(
       "sm1:current-liuyao-casting",
       JSON.stringify({
         lines: buildDirectCastingLines(values),
         status: "complete",
-        completedAt: new Date().toISOString()
+        completedAt
       })
     );
+    markExplicitSaveIntent("liuyao", completedAt);
     router.push("/liuyao/result");
   }
 

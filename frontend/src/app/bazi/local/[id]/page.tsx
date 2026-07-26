@@ -14,8 +14,16 @@ export default function LocalBaziPage() {
   const id = params.id;
 
   useEffect(() => {
-    setRecord(getLocalBaziRecord(id));
-    setReady(true);
+    let mounted = true;
+    void getLocalBaziRecord(id).then((nextRecord) => {
+      if (mounted) {
+        setRecord(nextRecord);
+        setReady(true);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
   }, [id]);
 
   if (!ready) {

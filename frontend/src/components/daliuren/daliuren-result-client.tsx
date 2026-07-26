@@ -13,6 +13,7 @@ import { DaliurenTianDiPanCard } from "@/components/daliuren/daliuren-tiandipan-
 import { buildDaliurenAiCommandText } from "@/lib/ai/daliuren-command";
 import { calculateDaliurenChart } from "@/lib/daliuren/api";
 import { saveLocalDaliurenRecord } from "@/lib/divination/local-records";
+import { consumeExplicitSaveIntent } from "@/lib/records/save-intent";
 
 type DaliurenStoredInput = {
   input: {
@@ -56,11 +57,13 @@ export function DaliurenResultClient() {
         setStoredInput(parsed);
         setChart(nextResult.chart);
         setCanonicalText(nextResult.canonicalText);
-        saveLocalDaliurenRecord({
-          ...parsed,
-          chart: nextResult.chart,
-          canonicalText: nextResult.canonicalText
-        });
+        if (consumeExplicitSaveIntent("daliuren", parsed.savedAt)) {
+          void saveLocalDaliurenRecord({
+            ...parsed,
+            chart: nextResult.chart,
+            canonicalText: nextResult.canonicalText
+          });
+        }
       } catch (nextError) {
         if (mounted) {
           setError(nextError instanceof Error ? nextError.message : "大六壬起课失败");

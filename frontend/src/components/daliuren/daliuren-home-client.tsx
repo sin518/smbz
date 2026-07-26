@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
+import { markExplicitSaveIntent } from "@/lib/records/save-intent";
 import {
   DivinationTimePickerSheet,
   SharedFieldRow,
@@ -82,6 +83,7 @@ export function DaliurenHomeClient() {
 
     window.localStorage.setItem("sm1:current-daliuren-input", JSON.stringify(payload));
     window.localStorage.setItem("sm1:last-daliuren-input", JSON.stringify(payload));
+    markExplicitSaveIntent("daliuren", payload.savedAt);
     router.push("/daliuren/result");
   }
 

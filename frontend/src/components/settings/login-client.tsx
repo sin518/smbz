@@ -13,6 +13,7 @@ import {
   Power,
   Search,
   Smartphone,
+  Trash2,
   UsersRound,
   UserRound,
   type LucideIcon
@@ -22,6 +23,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { chinaLocationOptions } from "@/lib/locations/china";
+import { getBrowserRecordStore } from "@/lib/records/record-store";
 import { cn } from "@/lib/utils";
 
 type ApiResult<T> = T & {
@@ -453,6 +455,8 @@ function UserSettingsPage({
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteWarningOpen, setDeleteWarningOpen] = useState(false);
+  const [clearingDeviceRecords, setClearingDeviceRecords] = useState(false);
+  const [deviceRecordMessage, setDeviceRecordMessage] = useState("");
   const [storedUser, setStoredUser] = useState<(LoginResponse["user"] & { email?: string; name?: string }) | null>(null);
   const [profile, setProfile] = useState<UserProfileSettings>(() => getDefaultProfile(user, null));
   const [editingField, setEditingField] = useState<EditableProfileField | null>(null);
@@ -550,6 +554,27 @@ function UserSettingsPage({
     }
   }
 
+  async function clearCurrentAccountDeviceRecords() {
+    if (!userId || clearingDeviceRecords) {
+      return;
+    }
+    const confirmed = window.confirm(
+      "只清除此设备上当前账号的本机记录与云端摘要缓存，不会删除云端数据库记录。确定继续吗？"
+    );
+    if (!confirmed) {
+      return;
+    }
+    setClearingDeviceRecords(true);
+    try {
+      await getBrowserRecordStore().clearScope(`account:${userId}`);
+      setDeviceRecordMessage("此设备上的当前账号记录已清除，云端记录未删除。");
+    } catch {
+      setDeviceRecordMessage("本机记录清除失败，请稍后重试。");
+    } finally {
+      setClearingDeviceRecords(false);
+    }
+  }
+
   return (
     <main className="light-surface-text-scope app-responsive-shell min-h-dvh bg-[#F8F7EE] pb-8 text-ink shadow-soft">
       <header className="liquid-glass sticky top-0 z-20 grid h-[80px] grid-cols-[44px_minmax(0,1fr)_44px] items-center border-b border-white/55 px-4">
@@ -582,8 +607,17 @@ function UserSettingsPage({
         <section className="mt-5">
           <ProfileSectionTitle>账户与安全</ProfileSectionTitle>
           <div className="mt-2.5 overflow-hidden rounded-[24px] border border-[#e5d8bc] bg-[#fffdf7] shadow-soft">
+            <SettingsRow
+              icon={Trash2}
+              label="清除此设备记录"
+              value={clearingDeviceRecords ? "处理中" : ""}
+              actionable
+              muted
+              onClick={() => void clearCurrentAccountDeviceRecords()}
+            />
             <SettingsRow icon={Power} label="账号注销" value="" actionable muted last onClick={() => setDeleteWarningOpen(true)} />
           </div>
+          {deviceRecordMessage ? <p className="mt-2 px-2 text-[12px] leading-5 text-mutedInk">{deviceRecordMessage}</p> : null}
         </section>
 
         <section className="pt-5">

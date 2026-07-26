@@ -9,6 +9,7 @@ import { QimenPalacePanel } from "@/components/qimen/qimen-palace-panel";
 import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
 import { saveLocalQimenRecord } from "@/lib/divination/local-records";
 import { calculateQimenChart } from "@/lib/qimen-api";
+import { consumeExplicitSaveIntent } from "@/lib/records/save-intent";
 
 type QimenChart = QimenOutput;
 type QimenPlateType = "zhuan";
@@ -64,7 +65,9 @@ export function QimenChartResult() {
         }
 
         const nextResult = { ...parsed, chart: recalculatedChart };
-        saveLocalQimenRecord(nextResult);
+        if (consumeExplicitSaveIntent("qimen", nextResult.savedAt)) {
+          void saveLocalQimenRecord(nextResult);
+        }
         setResult(nextResult);
       } catch {
         setResult(null);

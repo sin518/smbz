@@ -181,3 +181,139 @@
 - [x] `pnpm build:frontend`
 
 **Dependencies:** Tasks 1–3
+
+---
+
+# 盘局记录身份与本机存储改进
+
+## Task 1: 版本化记录身份契约
+
+**Acceptance criteria:**
+- [x] 八字/紫微、奇门/大六壬、六爻分别生成符合领域规则的稳定 `recordKey`。
+- [x] 等价历法和地点表示归一；姓名、真太阳时及事件时间边界正确。
+- [x] TypeScript 与 Python 对同一固定输入生成相同身份。
+
+**Verification:**
+- [x] 前端身份固定向量测试通过。
+- [x] 后端身份固定向量测试通过。
+
+**Dependencies:** None
+
+**Files likely touched:** `frontend/src/lib/records/`, `frontend/tests/`, `backend/app/services/record_identity.py`, `backend/tests/`。
+
+## Task 2: 加法数据库契约
+
+**Acceptance criteria:**
+- [x] BaziProfile 与 DivinationRecord 增加可选身份、计算版本、生命周期和删除字段。
+- [x] 新索引在旧数据存在时可重复执行，不直接强制非空。
+- [x] Pydantic 请求/响应字段保持旧客户端兼容。
+
+**Verification:**
+- [x] 迁移 SQL 静态检查通过。
+- [x] Schema 与响应模型测试通过。
+
+**Dependencies:** Task 1
+
+**Files likely touched:** `backend/prisma/schema.prisma`, `backend/prisma/migrations/`, `backend/app/schemas/bazi.py`, `backend/app/schemas/divination_records.py`。
+
+## Task 3: 八字稳定同步生命周期
+
+**Acceptance criteria:**
+- [x] 不同 `localId`、相同 `recordKey` 只产生一个八字云端记录。
+- [x] 旧计算版本和旧生命周期不能覆盖新记录或删除。
+- [x] 删除后明确重新提交可以创建新生命周期。
+
+**Verification:**
+- [x] 八字同步成功、重复、冲突、删除、重新创建测试通过。
+
+**Dependencies:** Tasks 1–2
+
+**Files likely touched:** `backend/app/services/bazi.py`, `backend/app/api/routes/sync_bazi.py`, `backend/app/api/routes/bazi.py`, `backend/tests/test_sync_routes.py`。
+
+## Task 4: 其他占术稳定同步生命周期
+
+**Acceptance criteria:**
+- [x] 四类占术按 `userId + type + recordKey` Upsert。
+- [x] 六爻分别完成的起卦不误合并。
+- [x] 删除、版本冲突和重新创建语义与八字一致。
+
+**Verification:**
+- [x] 四类占术同步、权限、冲突和删除测试通过。
+
+**Dependencies:** Tasks 1–2
+
+**Files likely touched:** `backend/app/services/divination_records.py`, `backend/app/api/routes/sync_divination.py`, `backend/tests/test_sync_routes.py`。
+
+## Task 5: IndexedDB 记录模块
+
+**Acceptance criteria:**
+- [x] 模块 interface 覆盖列出、读取、Upsert、删除、同步状态和缓存策略。
+- [x] IndexedDB 按账号、游客、待认领空间隔离；测试使用内存 adapter。
+- [x] 旧全局记录先复制校验到待认领空间，不自动归属账号。
+
+**Verification:**
+- [x] 账号隔离、迁移中断恢复、容量策略测试通过。
+
+**Dependencies:** Task 1
+
+**Files likely touched:** `frontend/src/lib/records/`, `frontend/tests/`。
+
+## Task 6: 八字前端接入
+
+**Acceptance criteria:**
+- [x] 相同身份重新提交更新原记录并保持最早创建时间。
+- [x] 保存成功后立即尝试同步，失败保留待同步状态。
+- [x] 不再使用全局八字记录键或 80 条静默截断。
+
+**Verification:**
+- [x] 双设备相同八字、不同输入、离线重试测试通过。
+
+**Dependencies:** Tasks 3、5
+
+**Files likely touched:** `frontend/src/lib/bazi/local-records.ts`, `frontend/src/components/bazi/bazi-home-client.tsx`, `frontend/tests/`。
+
+## Task 7: 其他占术前端接入
+
+**Acceptance criteria:**
+- [x] 四类占术通过新记录模块保存和同步。
+- [x] 打开已有记录严格只读，不改变时间、状态或排序。
+- [x] 六爻起卦事件身份与其他时占身份正确区分。
+
+**Verification:**
+- [x] 四类结果页浏览零业务记录写入回归测试通过。
+
+**Dependencies:** Tasks 4–5
+
+**Files likely touched:** `frontend/src/lib/divination/local-records.ts`, 四类结果客户端，`frontend/tests/`。
+
+## Task 8: 记录页与账号迁移 UI
+
+**Acceptance criteria:**
+- [x] 列表按 `updatedAt` 排序并按稳定身份合并。
+- [x] 云端失败展示最后缓存和明确错误状态。
+- [x] 游客/待认领导入、普通退出隐藏和清除此设备数据具有明确交互。
+
+**Verification:**
+- [x] 登录、退出、换号、断网和移动端静态/浏览器流程通过。
+
+**Dependencies:** Tasks 5–7
+
+**Files likely touched:** `frontend/src/app/records/page.tsx`, 设置登录组件、记录反馈组件及测试。
+
+## Task 9: 历史合并与完整回归
+
+**Acceptance criteria:**
+- [x] 历史合并支持只读预览、备份、幂等执行和回滚映射。
+- [x] 相同身份保留最早创建时间、最新内容和更新时间。
+- [x] 全部领域边界与安全回归测试覆盖。
+
+**Verification:**
+- [x] `pnpm typecheck`
+- [x] `pnpm lint`（通过，保留仓库既有 warning）
+- [x] `pnpm build:frontend`
+- [x] `cd backend && .venv/bin/python -m unittest discover -s tests -p 'test_*.py'`
+- [x] `git diff --check`
+
+**Dependencies:** Tasks 1–8
+
+**Files likely touched:** 新迁移/维护脚本、测试和相关文档。

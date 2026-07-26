@@ -4,6 +4,7 @@ import { ArrowLeft, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { castLiuyaoLine, type LiuyaoLine } from "@/lib/liuyao/casting";
+import { markExplicitSaveIntent } from "@/lib/records/save-intent";
 import { cn } from "@/lib/utils";
 
 type ShakeStep = "ready" | "casting" | "complete";
@@ -36,14 +37,16 @@ export function LiuyaoShakeClient() {
   }, []);
 
   const storeCompletedCasting = useCallback((nextLines: LiuyaoLine[]) => {
+    const completedAt = new Date().toISOString();
     window.localStorage.setItem(
       "sm1:current-liuyao-casting",
       JSON.stringify({
         lines: nextLines,
         status: "complete",
-        completedAt: new Date().toISOString()
+        completedAt
       })
     );
+    markExplicitSaveIntent("liuyao", completedAt);
   }, []);
 
   const castNextLine = useCallback(() => {

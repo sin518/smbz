@@ -9,6 +9,7 @@ import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-comma
 import { useCopyFeedback } from "@/components/shared/use-copy-feedback";
 import { buildLiuyaoAiCommandText } from "@/lib/ai/liuyao-command";
 import { saveLocalLiuyaoRecord } from "@/lib/divination/local-records";
+import { consumeExplicitSaveIntent } from "@/lib/records/save-intent";
 import {
   buildLiuyaoChart,
   type LiuyaoChart,
@@ -44,7 +45,9 @@ export function LiuyaoResultClient() {
     buildLiuyaoChart(input?.input, casting.lines)
       .then((nextChart) => {
         if (!cancelled) {
-          saveLocalLiuyaoRecord({ input, casting });
+          if (casting.completedAt && consumeExplicitSaveIntent("liuyao", casting.completedAt)) {
+            void saveLocalLiuyaoRecord({ input, casting });
+          }
           setChart(nextChart);
         }
       })

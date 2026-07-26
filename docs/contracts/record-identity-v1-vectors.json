@@ -1,0 +1,77 @@
+[
+  {
+    "name": "bazi-normalizes-display-format",
+    "input": {
+      "type": "bazi",
+      "name": "  55  ",
+      "gender": "male",
+      "birthTime": "1994-05-03 02:02",
+      "locationKey": "广东省 汕尾市 陆河县",
+      "longitude": 115.656,
+      "latitude": 23.302,
+      "useSolarTime": true
+    },
+    "expectedCanonical": {
+      "birthTime": "1994-05-03T02:02:00",
+      "gender": "male",
+      "latitude": "23.302000",
+      "locationKey": null,
+      "longitude": "115.656000",
+      "name": "55",
+      "type": "bazi",
+      "useSolarTime": true,
+      "version": 1
+    },
+    "expectedRecordKey": "bazi:v1:1b6722a36a192522d20d0d2ff7c7f8990725977324b378dc011af716bf3069e3"
+  },
+  {
+    "name": "qimen-normalizes-offset-time",
+    "input": {
+      "type": "qimen",
+      "question": "  是否出行  ",
+      "dateTime": "2026-07-26T10:00:00+08:00",
+      "birthYear": 1994,
+      "plateType": "zhuan",
+      "juMethod": "chaibu",
+      "zhiFuJiGong": "ji_liuyi",
+      "manualDunType": null,
+      "manualJu": null,
+      "juMode": "auto"
+    },
+    "expectedCanonical": {
+      "birthYear": 1994,
+      "dateTime": "2026-07-26T02:00:00Z",
+      "juMethod": "chaibu",
+      "juMode": "auto",
+      "manualDunType": null,
+      "manualJu": null,
+      "plateType": "zhuan",
+      "question": "是否出行",
+      "type": "qimen",
+      "version": 1,
+      "zhiFuJiGong": "ji_liuyi"
+    },
+    "expectedRecordKey": "qimen:v1:fb208f42739bb737ca7ccc5ce313da9763bc25533fda1e61a62397a631ec4eb6"
+  },
+  {
+    "name": "liuyao-keeps-casting-occurrence",
+    "input": {
+      "type": "liuyao",
+      "question": "合作能否成功",
+      "completedAt": "2026-07-26T10:05:30Z",
+      "castingTime": "2026-07-26T18:05:30+08:00",
+      "castingMethod": "shake",
+      "lineTotals": [7, 8, 9, 6, 7, 8]
+    },
+    "expectedCanonical": {
+      "castingMethod": "shake",
+      "castingTime": "2026-07-26T10:05:30Z",
+      "completedAt": "2026-07-26T10:05:30Z",
+      "lineTotals": [7, 8, 9, 6, 7, 8],
+      "question": "合作能否成功",
+      "type": "liuyao",
+      "version": 1
+    },
+    "expectedRecordKey": "liuyao:v1:29d42c0e5208dd4856192236add82ec48ee3565769db07dca62e78a8b5e3c4f1"
+  }
+]

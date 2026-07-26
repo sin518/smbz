@@ -199,7 +199,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
       dateTime: values.birthTime,
       location: selectedLocation
     });
-    const localRecord = saveLocalBaziRecord({
+    const localRecord = await saveLocalBaziRecord({
       name: values.name?.trim() ?? "",
       gender: values.gender,
       birthTime: values.birthTime,

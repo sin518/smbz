@@ -8,6 +8,7 @@ import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-comma
 import { saveLocalZiweiRecord } from "@/lib/divination/local-records";
 import { ZiweiAiCommandModal } from "@/components/ziwei/ziwei-ai-command-modal";
 import { calculateZiweiChart, type ZiweiChart, type ZiweiPalace } from "@/lib/ziwei/calculate";
+import { consumeExplicitSaveIntent } from "@/lib/records/save-intent";
 import { cn } from "@/lib/utils";
 
 type StoredZiweiProfile = {
@@ -61,10 +62,12 @@ export function ZiweiChartClient() {
         savedAt
       };
       window.localStorage.setItem("sm1:current-ziwei-profile", JSON.stringify(normalizedProfile));
-      saveLocalZiweiRecord({
-        profile: normalizedProfile,
-        chart: nextChart
-      });
+      if (consumeExplicitSaveIntent("ziwei", normalizedProfile.savedAt)) {
+        void saveLocalZiweiRecord({
+          profile: normalizedProfile,
+          chart: nextChart
+        });
+      }
       setChart(nextChart);
     } catch {
       router.replace("/ziwei/profile");

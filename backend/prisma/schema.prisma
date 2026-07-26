@@ -103,24 +103,30 @@ model DivinationProfile {
 }
 
 model BaziProfile {
-  id           String   @id
-  userId       String
-  localId      String?
-  name         String?
-  gender       String
-  birthTime    String
-  calendar     String
-  location     String?
-  longitude    Float?
-  latitude     Float?
-  useSolarTime Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 String    @id
+  userId             String
+  localId            String?
+  recordKey          String?
+  identityVersion    Int?
+  calculationVersion Int?
+  lifecycleVersion   Int       @default(1)
+  deletedAt          DateTime?
+  name               String?
+  gender             String
+  birthTime          String
+  calendar           String
+  location           String?
+  longitude          Float?
+  latitude           Float?
+  useSolarTime       Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   charts BaziChart[]
 
   @@index([userId, updatedAt])
+  @@index([userId, recordKey])
   @@unique([userId, localId])
 }
 
@@ -137,21 +143,27 @@ model BaziChart {
 }
 
 model DivinationRecord {
-  id         String   @id
-  userId     String
-  type       String
-  localId    String
-  question   String   @default("")
-  summary    String   @default("")
-  detail     String   @default("")
-  payload    Json
-  occurredAt DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                 String    @id
+  userId             String
+  type               String
+  localId            String
+  recordKey          String?
+  identityVersion    Int?
+  calculationVersion Int?
+  lifecycleVersion   Int       @default(1)
+  deletedAt          DateTime?
+  question           String    @default("")
+  summary            String    @default("")
+  detail             String    @default("")
+  payload            Json
+  occurredAt         DateTime
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, type, localId])
+  @@index([userId, type, recordKey])
   @@index([userId, occurredAt])
 }
 

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { calculateQimenChart } from "@/lib/qimen-api";
+import { markExplicitSaveIntent } from "@/lib/records/save-intent";
 import { cn } from "@/lib/utils";
 import {
   DivinationTimePickerSheet,
@@ -107,6 +108,7 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
 
     window.localStorage.setItem("sm1:current-qimen-result", JSON.stringify(payload));
     window.localStorage.setItem("sm1:last-qimen-input", JSON.stringify(payload));
+    markExplicitSaveIntent("qimen", payload.savedAt);
 
     router.push("/qimen/result");
   }

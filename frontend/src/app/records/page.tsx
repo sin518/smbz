@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Check, ChevronDown, ChevronRight, Cloud, CloudOff, ListChecks, RefreshCw, Search, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { AppBottomNav } from "@/components/app-bottom-nav";
 import {
   deleteCloudBaziRecord,
@@ -19,12 +20,20 @@ import {
   deleteDivinationRecordWithRemote,
   deleteLocalDivinationRecords,
   fetchCloudDivinationRecords,
+  fetchCloudDivinationRecord,
   getLocalDivinationRecords,
   restoreLocalDivinationRecord,
   syncAllPendingRecords,
   type LocalDivinationRecord
 } from "@/lib/divination/local-records";
 import { deleteCloudRecordsInBulk } from "@/lib/records/bulk-delete";
+import {
+  claimUnclaimedRecords,
+  copyLegacyRecordsToUnclaimed,
+  getLegacyMigrationPreview,
+  type LegacyMigrationPreview
+} from "@/lib/records/legacy-migration";
+import { getBrowserRecordStore, getCurrentRecordScope } from "@/lib/records/record-store";
 import { DivinationSyncStatusBadge as DivinationSyncBadge } from "@/components/divination/divination-sync-status-badge";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +68,7 @@ const recordFilters: Array<{ label: string; value: RecordFilter }> = [
 ];
 
 export default function RecordsPage() {
+  const router = useRouter();
   const [records, setRecords] = useState<RecordsPageItem[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
@@ -68,6 +78,9 @@ export default function RecordsPage() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedRecordKeys, setSelectedRecordKeys] = useState<Set<string>>(() => new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [legacyPreview, setLegacyPreview] = useState<LegacyMigrationPreview | null>(null);
+  const [unclaimedCount, setUnclaimedCount] = useState(0);
+  const [migratingLegacy, setMigratingLegacy] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<RecordGroupKey, boolean>>({
     bazi: false,
     liuyao: false,
@@ -77,24 +90,73 @@ export default function RecordsPage() {
   });
 
   useEffect(() => {
-    setRecords(getRecordsPageItems());
+    void getRecordsPageItems().then(setRecords);
     scheduleBaziRecordAutoSync();
+    void Promise.resolve(getLegacyMigrationPreview()).then(setLegacyPreview);
+    void getBrowserRecordStore().list("legacy-unclaimed").then((items) => setUnclaimedCount(items.length));
 
     let mounted = true;
-    void fetchRecordsPageItemsFromCloud().then((nextRecords) => {
-      if (mounted) {
-        setRecords(nextRecords);
-      }
-    });
+    void fetchRecordsPageItemsFromCloud()
+      .then((nextRecords) => {
+        if (mounted) {
+          setRecords(nextRecords);
+        }
+      })
+      .catch(async () => {
+        if (mounted) {
+          setRecords(await getRecordsPageItems());
+          setSyncMessage("云端记录读取失败，当前显示本机缓存；稍后可重试。");
+        }
+      });
 
     return () => {
       mounted = false;
     };
   }, []);
 
+  async function handleCopyLegacyRecords() {
+    setMigratingLegacy(true);
+    try {
+      const result = await copyLegacyRecordsToUnclaimed(getBrowserRecordStore());
+      setLegacyPreview(getLegacyMigrationPreview());
+      setUnclaimedCount((await getBrowserRecordStore().list("legacy-unclaimed")).length);
+      setSyncMessage(`已复制并校验 ${result.copiedCount} 条旧记录，原 localStorage 数据仍保留。`);
+    } catch (error) {
+      setSyncMessage(error instanceof Error ? error.message : "旧记录复制失败，原数据未清理。");
+    } finally {
+      setMigratingLegacy(false);
+    }
+  }
+
+  async function handleClaimLegacyRecords() {
+    const scope = getCurrentRecordScope();
+    if (!scope.startsWith("account:")) {
+      setSyncMessage("请先登录账号，再决定是否导入这些待认领记录。");
+      return;
+    }
+    setMigratingLegacy(true);
+    try {
+      const claimed = await claimUnclaimedRecords(
+        getBrowserRecordStore(),
+        scope as `account:${string}`
+      );
+      setUnclaimedCount(0);
+      setRecords(await getRecordsPageItems());
+      setSyncMessage(`已将 ${claimed.length} 条待认领记录导入当前账号；原 localStorage 数据仍保留。`);
+    } catch {
+      setSyncMessage("导入未完成，待认领记录仍保留，请稍后重试。");
+    } finally {
+      setMigratingLegacy(false);
+    }
+  }
+
   async function handleManualSync() {
-    const pendingBazi = getUnifiedBaziRecords().filter((record) => record.syncStatus !== "synced");
-    const pendingDivination = getLocalDivinationRecords().filter((record) => record.syncStatus !== "synced");
+    const [localBazi, localDivination] = await Promise.all([
+      getUnifiedBaziRecords(),
+      getLocalDivinationRecords()
+    ]);
+    const pendingBazi = localBazi.filter((record) => record.syncStatus !== "synced");
+    const pendingDivination = localDivination.filter((record) => record.syncStatus !== "synced");
     const totalPending = pendingBazi.length + pendingDivination.length;
 
     if (totalPending === 0) {
@@ -110,7 +172,7 @@ export default function RecordsPage() {
     try {
       const signedIn = await checkSignedIn();
       if (!signedIn) {
-        setRecords(getRecordsPageItems());
+        setRecords(await getRecordsPageItems());
         setSyncMessage("请先登录账号，再手动上传本机排盘记录。");
         return;
       }
@@ -137,6 +199,9 @@ export default function RecordsPage() {
           ? `上传未全部完成，${successCount > 0 ? `成功 ${successCount} 条，` : ""}${failedCount > 0 ? `失败 ${failedCount} 条，` : ""}仍有 ${pendingCount} 条待同步。`
           : "上传完成，记录已同步。"
       );
+    } catch {
+      setRecords(await getRecordsPageItems());
+      setSyncMessage("同步或云端读取失败，待同步记录与本机缓存均已保留。");
     } finally {
       setSyncing(false);
       window.setTimeout(() => setSyncMessage(""), 3200);
@@ -168,10 +233,30 @@ export default function RecordsPage() {
     }
   }
 
+  async function handleOpenRecord(item: RecordsPageItem, event: MouseEvent<HTMLAnchorElement>) {
+    if (item.kind !== "divination") {
+      return;
+    }
+    event.preventDefault();
+    try {
+      const fullRecord =
+        item.record.origin === "cloud" &&
+        item.record.serverId &&
+        item.record.payloadState !== "full"
+          ? await fetchCloudDivinationRecord(item.record.serverId)
+          : item.record;
+      restoreLocalDivinationRecord(fullRecord);
+      router.push(getRecordHref({ ...item, record: fullRecord }));
+    } catch {
+      setSyncMessage("记录详情读取失败，已保留当前列表缓存，请稍后重试。");
+    }
+  }
+
   async function deleteRecordItem(item: RecordsPageItem) {
     if (item.kind === "bazi") {
       if (item.record.origin === "cloud" && item.record.serverId) {
         await deleteCloudBaziRecord(item.record.serverId);
+        await deleteLocalBaziRecords([item.record.id]);
       } else {
         await deleteUnifiedBaziRecordWithRemote(item.record.id);
       }
@@ -275,10 +360,10 @@ export default function RecordsPage() {
         .map((item) => item.record.id);
 
       if (baziLocalIds.length > 0) {
-        deleteLocalBaziRecords(baziLocalIds);
+        await deleteLocalBaziRecords(baziLocalIds);
       }
       if (divinationLocalIds.length > 0) {
-        deleteLocalDivinationRecords(divinationLocalIds);
+        await deleteLocalDivinationRecords(divinationLocalIds);
       }
 
       const successCount = successfullyDeleted.length;
@@ -347,6 +432,37 @@ export default function RecordsPage() {
         </div>
       </header>
 
+      {legacyPreview &&
+      ((!legacyPreview.alreadyCopied && legacyPreview.baziCount + legacyPreview.divinationCount > 0) ||
+        unclaimedCount > 0) ? (
+        <section className="px-4 pt-4">
+          <div className="rounded-[20px] border border-[#dfc98f] bg-[#fff8e7] p-4 shadow-soft">
+            <p className="text-[15px] font-semibold text-[#5b4928]">发现旧版本机记录</p>
+            <p className="mt-1 text-[13px] leading-5 text-[#806b43]">
+              {legacyPreview.alreadyCopied
+                ? `待认领区有 ${unclaimedCount} 条记录，尚未归属任何账号。`
+                : `共 ${legacyPreview.baziCount + legacyPreview.divinationCount} 条。先复制校验到待认领区，不会删除原数据，也不会自动上传。`}
+            </p>
+            <button
+              type="button"
+              disabled={migratingLegacy}
+              onClick={() =>
+                void (legacyPreview.alreadyCopied ? handleClaimLegacyRecords() : handleCopyLegacyRecords())
+              }
+              className="mt-3 h-10 rounded-full bg-black px-4 text-[13px] font-semibold text-[#e8d4a7] disabled:opacity-50"
+            >
+              {migratingLegacy
+                ? "处理中"
+                : legacyPreview.alreadyCopied
+                  ? getCurrentRecordScope().startsWith("account:")
+                    ? "导入当前账号"
+                    : "登录后再导入"
+                  : "复制到待认领区"}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {selectionMode ? (
         <section className="px-4 pt-4">
           <div className="liquid-glass flex min-h-[58px] items-center justify-between gap-3 rounded-[20px] border border-white/60 px-4">
@@ -384,7 +500,7 @@ export default function RecordsPage() {
               {syncing ? "上传中" : "手动上传"}
             </button>
           </div>
-          <p className="mt-2 text-[14px] leading-6 text-mutedInk">登录后会读取云端记录；本机新记录会每 10 分钟自动尝试上传。</p>
+          <p className="mt-2 text-[14px] leading-6 text-mutedInk">登录后会读取云端记录；新记录保存后立即尝试上传，失败时会在联网或定时任务中重试。</p>
           {syncing || syncMessage ? (
             <div aria-live="polite" className="mt-4 overflow-hidden rounded-2xl bg-[#f6f0e2] px-4 py-3">
               <div className="flex items-center gap-3">
@@ -443,6 +559,7 @@ export default function RecordsPage() {
                       selected={selectedRecordKeys.has(getRecordKey(item))}
                       onToggleSelection={() => toggleRecordSelection(item)}
                       onDelete={() => void handleDeleteRecord(item)}
+                      onOpen={(event) => void handleOpenRecord(item, event)}
                     />
                   ))}
                 </div>
@@ -491,7 +608,8 @@ function RecordCard({
   selectionMode,
   selected,
   onToggleSelection,
-  onDelete
+  onDelete,
+  onOpen
 }: {
   item: RecordsPageItem;
   deleting: boolean;
@@ -499,6 +617,7 @@ function RecordCard({
   selected: boolean;
   onToggleSelection: () => void;
   onDelete: () => void;
+  onOpen: (event: MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <div className={cn("rounded-[22px] border bg-[#fffdf7] p-4 shadow-soft transition-colors", selected ? "border-[#b88b2d]" : "border-[#e5d8bc]")}>
@@ -519,7 +638,7 @@ function RecordCard({
         ) : null}
         <Link
           href={getRecordHref(item)}
-          onClick={() => handleOpenRecord(item)}
+          onClick={onOpen}
           className="min-w-0 flex-1"
         >
           <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -563,7 +682,7 @@ function RecordCard({
           </button>
           <Link
             href={getRecordHref(item)}
-            onClick={() => handleOpenRecord(item)}
+            onClick={onOpen}
             className="flex h-9 w-7 items-center justify-center"
             aria-label={`打开${getRecordTitle(item)}记录`}
           >
@@ -611,18 +730,23 @@ function LocalBadge() {
   );
 }
 
-function getRecordsPageItems(
+async function getRecordsPageItems(
   cloudBaziRecords: CloudBaziRecord[] = [],
   cloudDivinationRecords: LocalDivinationRecord[] = []
-): RecordsPageItem[] {
-  const localBaziRecords = getUnifiedBaziRecords();
-  const localDivinationRecords = getLocalDivinationRecords();
+): Promise<RecordsPageItem[]> {
+  const [localBaziRecords, localDivinationRecords] = await Promise.all([
+    getUnifiedBaziRecords(),
+    getLocalDivinationRecords()
+  ]);
   const mergedBaziRecords = [
     ...localBaziRecords,
     ...cloudBaziRecords.filter(
       (cloudRecord) =>
         !localBaziRecords.some(
-          (localRecord) => localRecord.id === cloudRecord.id || localRecord.serverId === cloudRecord.serverId
+          (localRecord) =>
+            localRecord.recordKey === cloudRecord.recordKey ||
+            localRecord.id === cloudRecord.id ||
+            localRecord.serverId === cloudRecord.serverId
         )
     )
   ];
@@ -631,19 +755,22 @@ function getRecordsPageItems(
     ...cloudDivinationRecords.filter(
       (cloudRecord) =>
         !localDivinationRecords.some(
-          (localRecord) => localRecord.id === cloudRecord.id || localRecord.serverId === cloudRecord.serverId
+          (localRecord) =>
+            localRecord.recordKey === cloudRecord.recordKey ||
+            localRecord.id === cloudRecord.id ||
+            localRecord.serverId === cloudRecord.serverId
         )
     )
   ];
   const baziRecords = mergedBaziRecords.map((record) => ({
     kind: "bazi" as const,
     record,
-    createdAt: record.createdAt
+    createdAt: record.updatedAt
   }));
   const divinationRecords = mergedDivinationRecords.map((record) => ({
     kind: "divination" as const,
     record,
-    createdAt: record.createdAt
+    createdAt: record.updatedAt
   }));
 
   return [...baziRecords, ...divinationRecords].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
@@ -651,8 +778,8 @@ function getRecordsPageItems(
 
 async function fetchRecordsPageItemsFromCloud() {
   const [cloudBaziRecords, cloudDivinationRecords] = await Promise.all([
-    fetchCloudBaziRecords().catch(() => []),
-    fetchCloudDivinationRecords().catch(() => [])
+    fetchCloudBaziRecords(),
+    fetchCloudDivinationRecords()
   ]);
   return getRecordsPageItems(cloudBaziRecords, cloudDivinationRecords);
 }
@@ -771,12 +898,6 @@ function getRecordHref(item: RecordsPageItem) {
   }
 
   return getDivinationTypeConfig(item.record.type).href;
-}
-
-function handleOpenRecord(item: RecordsPageItem) {
-  if (item.kind === "divination") {
-    restoreLocalDivinationRecord(item.record);
-  }
 }
 
 function formatDivinationType(value: LocalDivinationRecord["type"]) {
