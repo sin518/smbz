@@ -11,7 +11,8 @@ const daliurenCalculateSchema = z.object({
   timezone: z.string().trim().min(1).max(80).optional(),
   question: z.string().trim().max(120).optional(),
   birthYear: z.number().int().min(1900).max(2100).optional(),
-  gender: z.enum(["male", "female"]).optional()
+  gender: z.enum(["male", "female"]).optional(),
+  timingMethod: z.enum(["san-chuan", "kong-wang"]).optional()
 });
 
 export async function POST(request: Request) {

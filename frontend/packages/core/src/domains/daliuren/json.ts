@@ -56,6 +56,7 @@ export function renderDaliurenCanonicalJSON(result: DaliurenOutput, options: { d
     地盘: item.diZhi,
     ...(item.wuXing ? { 五行: item.wuXing } : {}),
     ...(item.wangShuai ? { 旺衰: item.wangShuai } : {}),
+    ...(detailLevel === 'full' && item.wangShuaiBasis ? { 旺衰依据: item.wangShuaiBasis } : {}),
     天盘: item.tianZhi,
     天将: item.tianJiang,
     遁干: item.dunGan || '-',
@@ -65,6 +66,42 @@ export function renderDaliurenCanonicalJSON(result: DaliurenOutput, options: { d
 
   return {
     基本信息: basicInfo,
+    ...(detailLevel === 'full' ? {
+      判断依据: {
+        贵人布法: {
+          昼夜: result.analysisBasis.guiRen.dayNight,
+          阴阳贵: result.analysisBasis.guiRen.yinYang,
+          贵人地支: result.analysisBasis.guiRen.guiRenBranch,
+          贵人落地: result.analysisBasis.guiRen.groundBranch,
+          顺逆: result.analysisBasis.guiRen.direction,
+          依据: [...result.analysisBasis.guiRen.basis],
+        },
+        取传: {
+          课体: result.analysisBasis.transmission.method,
+          发用: result.analysisBasis.transmission.initialBranch,
+          数据来源: result.analysisBasis.transmission.source,
+          依据: [...result.analysisBasis.transmission.basis],
+          完整推导: result.analysisBasis.transmission.derivationComplete,
+        },
+        关键格局: result.analysisBasis.keyPatterns.map((pattern) => ({
+          名称: pattern.name,
+          位置: [...pattern.positions],
+          依据: pattern.basis,
+        })),
+        应期: {
+          方法: result.analysisBasis.timing.label,
+          是否适用: result.analysisBasis.timing.applicable,
+          候选: result.analysisBasis.timing.candidates.map((candidate) => ({
+            条件: candidate.window,
+            角色: [...candidate.roles],
+            依据: [...candidate.basis],
+            置信度: candidate.confidence,
+          })),
+          说明: result.analysisBasis.timing.note,
+        },
+        当前局限: [...result.analysisBasis.limitations],
+      },
+    } : {}),
     四课: siKe,
     三传: sanChuan,
     天地盘: gongInfos,

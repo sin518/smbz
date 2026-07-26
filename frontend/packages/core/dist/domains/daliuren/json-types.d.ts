@@ -18,6 +18,40 @@ export interface DaliurenCanonicalJSON {
         行年?: string;
         附加课体?: string[];
     };
+    判断依据?: {
+        贵人布法: {
+            昼夜: string;
+            阴阳贵: string;
+            贵人地支: string;
+            贵人落地: string;
+            顺逆: string;
+            依据: string[];
+        };
+        取传: {
+            课体: string;
+            发用: string;
+            数据来源: string;
+            依据: string[];
+            完整推导: boolean;
+        };
+        关键格局: Array<{
+            名称: string;
+            位置: string[];
+            依据: string;
+        }>;
+        应期: {
+            方法: string;
+            是否适用: boolean;
+            候选: Array<{
+                条件: string;
+                角色: string[];
+                依据: string[];
+                置信度: string;
+            }>;
+            说明: string;
+        };
+        当前局限: string[];
+    };
     四课: Array<{
         课别: string;
         乘将: string;
@@ -35,6 +69,7 @@ export interface DaliurenCanonicalJSON {
         地盘: string;
         五行?: string;
         旺衰?: string;
+        旺衰依据?: string;
         天盘: string;
         天将: string;
         遁干: string;

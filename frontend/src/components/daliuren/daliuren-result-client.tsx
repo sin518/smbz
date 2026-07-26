@@ -5,11 +5,12 @@ import { ArrowLeft, Copy, X } from "lucide-react";
 import { Solar } from "lunar-javascript";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { DaliurenInput, DaliurenOutput } from "taibu-core/daliuren";
+import type { DaliurenInput, DaliurenOutput, DaliurenTimingMethod } from "taibu-core/daliuren";
 import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
 import { useCachedAiCommand } from "@/components/shared/use-cached-ai-command";
 import { useCopyFeedback } from "@/components/shared/use-copy-feedback";
 import { DaliurenTianDiPanCard } from "@/components/daliuren/daliuren-tiandipan-card";
+import { DaliurenAnalysisBasisCard } from "@/components/daliuren/daliuren-analysis-basis-card";
 import { buildDaliurenAiCommandText } from "@/lib/ai/daliuren-command";
 import { calculateDaliurenChart } from "@/lib/daliuren/api";
 import { saveLocalDaliurenRecord } from "@/lib/divination/local-records";
@@ -21,6 +22,7 @@ type DaliurenStoredInput = {
     dateTime: string;
     birthYear: number;
     gender: "male" | "female";
+    timingMethod?: DaliurenTimingMethod;
   };
   savedAt: string;
 };
@@ -98,6 +100,7 @@ export function DaliurenResultClient() {
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-3">
           <CourseSummary chart={chart} input={storedInput} lunarDate={lunarDate} />
           <CoreInfoRow chart={chart} />
+          <DaliurenAnalysisBasisCard chart={chart} />
           <SanChuanCard chart={chart} />
           <SiKeCard chart={chart} />
           <DaliurenTianDiPanCard chart={chart} />
@@ -331,7 +334,8 @@ function buildDaliurenInput(stored: DaliurenStoredInput): DaliurenInput {
     timezone: "Asia/Shanghai",
     question: stored.input.question.trim(),
     birthYear: stored.input.birthYear,
-    gender: stored.input.gender
+    gender: stored.input.gender,
+    timingMethod: stored.input.timingMethod ?? "san-chuan"
   };
 }
 

@@ -4,12 +4,13 @@
  */
 import { getLiuRenByDate } from 'liuren-ts-lib';
 import { DEFAULT_DIVINATION_TIMEZONE, zonedWallClockToSystemDate } from '../../shared/timezone-utils.js';
-import { DI_ZHI, TIAN_JIANG_SHORT, YUE_JIANG_NAMES, ZHI_WUXING, calcBenMingXingNian, classifyKeTi, generateKeName, getChangSheng, getTaoHua, getWangShuai, } from './supplements.js';
+import { buildDaliurenAnalysisBasis } from './analysis.js';
+import { DI_ZHI, TIAN_JIANG_SHORT, YUE_JIANG_NAMES, ZHI_WUXING, calcBenMingXingNian, classifyKeTi, generateKeName, getChangSheng, getTaoHua, getWangShuai, getWangShuaiBasis, } from './supplements.js';
 /**
  * 大六壬排盘主函数
  */
 export function calculateDaliurenData(input) {
-    const { date, hour, minute = 0, question, birthYear, gender } = input;
+    const { date, hour, minute = 0, question, birthYear, gender, timingMethod = 'san-chuan' } = input;
     const timezone = input.timezone || DEFAULT_DIVINATION_TIMEZONE;
     // 1. 构造 Date 对象
     const [y, m, d] = date.split('-').map(Number);
@@ -25,8 +26,9 @@ export function calculateDaliurenData(input) {
     const yueGanZhi = baziParts[1] || '';
     const yueZhi = yueGanZhi[1] || '子';
     const yueJiang = raw.dateInfo?.yuejiang || '亥';
-    // 判断昼夜：卯时(05:00)起为昼，酉时末(19:00)为夜
-    const diurnal = hour >= 5 && hour < 19;
+    // 与排盘库一致：卯至申用昼贵，酉至寅用夜贵。
+    const hourBranch = baziParts[3]?.[1] || '';
+    const diurnal = ['卯', '辰', '巳', '午', '未', '申'].includes(hourBranch);
     // 4. 构建 dateInfo
     const dateInfo = {
         solarDate: raw.dateInfo?.date || `${y}年${m}月${d}日 ${hour}时${minute}分`,
@@ -103,6 +105,7 @@ export function calculateDaliurenData(input) {
             changSheng: getChangSheng(riGan, tianZhi),
             wuXing: tianZhiWx,
             wangShuai: getWangShuai(yueZhi, tianZhiWx),
+            wangShuaiBasis: getWangShuaiBasis(yueZhi, tianZhiWx),
             jianChu: raw.jianChu?.[diZhi] || '',
         };
     });
@@ -114,7 +117,7 @@ export function calculateDaliurenData(input) {
         benMing = result.benMing;
         xingNian = result.xingNian;
     }
-    return {
+    const output = {
         dateInfo,
         tianDiPan,
         siKe,
@@ -128,6 +131,10 @@ export function calculateDaliurenData(input) {
         benMing,
         xingNian,
         question,
+    };
+    return {
+        ...output,
+        analysisBasis: buildDaliurenAnalysisBasis(output, timingMethod),
     };
 }
 /** 从四课数组中提取上神（第一个字符对的第一个字） */

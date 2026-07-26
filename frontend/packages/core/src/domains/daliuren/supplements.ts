@@ -108,6 +108,19 @@ export function getWangShuai(yueZhi: string, wuXing: string): '旺' | '相' | '�
   return '休';
 }
 
+export function getWangShuaiBasis(yueZhi: string, wuXing: string): string {
+  const wang = YUE_LING_WUXING[yueZhi] || '土';
+  const state = getWangShuai(yueZhi, wuXing);
+  const relationByState: Record<typeof state, string> = {
+    旺: '与月令同气',
+    相: '受月令当旺五行所生',
+    休: '生扶月令当旺五行',
+    囚: '克制月令当旺五行',
+    死: '受月令当旺五行所克',
+  };
+  return `月令${yueZhi}以${wang}当令，${wuXing}${relationByState[state]}，判为${state}`;
+}
+
 // ===== 补充神煞 =====
 
 /** 桃花（咸池）：寅午戌见卯，申子辰见酉，巳酉丑见午，亥卯未见子 */

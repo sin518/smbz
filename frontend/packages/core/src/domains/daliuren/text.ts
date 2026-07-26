@@ -10,9 +10,9 @@ function formatDaliurenCoreStatus(result: DaliurenOutput): string {
   return `空亡(${result.dateInfo.kongWang.join(', ')}) / 驿马(${result.dateInfo.yiMa}) / 丁马(${result.dateInfo.dingMa}) / 天马(${result.dateInfo.tianMa})`;
 }
 
-function formatDaliurenDiPanLabel(item: DaliurenOutput['gongInfos'][number]): string {
+function formatDaliurenTianPanLabel(item: DaliurenOutput['gongInfos'][number]): string {
   const suffix = [item.wuXing, item.wangShuai].filter(Boolean).join('·');
-  return suffix ? `${item.diZhi}(${suffix})` : item.diZhi;
+  return suffix ? `${item.tianZhi}(${suffix})` : item.tianZhi;
 }
 
 export function renderDaliurenCanonicalText(result: DaliurenOutput, options: DaliurenCanonicalTextOptions = {}): string {
@@ -31,6 +31,7 @@ export function renderDaliurenCanonicalText(result: DaliurenOutput, options: Dal
     `- 四柱: ${result.dateInfo.bazi}`,
     `- 课式: ${result.keName} / ${result.keTi.method}课`,
     `- 月将: ${result.dateInfo.yueJiang}`,
+    `- 应期方法: ${result.analysisBasis.timing.label}`,
     `- 关键状态: ${formatDaliurenCoreStatus(result)}`,
   ];
   if (detailLevel === 'full') {
@@ -39,6 +40,30 @@ export function renderDaliurenCanonicalText(result: DaliurenOutput, options: Dal
     if (result.benMing) lines.push(`- 本命: ${result.benMing}`);
     if (result.xingNian) lines.push(`- 行年: ${result.xingNian}`);
     if (result.keTi.extraTypes.length > 0) lines.push(`- 附加课体: ${result.keTi.extraTypes.join('、')}`);
+  }
+  if (detailLevel === 'full') {
+    const guiRen = result.analysisBasis.guiRen;
+    const transmission = result.analysisBasis.transmission;
+    const patterns = result.analysisBasis.keyPatterns;
+    const timing = result.analysisBasis.timing;
+    lines.push('');
+    lines.push('## 判断依据');
+    lines.push(`- 贵人布法: ${guiRen.dayNight} / ${guiRen.yinYang}${guiRen.guiRenBranch}临${guiRen.groundBranch} / ${guiRen.direction}`);
+    guiRen.basis.forEach((basis) => lines.push(`  - ${basis}`));
+    lines.push(`- 发用依据: ${transmission.method}课，初传${transmission.initialBranch}（${transmission.source}）`);
+    transmission.basis.forEach((basis) => lines.push(`  - ${basis}`));
+    lines.push(`- 关键格局: ${patterns.length > 0 ? patterns.map((pattern) => `${pattern.name}〔${pattern.positions.join('、')}〕`).join('、') : '未命中当前可可靠识别的关键格局'}`);
+    patterns.forEach((pattern) => lines.push(`  - ${pattern.name}: ${pattern.basis}`));
+    lines.push(`- 应期方法: ${timing.label}（${timing.applicable ? '适用' : '不适用'}）`);
+    if (timing.candidates.length > 0) {
+      timing.candidates.forEach((candidate) => {
+        lines.push(`  - ${candidate.window}: ${candidate.roles.join('、')}；${candidate.basis.join('；')}；置信度${candidate.confidence}`);
+      });
+    } else {
+      lines.push(`  - ${timing.note}`);
+    }
+    lines.push('- 当前局限:');
+    result.analysisBasis.limitations.forEach((limitation) => lines.push(`  - ${limitation}`));
   }
   lines.push('');
   lines.push('## 四课 (主客对立)');
@@ -63,21 +88,24 @@ export function renderDaliurenCanonicalText(result: DaliurenOutput, options: Dal
     lines.push('## 天地盘全图 (十二宫)');
     lines.push('');
     if (detailLevel === 'full') {
-      lines.push('| 地盘 (五行·状态) | 天盘 (月将) | 天将 | 遁干 | 长生十二神 | 建除 |');
-      lines.push('|---|---|---|---|---|---|');
+      lines.push('| 地盘 | 天盘 (月将·五行·状态) | 天将 | 遁干 | 长生十二神 | 旺衰依据 | 建除 |');
+      lines.push('|---|---|---|---|---|---|---|');
     } else {
-      lines.push('| 地盘 (五行·状态) | 天盘 (月将) | 天将 | 遁干 | 长生十二神 |');
+      lines.push('| 地盘 | 天盘 (月将·五行·状态) | 天将 | 遁干 | 长生十二神 |');
       lines.push('|---|---|---|---|---|');
     }
     for (const item of result.gongInfos) {
       const row = [
-        formatDaliurenDiPanLabel(item),
-        item.tianZhi || '-',
+        item.diZhi || '-',
+        formatDaliurenTianPanLabel(item) || '-',
         item.tianJiang || '-',
         item.dunGan || '-',
         item.changSheng || '-',
       ];
       if (detailLevel === 'full') row.push(item.jianChu || '-');
+      if (detailLevel === 'full') {
+        row.splice(row.length - 1, 0, item.wangShuaiBasis || '-');
+      }
       lines.push(`| ${row.join(' | ')} |`);
     }
   }

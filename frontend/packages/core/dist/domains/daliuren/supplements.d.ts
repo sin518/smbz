@@ -18,6 +18,7 @@ declare const TIAN_JIANG_SHORT: Record<string, string>;
  */
 export declare function getChangSheng(riGan: string, diZhi: string): string;
 export declare function getWangShuai(yueZhi: string, wuXing: string): '旺' | '相' | '休' | '囚' | '死';
+export declare function getWangShuaiBasis(yueZhi: string, wuXing: string): string;
 /** 桃花（咸池）：寅午戌见卯，申子辰见酉，巳酉丑见午，亥卯未见子 */
 export declare function getTaoHua(riZhi: string): string;
 interface SiKeData {

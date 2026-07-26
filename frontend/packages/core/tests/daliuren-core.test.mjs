@@ -99,3 +99,54 @@ test('daliuren text rendering should return non-empty string', () => {
   assert.equal(typeof text, 'string');
   assert.ok(text.length > 0, 'toDaliurenText should return a non-empty string');
 });
+
+test('daliuren analysis basis should expose guiren, transmission and strength evidence', () => {
+  const result = calculateDaliuren({
+    date: '2026-04-10',
+    hour: 18,
+    minute: 30,
+    question: '判断依据测试',
+  });
+
+  assert.equal(result.dateInfo.diurnal, false, '酉时 should use 夜贵');
+  assert.equal(result.analysisBasis.guiRen.dayNight, '夜贵');
+  assert.equal(result.analysisBasis.guiRen.yinYang, '阴贵');
+  assert.match(result.analysisBasis.guiRen.direction, /^(顺布|逆布)$/u);
+  assert.equal(result.analysisBasis.transmission.source, 'liuren-ts-lib@1.9.0课表');
+  assert.equal(result.analysisBasis.transmission.derivationComplete, false);
+  assert.equal(result.analysisBasis.timing.method, 'san-chuan');
+  assert.ok(result.analysisBasis.timing.candidates.length > 0);
+  assert.ok(result.gongInfos.every((gong) => gong.wangShuaiBasis.includes('月令')));
+
+  const text = toDaliurenText(result, { detailLevel: 'full' });
+  assert.match(text, /## 判断依据/u);
+  assert.match(text, /贵人布法:/u);
+  assert.match(text, /发用依据:/u);
+  assert.match(text, /旺衰依据/u);
+  assert.match(text, /天盘 \(月将·五行·状态\)/u);
+  assert.doesNotMatch(text, /地盘 \(五行·状态\)/u);
+});
+
+test('daliuren kong-wang timing should only emit candidates when a transmission is empty', () => {
+  const applicable = calculateDaliuren({
+    date: '2026-01-01',
+    hour: 6,
+    timingMethod: 'kong-wang',
+  });
+  assert.equal(applicable.analysisBasis.timing.applicable, true);
+  assert.equal(applicable.analysisBasis.timing.label, '空亡填实法');
+  assert.deepEqual(
+    applicable.analysisBasis.timing.candidates.map((candidate) => candidate.branch),
+    ['酉'],
+  );
+  assert.match(applicable.analysisBasis.timing.candidates[0].window, /填实/u);
+
+  const notApplicable = calculateDaliuren({
+    date: '2026-04-10',
+    hour: 18,
+    timingMethod: 'kong-wang',
+  });
+  assert.equal(notApplicable.analysisBasis.timing.applicable, false);
+  assert.deepEqual(notApplicable.analysisBasis.timing.candidates, []);
+  assert.match(notApplicable.analysisBasis.timing.note, /建议改用三传应期法/u);
+});

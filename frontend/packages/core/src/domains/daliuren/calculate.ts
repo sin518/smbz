@@ -5,6 +5,7 @@
 
 import { getLiuRenByDate } from 'liuren-ts-lib';
 import { DEFAULT_DIVINATION_TIMEZONE, zonedWallClockToSystemDate } from '../../shared/timezone-utils.js';
+import { buildDaliurenAnalysisBasis } from './analysis.js';
 import {
   DI_ZHI,
   TIAN_JIANG_SHORT,
@@ -16,6 +17,7 @@ import {
   getChangSheng,
   getTaoHua,
   getWangShuai,
+  getWangShuaiBasis,
 } from './supplements.js';
 import type {
   DaliurenDateInfo,
@@ -32,7 +34,7 @@ import type {
  * 大六壬排盘主函数
  */
 export function calculateDaliurenData(input: DaliurenInput): DaliurenOutput {
-  const { date, hour, minute = 0, question, birthYear, gender } = input;
+  const { date, hour, minute = 0, question, birthYear, gender, timingMethod = 'san-chuan' } = input;
   const timezone = input.timezone || DEFAULT_DIVINATION_TIMEZONE;
 
   // 1. 构造 Date 对象
@@ -52,8 +54,9 @@ export function calculateDaliurenData(input: DaliurenInput): DaliurenOutput {
   const yueZhi = yueGanZhi[1] || '子';
   const yueJiang = raw.dateInfo?.yuejiang || '亥';
 
-  // 判断昼夜：卯时(05:00)起为昼，酉时末(19:00)为夜
-  const diurnal = hour >= 5 && hour < 19;
+  // 与排盘库一致：卯至申用昼贵，酉至寅用夜贵。
+  const hourBranch = baziParts[3]?.[1] || '';
+  const diurnal = ['卯', '辰', '巳', '午', '未', '申'].includes(hourBranch);
 
   // 4. 构建 dateInfo
   const dateInfo: DaliurenDateInfo = {
@@ -145,6 +148,7 @@ export function calculateDaliurenData(input: DaliurenInput): DaliurenOutput {
       changSheng: getChangSheng(riGan, tianZhi),
       wuXing: tianZhiWx,
       wangShuai: getWangShuai(yueZhi, tianZhiWx),
+      wangShuaiBasis: getWangShuaiBasis(yueZhi, tianZhiWx),
       jianChu: raw.jianChu?.[diZhi] || '',
     };
   });
@@ -158,7 +162,7 @@ export function calculateDaliurenData(input: DaliurenInput): DaliurenOutput {
     xingNian = result.xingNian;
   }
 
-  return {
+  const output = {
     dateInfo,
     tianDiPan,
     siKe,
@@ -172,6 +176,11 @@ export function calculateDaliurenData(input: DaliurenInput): DaliurenOutput {
     benMing,
     xingNian,
     question,
+  };
+
+  return {
+    ...output,
+    analysisBasis: buildDaliurenAnalysisBasis(output, timingMethod),
   };
 }
 

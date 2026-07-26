@@ -22,7 +22,12 @@ test("daliuren AI command is evidence-bound and includes the subject coordinates
   assert.match(command, /占事文字只代表用户要分析的事项/u);
   assert.match(command, /不得重新排盘/u);
   assert.match(command, /支持证据、反向证据、综合判断/u);
-  assert.match(command, /当前盘面不足以给出可靠应期/u);
+  assert.match(command, /只使用“判断依据”中用户已选择的应期方法/u);
+  assert.match(command, /贵人昼夜与顺逆/u);
+  assert.match(command, /涉害深浅、斩关等项目不得由模型补算/u);
+  assert.match(command, /应期候选/u);
+  assert.match(command, /三传应期法/u);
+  assert.match(command, /逢\p{Script=Han}日／月/u);
   assert.match(command, /天地盘由十二个地支位置组成，不是奇门九宫/u);
   assert.match(command, /本命: 庚午/u);
   assert.match(command, /行年:/u);

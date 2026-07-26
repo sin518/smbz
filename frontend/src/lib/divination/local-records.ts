@@ -1,4 +1,4 @@
-import type { DaliurenOutput } from "taibu-core/daliuren";
+import type { DaliurenOutput, DaliurenTimingMethod } from "taibu-core/daliuren";
 import type { QimenOutput } from "taibu-core/qimen";
 import type { LiuyaoStoredCasting, LiuyaoStoredInput } from "@/lib/liuyao/chart";
 import { buildRecordIdentity, type RecordIdentityInput } from "@/lib/records/record-identity";
@@ -69,6 +69,7 @@ export type LocalDaliurenRecordPayload = {
     dateTime: string;
     birthYear: number;
     gender: "male" | "female";
+    timingMethod?: DaliurenTimingMethod;
   };
   savedAt: string;
   chart: DaliurenOutput;
