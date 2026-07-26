@@ -12,6 +12,7 @@ const qimenCalculateSchema = z.object({
   minute: z.number().int().min(0).max(59).optional(),
   timezone: z.string().trim().min(1).max(80).optional(),
   question: z.string().trim().max(120).optional(),
+  birthYear: z.number().int().min(1900).max(new Date().getFullYear()).optional(),
   panType: z.literal("zhuan").optional(),
   juMethod: z.enum(["chaibu", "maoshan"]).optional(),
   zhiFuJiGong: z.enum(["ji_liuyi", "ji_wugong"]).optional()

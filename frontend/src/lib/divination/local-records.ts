@@ -24,6 +24,7 @@ export type LocalQimenRecordPayload = {
   input?: {
     question?: string;
     dateTime?: string;
+    birthYear?: number;
   };
   chart: QimenOutput;
   savedAt: string;

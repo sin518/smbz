@@ -78,6 +78,119 @@ test('qimen globalFormations should be an array', async () => {
   }
 });
 
+test('qimen should derive nianMing from birthYear', async () => {
+  const result = await calculateQimen({
+    year: 2026,
+    month: 4,
+    day: 10,
+    hour: 14,
+    minute: 30,
+    birthYear: 1990,
+  });
+
+  assert.equal(result.birthYear, 1990);
+  assert.equal(result.birthYearGanZhi, '庚午');
+  assert.equal(result.nianMing, '庚');
+  assert.equal(result.nianMingReferenceStem, '庚');
+  assert.deepEqual(result.nianMingPalace, {
+    palaceIndex: 2,
+    palaceName: '坤',
+  });
+  assert.match(toQimenText(result), /年命: 庚/u);
+  const json = toQimenJson(result);
+  assert.equal(json.基本信息.出生年干支, '庚午');
+  assert.equal(json.基本信息.年命, '庚');
+  assert.equal(json.基本信息.年命定位干, '庚');
+  assert.equal(json.基本信息.年命宫, '坤2宫');
+});
+
+test('qimen should locate a Jia nianMing by its Liu Jia hidden stem on the heaven plate', async () => {
+  const result = await calculateQimen({
+    year: 2026,
+    month: 4,
+    day: 10,
+    hour: 14,
+    minute: 30,
+    birthYear: 1984,
+  });
+
+  assert.equal(result.birthYearGanZhi, '甲子');
+  assert.equal(result.nianMing, '甲');
+  assert.equal(result.nianMingReferenceStem, '戊');
+  assert.deepEqual(result.nianMingPalace, {
+    palaceIndex: 4,
+    palaceName: '巽',
+  });
+  assert.equal(result.dayStemReferenceStem, '癸');
+  assert.deepEqual(result.dayStemPalace, {
+    palaceIndex: 3,
+    palaceName: '震',
+  });
+  assert.equal(result.hourStemReferenceStem, '辛');
+  assert.deepEqual(result.hourStemPalace, {
+    palaceIndex: 7,
+    palaceName: '兑',
+  });
+
+  const xunPalace = result.palaces.find((palace) => palace.palaceName === '巽');
+  assert.deepEqual(xunPalace.branches, ['辰', '巳']);
+  assert.deepEqual(xunPalace.heavenStemChangSheng, [
+    {
+      stem: '戊',
+      stages: [
+        { branch: '辰', stage: '冠带' },
+        { branch: '巳', stage: '临官' },
+      ],
+    },
+  ]);
+
+  const xunJson = toQimenJson(result).九宫盘.find((palace) => palace.宫名 === '巽');
+  assert.deepEqual(xunJson.宫位地支, ['辰', '巳']);
+  assert.deepEqual(xunJson.天盘长生, [
+    {
+      天盘干: '戊',
+      地支状态: ['辰冠带', '巳临官'],
+    },
+  ]);
+  assert.equal(toQimenJson(result).基本信息.日干定位, '甲日，遁癸，天盘落震3宫');
+  assert.equal(toQimenJson(result).基本信息.时干定位, '辛时，天盘落兑7宫');
+  assert.match(toQimenText(result), /戊：辰冠带、巳临官/u);
+  assert.match(toQimenText(result), /日干定位: 甲日，遁癸，天盘落震3宫/u);
+});
+
+test('qimen should locate nianMing from a carried heaven stem after center-palace lodging', async () => {
+  const result = await calculateQimen({
+    year: 2026,
+    month: 4,
+    day: 10,
+    hour: 14,
+    minute: 30,
+    birthYear: 1982,
+    zhiFuJiGong: 'ji_liuyi',
+  });
+
+  assert.equal(result.birthYearGanZhi, '壬戌');
+  assert.equal(result.nianMingReferenceStem, '壬');
+  assert.deepEqual(result.nianMingPalace, {
+    palaceIndex: 9,
+    palaceName: '离',
+  });
+  assert.deepEqual(result.palaces[8].heavenStems, ['丙', '壬']);
+  assert.deepEqual(result.palaces[8].branches, ['午']);
+  assert.deepEqual(result.palaces[8].heavenStemChangSheng, [
+    {
+      stem: '丙',
+      stages: [{ branch: '午', stage: '帝旺' }],
+    },
+    {
+      stem: '壬',
+      stages: [{ branch: '午', stage: '胎' }],
+    },
+  ]);
+  assert.match(toQimenText(result, { detailLevel: 'full' }), /\| 丙、壬 \|/u);
+  assert.match(toQimenText(result, { detailLevel: 'full' }), /丙：午帝旺；壬：午胎/u);
+});
+
 test('qimen JSON rendering should return non-empty output', async () => {
   const result = await calculateQimen({
     year: 2026,

@@ -78,6 +78,46 @@ body {
   --color-secondary-text: #d8d8dc;
 }
 
+.qimen-chart-scope {
+  --qimen-cell-bg: #fffdf7;
+  --qimen-grid-border: #d8cfbf;
+  --qimen-rule: #e2d9ca;
+  --qimen-primary: #25231f;
+  --qimen-secondary: #5f5a52;
+  --qimen-muted: #756e64;
+  --qimen-deity: #6d604b;
+  --qimen-coordinate-bg: #f7ecd2;
+  --qimen-coordinate-border: #c69b43;
+  --qimen-coordinate-text: #7b5715;
+  --qimen-status-border: #d3c5ad;
+  --qimen-status-text: #725f42;
+  --qimen-wood: #16764a;
+  --qimen-fire: #b83e3e;
+  --qimen-water: #286ba8;
+  --qimen-metal: #9a6719;
+  --qimen-earth: #6f675d;
+}
+
+:root[data-theme="dark"] .qimen-chart-scope {
+  --qimen-cell-bg: #17181b;
+  --qimen-grid-border: #37383d;
+  --qimen-rule: #37383d;
+  --qimen-primary: #f3f0e8;
+  --qimen-secondary: #c2bdb4;
+  --qimen-muted: #8d8982;
+  --qimen-deity: #d0b982;
+  --qimen-coordinate-bg: #302817;
+  --qimen-coordinate-border: #9e7b35;
+  --qimen-coordinate-text: #e5c77f;
+  --qimen-status-border: #555049;
+  --qimen-status-text: #c5b79f;
+  --qimen-wood: #55c58a;
+  --qimen-fire: #f17878;
+  --qimen-water: #70a9e0;
+  --qimen-metal: #dfb467;
+  --qimen-earth: #b7aea2;
+}
+
 :root[data-theme="dark"] .app-responsive-shell {
   background-color: var(--color-paper);
 }

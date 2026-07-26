@@ -4,7 +4,7 @@
 import { Solar } from 'lunar-javascript';
 import { DI_ZHI, GAN_WUXING, TIAN_GAN, YI_MA_MAP } from '../../data/ganzhi.js';
 import { DEFAULT_DIVINATION_TIMEZONE, getTimeZoneOffsetMinutes } from '../../shared/timezone-utils.js';
-import { getKongWang } from '../../shared/utils.js';
+import { getDiShi, getKongWang } from '../../shared/utils.js';
 let taobiConstructorPromise = null;
 // 互斥锁：保护 process.env.TZ 全局变异区间，防止并发竞争
 let tzMutexQueue = Promise.resolve();
@@ -38,6 +38,39 @@ async function loadTaobiConstructor() {
 const PALACE_NAMES = ['坎', '坤', '震', '巽', '中', '乾', '兑', '艮', '离'];
 const PALACE_DIRECTIONS = ['正北', '西南', '正东', '东南', '中央', '西北', '正西', '东北', '正南'];
 const PALACE_ELEMENTS = ['水', '土', '木', '木', '土', '金', '金', '土', '火'];
+const PALACE_BRANCHES = [
+    ['子'],
+    ['未', '申'],
+    ['卯'],
+    ['辰', '巳'],
+    [],
+    ['戌', '亥'],
+    ['酉'],
+    ['丑', '寅'],
+    ['午'],
+];
+const CHANG_SHENG_STAGES = new Set([
+    '长生',
+    '沐浴',
+    '冠带',
+    '临官',
+    '帝旺',
+    '衰',
+    '病',
+    '死',
+    '墓',
+    '绝',
+    '胎',
+    '养',
+]);
+const LIU_JIA_HIDDEN_STEMS = {
+    子: '戊',
+    戌: '己',
+    申: '庚',
+    午: '辛',
+    辰: '壬',
+    寅: '癸',
+};
 const STAR_ELEMENTS = {
     '天蓬星': '水', '天芮星': '土', '天冲星': '木', '天辅星': '木', '天禽星': '土',
     '天心星': '金', '天柱星': '金', '天任星': '土', '天英星': '火',
@@ -96,6 +129,34 @@ function buildMonthPhaseMap(season) {
         result[stem] = element ? getWangShuai(element, season) : '';
     }
     return result;
+}
+function buildHeavenStemChangSheng(heavenStems, branches) {
+    return heavenStems
+        .filter(Boolean)
+        .map((stem) => ({
+        stem,
+        stages: branches.flatMap((branch) => {
+            const stage = getDiShi(stem, branch);
+            return CHANG_SHENG_STAGES.has(stage)
+                ? [{ branch, stage: stage }]
+                : [];
+        }),
+    }))
+        .filter((entry) => entry.stages.length > 0);
+}
+function getStemReference(stem, branch) {
+    return stem === '甲' ? LIU_JIA_HIDDEN_STEMS[branch] || stem : stem;
+}
+function findHeavenStemPalace(palaces, referenceStem) {
+    if (!referenceStem)
+        return undefined;
+    const palace = palaces.find((item) => item.heavenStem === referenceStem || item.heavenStems?.includes(referenceStem));
+    return palace
+        ? {
+            palaceIndex: palace.palaceIndex,
+            palaceName: palace.palaceName,
+        }
+        : undefined;
 }
 // 格局判断（天盘干+地盘干组合）
 function getFormations(heavenStem, earthStem) {
@@ -255,6 +316,7 @@ export function calculateQimenData(input) {
                     const heavenStem = heavenStems?.[0] || '';
                     const starName = Array.isArray(stars) ? stars[0] || '' : (stars || '');
                     const palaceName = PALACE_NAMES[i];
+                    const palaceBranches = [...PALACE_BRANCHES[i]];
                     // 格局判断（只判断单宫格局，不包括伏吟反吟）
                     const formations = [];
                     if (heavenStem && earthStem && i !== 4) {
@@ -280,9 +342,12 @@ export function calculateQimenData(input) {
                         palaceName,
                         direction: PALACE_DIRECTIONS[i],
                         element: PALACE_ELEMENTS[i],
+                        branches: palaceBranches,
                         earthStem,
                         earthStemElement: GAN_WUXING[earthStem] || '',
                         heavenStem,
+                        heavenStems: [...(heavenStems ?? [])],
+                        heavenStemChangSheng: buildHeavenStemChangSheng(heavenStems ?? [], palaceBranches),
                         heavenStemElement: GAN_WUXING[heavenStem] || '',
                         star: starName,
                         starElement: STAR_ELEMENTS[starName] || '',
@@ -332,6 +397,23 @@ export function calculateQimenData(input) {
                         }
                     }
                 }
+                const birthYearGanIndex = input.birthYear == null
+                    ? undefined
+                    : ((input.birthYear - 4) % 10 + 10) % 10;
+                const birthYearZhiIndex = input.birthYear == null
+                    ? undefined
+                    : ((input.birthYear - 4) % 12 + 12) % 12;
+                const nianMing = birthYearGanIndex == null ? undefined : TIAN_GAN[birthYearGanIndex];
+                const birthYearZhi = birthYearZhiIndex == null ? undefined : DI_ZHI[birthYearZhiIndex];
+                const birthYearGanZhi = nianMing && birthYearZhi ? `${nianMing}${birthYearZhi}` : undefined;
+                const nianMingReferenceStem = nianMing && birthYearZhi
+                    ? getStemReference(nianMing, birthYearZhi)
+                    : nianMing;
+                const nianMingPalace = findHeavenStemPalace(palaces, nianMingReferenceStem);
+                const dayStemReferenceStem = getStemReference(dayGan, dayZhi);
+                const dayStemPalace = findHeavenStemPalace(palaces, dayStemReferenceStem);
+                const hourStemReferenceStem = getStemReference(hourGan, hourZhi);
+                const hourStemPalace = findHeavenStemPalace(palaces, hourStemReferenceStem);
                 return {
                     dateInfo: {
                         solarDate: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
@@ -367,6 +449,15 @@ export function calculateQimenData(input) {
                     panType: '转盘',
                     juMethod: juMethod === 'maoshan' ? '茅山法' : '拆补法',
                     question: input.question,
+                    birthYear: input.birthYear,
+                    birthYearGanZhi,
+                    nianMing,
+                    nianMingReferenceStem,
+                    nianMingPalace,
+                    dayStemReferenceStem,
+                    dayStemPalace,
+                    hourStemReferenceStem,
+                    hourStemPalace,
                     monthPhase,
                 };
             }

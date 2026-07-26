@@ -1,6 +1,13 @@
 export interface QimenCanonicalJSON {
     基本信息: {
         占问?: string;
+        出生年份?: number;
+        出生年干支?: string;
+        年命?: string;
+        年命定位干?: string;
+        年命宫?: string;
+        日干定位?: string;
+        时干定位?: string;
         四柱: string;
         节气: string;
         局式: string;
@@ -37,12 +44,17 @@ export interface QimenPalaceJSON {
     宫位序号: number;
     宫位: string;
     宫位五行: string;
+    宫位地支: string[];
     八神: string;
     九星: string;
     九星五行?: string;
     八门: string;
     八门五行?: string;
     天盘天干: string;
+    天盘长生: Array<{
+        天盘干: string;
+        地支状态: string[];
+    }>;
     地盘天干: string;
     宫位状态: string[];
     方位?: string;

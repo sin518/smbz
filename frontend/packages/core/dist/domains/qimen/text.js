@@ -30,17 +30,37 @@ function formatQimenMonthPhaseLine(monthPhase) {
 function formatQimenPalaceName(palace) {
     return `${palace.palaceName}${palace.palaceIndex}(${palace.element || '-'})`;
 }
+function formatQimenChangSheng(palace) {
+    return palace.heavenStemChangSheng
+        .map((entry) => `${entry.stem}：${entry.stages.map(({ branch, stage }) => `${branch}${stage}`).join('、')}`)
+        .join('；') || '-';
+}
+function formatStemCoordinate(pillar, referenceStem, palace, role) {
+    const stem = pillar.charAt(0);
+    if (!stem || !referenceStem || !palace)
+        return undefined;
+    return `${stem}${role}${stem === '甲' ? `，遁${referenceStem}` : ''}，天盘落${palace.palaceName}${palace.palaceIndex}宫`;
+}
 export function renderQimenCanonicalText(result, options = {}) {
     const detailLevel = normalizeDetailLevelBinary(options.detailLevel);
     const dunText = result.dunType === 'yang' ? '阳遁' : '阴遁';
     const juLabel = `${dunText}${result.juNumber}局`;
     const dayKongPalaces = new Set(result.kongWang.dayKong.palaces);
     const hourKongPalaces = new Set(result.kongWang.hourKong.palaces);
+    const dayStemCoordinate = formatStemCoordinate(result.siZhu.day, result.dayStemReferenceStem, result.dayStemPalace, '日');
+    const hourStemCoordinate = formatStemCoordinate(result.siZhu.hour, result.hourStemReferenceStem, result.hourStemPalace, '时');
     const lines = [
         '# 奇门遁甲排盘',
         '',
         '## 基本信息',
         ...(result.question ? [`- 占问: ${result.question}`] : []),
+        ...(result.birthYearGanZhi ? [`- 出生年干支: ${result.birthYearGanZhi}`] : []),
+        ...(result.nianMing ? [`- 年命: ${result.nianMing}`] : []),
+        ...(result.nianMing && result.nianMingReferenceStem && result.nianMingPalace
+            ? [`- 年命定位: ${result.nianMing}命${result.nianMing === '甲' ? `，遁${result.nianMingReferenceStem}` : ''}，天盘落${result.nianMingPalace.palaceName}${result.nianMingPalace.palaceIndex}宫`]
+            : []),
+        ...(dayStemCoordinate ? [`- 日干定位: ${dayStemCoordinate}`] : []),
+        ...(hourStemCoordinate ? [`- 时干定位: ${hourStemCoordinate}`] : []),
         `- 四柱: ${result.siZhu.year} ${result.siZhu.month} ${result.siZhu.day} ${result.siZhu.hour}`,
         `- 节气: ${result.dateInfo.solarTerm} (${juLabel} · ${result.yuan})`,
         `- 旬首: ${result.xunShou}`,
@@ -48,6 +68,8 @@ export function renderQimenCanonicalText(result, options = {}) {
         `- 值使 (执行枢纽): ${result.zhiShi.gate}`,
     ];
     if (detailLevel === 'full') {
+        if (result.birthYear)
+            lines.push(`- 出生年份: ${result.birthYear}`);
         lines.push(`- 公历: ${result.dateInfo.solarDate}`);
         lines.push(`- 农历: ${result.dateInfo.lunarDate}`);
         if (result.dateInfo.solarTermRange)
@@ -59,22 +81,24 @@ export function renderQimenCanonicalText(result, options = {}) {
     lines.push('## 九宫盘');
     lines.push('');
     if (detailLevel === 'full') {
-        lines.push('| 宫位(五行) | 八神 | 九星(五行) | 八门(五行) | 天盘天干 | 地盘天干 | 宫位状态 | 方位 | 格局 |');
-        lines.push('|------------|------|------------|------------|----------|----------|----------|------|------|');
+        lines.push('| 宫位(五行) | 宫支 | 八神 | 九星(五行) | 八门(五行) | 天盘天干 | 天盘长生 | 地盘天干 | 宫位状态 | 方位 | 格局 |');
+        lines.push('|------------|------|------|------------|------------|----------|----------|----------|----------|------|------|');
     }
     else {
-        lines.push('| 宫位(五行) | 八神 | 九星(五行) | 八门(五行) | 天盘天干 | 地盘天干 | 宫位状态 |');
-        lines.push('|------------|------|------------|------------|----------|----------|----------|');
+        lines.push('| 宫位(五行) | 宫支 | 八神 | 九星(五行) | 八门(五行) | 天盘天干 | 天盘长生 | 地盘天干 | 宫位状态 |');
+        lines.push('|------------|------|------|------------|------------|----------|----------|----------|----------|');
     }
     for (const palace of result.palaces) {
         const starLabel = palace.star ? `${palace.star}(${palace.starElement || ''})` : '-';
         const gateLabel = palace.gate ? `${palace.gate}(${palace.gateElement || ''})` : '-';
         const row = [
             formatQimenPalaceName(palace),
+            palace.branches.join('、') || '-',
             palace.deity || '-',
             starLabel,
             gateLabel,
-            palace.heavenStem || '-',
+            palace.heavenStems?.join('、') || palace.heavenStem || '-',
+            formatQimenChangSheng(palace),
             palace.earthStem || '-',
             formatQimenPalaceStateText(palace, dayKongPalaces, hourKongPalaces),
         ];

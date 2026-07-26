@@ -13,6 +13,7 @@ export const qimenCalculateDefinition: ToolDefinition = {
       minute: { type: 'number', description: '分 (0-59)', default: 0 },
       timezone: { type: 'string', description: 'IANA 时区', default: 'Asia/Shanghai' },
       question: { type: 'string', description: '占问事项' },
+      birthYear: { type: 'number', description: '求测主体公历出生年份，用于计算奇门年命天干' },
       panType: { type: 'string', enum: ['zhuan'], description: '盘式（zhuan=转盘）', default: 'zhuan' },
       juMethod: { type: 'string', enum: ['chaibu', 'maoshan'], description: '定局法（chaibu=拆补，maoshan=茅山）', default: 'chaibu' },
       zhiFuJiGong: { type: 'string', enum: ['ji_liuyi', 'ji_wugong'], description: '直符寄宫方式（ji_liuyi=寄六仪，ji_wugong=寄戊宫）', default: 'ji_liuyi' },

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarClock, ChevronDown, Compass } from "lucide-react";
+import { CalendarClock, CalendarDays, ChevronDown, Compass } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -22,8 +22,15 @@ import {
   divinationFormCardClass
 } from "@/components/shared/divination-form-shell";
 
+const currentYear = new Date().getFullYear();
+
 const qimenFormSchema = z.object({
   dateTime: z.string().min(1, "请选择起卦时间"),
+  birthYear: z.coerce
+    .number({ invalid_type_error: "请填写求测主体出生年份" })
+    .int("主体出生年份必须是整数")
+    .min(1900, "主体出生年份不能早于 1900 年")
+    .max(currentYear, `主体出生年份不能晚于 ${currentYear} 年`),
   question: z.string().trim().max(80, "占事不能超过 80 个字"),
   plateType: z.literal("zhuan"),
   juMethod: z.enum(["chaibu", "maoshan"]),
@@ -31,9 +38,13 @@ const qimenFormSchema = z.object({
 });
 
 type QimenFormValues = z.infer<typeof qimenFormSchema>;
+type QimenFormInputValues = Omit<QimenFormValues, "birthYear"> & {
+  birthYear: number | "";
+};
 
-const defaultValues: QimenFormValues = {
+const defaultValues: QimenFormInputValues = {
   dateTime: "",
+  birthYear: "",
   question: "",
   plateType: "zhuan",
   juMethod: "chaibu",
@@ -63,7 +74,7 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
     setValue,
     handleSubmit,
     formState: { errors, isSubmitting }
-  } = useForm<QimenFormValues>({
+  } = useForm<QimenFormInputValues>({
     resolver: zodResolver(qimenFormSchema),
     defaultValues
   });
@@ -76,18 +87,20 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function onSubmit(values: QimenFormValues) {
+  async function onSubmit(values: QimenFormInputValues) {
     const dateParts = parseDateTimeLocal(values.dateTime);
+    const birthYear = Number(values.birthYear);
     const nextChart = await calculateQimenChart({
       ...dateParts,
       timezone: "Asia/Shanghai",
       question: values.question.trim(),
+      birthYear,
       panType: values.plateType,
       juMethod: values.juMethod,
       zhiFuJiGong: values.zhiFuJiGong
     });
     const payload = {
-      input: { ...values, question: values.question.trim() },
+      input: { ...values, birthYear, question: values.question.trim() },
       chart: nextChart,
       savedAt: new Date().toISOString()
     };
@@ -104,7 +117,7 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <SharedFormCard className={divinationFormCardClass}>
-              <DivinationSectionHeader title="占事与时间" description="说明所问之事，并确认起局时刻" tone="brown" />
+              <DivinationSectionHeader title="占事与时间" description="填写求测主体出生年份，并确认所问之事与起局时刻" tone="brown" />
               <div className="py-4">
                 <label htmlFor="qimen-question" className="sr-only">占事（选填）</label>
                 <textarea
@@ -116,6 +129,20 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
                 />
                 {errors.question?.message ? <p className="mt-2 text-right text-sm text-red-600">{errors.question.message}</p> : null}
               </div>
+
+              <SharedFieldRow icon={CalendarDays} label="主体出生年" error={errors.birthYear?.message}>
+                <input
+                  {...register("birthYear", { valueAsNumber: true })}
+                  id="qimen-birth-year"
+                  type="number"
+                  inputMode="numeric"
+                  min={1900}
+                  max={currentYear}
+                  className="min-w-0 w-full bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none placeholder:text-[#bdbbb5]"
+                  placeholder="如 1990"
+                  aria-label="填写求测主体出生年份"
+                />
+              </SharedFieldRow>
 
               <SharedFieldRow icon={CalendarClock} label="起卦时间" error={errors.dateTime?.message} last>
                 <button

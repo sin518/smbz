@@ -15,12 +15,12 @@ type QimenAiCommandModalProps = {
   onClose: () => void;
 };
 
-export function QimenAiCommandModal({ chart, focus = "财运", onClose }: QimenAiCommandModalProps) {
+export function QimenAiCommandModal({ chart, focus = "全项", onClose }: QimenAiCommandModalProps) {
   const { copyStatus, setCopyStatus } = useCopyFeedback();
   const commandTextRef = useRef<HTMLTextAreaElement>(null);
   const commandSource = useMemo(() => JSON.stringify({ chart, focus }), [chart, focus]);
   const buildCommand = useCallback(() => buildQimenAiCommandText({ chart, focus }), [chart, focus]);
-  const commandText = useCachedAiCommand({ namespace: "qimen", source: commandSource, build: buildCommand });
+  const commandText = useCachedAiCommand({ namespace: "qimen-v2", source: commandSource, build: buildCommand });
 
   async function handleCopy() {
     if (!commandText) {

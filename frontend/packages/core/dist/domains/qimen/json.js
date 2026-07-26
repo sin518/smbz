@@ -13,6 +13,12 @@ function buildQimenPalaceRef(result, index) {
     const palace = result.palaces[index - 1];
     return palace ? `${palace.palaceName}${index}` : String(index);
 }
+function formatStemCoordinate(pillar, referenceStem, palace, role) {
+    const stem = pillar.charAt(0);
+    if (!stem || !referenceStem || !palace)
+        return undefined;
+    return `${stem}${role}${stem === '甲' ? `，遁${referenceStem}` : ''}，天盘落${palace.palaceName}${palace.palaceIndex}宫`;
+}
 export function renderQimenCanonicalJSON(result, options = {}) {
     const detailLevel = normalizeDetailLevelBinary(options.detailLevel);
     const dunText = result.dunType === 'yang' ? '阳遁' : '阴遁';
@@ -27,7 +33,24 @@ export function renderQimenCanonicalJSON(result, options = {}) {
     };
     if (result.question)
         basicInfo.占问 = result.question;
+    if (result.nianMing)
+        basicInfo.年命 = result.nianMing;
+    if (result.birthYearGanZhi)
+        basicInfo.出生年干支 = result.birthYearGanZhi;
+    if (result.nianMingReferenceStem)
+        basicInfo.年命定位干 = result.nianMingReferenceStem;
+    if (result.nianMingPalace) {
+        basicInfo.年命宫 = `${result.nianMingPalace.palaceName}${result.nianMingPalace.palaceIndex}宫`;
+    }
+    const dayStemCoordinate = formatStemCoordinate(result.siZhu.day, result.dayStemReferenceStem, result.dayStemPalace, '日');
+    const hourStemCoordinate = formatStemCoordinate(result.siZhu.hour, result.hourStemReferenceStem, result.hourStemPalace, '时');
+    if (dayStemCoordinate)
+        basicInfo.日干定位 = dayStemCoordinate;
+    if (hourStemCoordinate)
+        basicInfo.时干定位 = hourStemCoordinate;
     if (detailLevel === 'full') {
+        if (result.birthYear)
+            basicInfo.出生年份 = result.birthYear;
         basicInfo.公历 = result.dateInfo.solarDate;
         basicInfo.农历 = result.dateInfo.lunarDate;
         if (result.dateInfo.solarTermRange)
@@ -43,12 +66,17 @@ export function renderQimenCanonicalJSON(result, options = {}) {
             宫位序号: palace.palaceIndex,
             宫位: `${palace.palaceName}${palace.palaceIndex}`,
             宫位五行: palace.element || '-',
+            宫位地支: [...palace.branches],
             八神: palace.deity || '-',
             九星: palace.star || '-',
             ...(palace.starElement ? { 九星五行: palace.starElement } : {}),
             八门: palace.gate || '-',
             ...(palace.gateElement ? { 八门五行: palace.gateElement } : {}),
-            天盘天干: palace.heavenStem || '-',
+            天盘天干: palace.heavenStems?.join('、') || palace.heavenStem || '-',
+            天盘长生: palace.heavenStemChangSheng.map((entry) => ({
+                天盘干: entry.stem,
+                地支状态: entry.stages.map(({ branch, stage }) => `${branch}${stage}`),
+            })),
             地盘天干: palace.earthStem || '-',
             宫位状态: buildQimenPalaceStatusList(palace, dayKongPalaces, hourKongPalaces),
         };
