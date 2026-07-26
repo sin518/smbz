@@ -228,20 +228,121 @@ body {
   --daliuren-panel-bg: #fffdf8;
   --daliuren-card-bg: #ffffff;
   --daliuren-card-border: #e7dfcf;
-  --daliuren-title: #8f8b82;
+  --daliuren-title: #6b675f;
   --daliuren-strong: #242321;
-  --daliuren-muted: #77736b;
+  --daliuren-muted: #6f6b64;
   --daliuren-accent: #1f93c8;
+  --daliuren-plate-bg: #e3d8c4;
+  --daliuren-plate-cell-bg: #fffaf0;
+  --daliuren-plate-center-bg: #f4ead8;
+  --daliuren-plate-border: #cfc0a5;
+  --daliuren-plate-cell-border: #d9cdb8;
+  --daliuren-plate-center-border: #bca77d;
+  --daliuren-plate-primary: #28241e;
+  --daliuren-plate-secondary: #62594c;
+  --daliuren-plate-muted: #756b5e;
+  --daliuren-plate-accent: #8a641c;
+  --daliuren-wood: #197247;
+  --daliuren-fire: #b43f44;
+  --daliuren-earth: #9a6518;
+  --daliuren-metal: #6e5b91;
+  --daliuren-water: #26739a;
+  --daliuren-chu: #bf3e4c;
+  --daliuren-zhong: #b56812;
+  --daliuren-mo: #967000;
+  --daliuren-kongwang: #2569b5;
 }
 
 :root[data-theme="dark"] .daliuren-result-scope {
   --daliuren-panel-bg: #080808;
   --daliuren-card-bg: #101010;
   --daliuren-card-border: #252525;
-  --daliuren-title: #565656;
+  --daliuren-title: #a8a8a8;
   --daliuren-strong: #f3f3f3;
   --daliuren-muted: #9b9b9b;
   --daliuren-accent: #00a7e8;
+  --daliuren-plate-bg: #0a1115;
+  --daliuren-plate-cell-bg: #121c24;
+  --daliuren-plate-center-bg: #0d2933;
+  --daliuren-plate-border: #31404b;
+  --daliuren-plate-cell-border: #293844;
+  --daliuren-plate-center-border: #2b7880;
+  --daliuren-plate-primary: #f1eee7;
+  --daliuren-plate-secondary: #a9b1b6;
+  --daliuren-plate-muted: #77858d;
+  --daliuren-plate-accent: #41c4dc;
+  --daliuren-wood: #58c98c;
+  --daliuren-fire: #f27078;
+  --daliuren-earth: #e4a94e;
+  --daliuren-metal: #aa91df;
+  --daliuren-water: #50bce9;
+  --daliuren-chu: #ff6372;
+  --daliuren-zhong: #ffad3d;
+  --daliuren-mo: #e7c83f;
+  --daliuren-kongwang: #5da3ff;
+}
+
+.daliuren-plate {
+  background: var(--daliuren-plate-bg);
+  border-color: var(--daliuren-plate-border);
+}
+
+.daliuren-plate-center {
+  background: var(--daliuren-plate-center-bg);
+  border-color: var(--daliuren-plate-center-border);
+}
+
+.daliuren-gong-cell {
+  background: var(--daliuren-plate-cell-bg);
+  border-color: var(--daliuren-plate-cell-border);
+}
+
+.daliuren-gong-cell[data-primary-transmission="chu"] {
+  border-color: var(--daliuren-chu);
+}
+
+.daliuren-gong-cell[data-primary-transmission="zhong"] {
+  border-color: var(--daliuren-zhong);
+}
+
+.daliuren-gong-cell[data-primary-transmission="mo"] {
+  border-color: var(--daliuren-mo);
+}
+
+.daliuren-gong-meta {
+  font-size: clamp(8px, 2.6vw, 10px);
+}
+
+.daliuren-transmission-badge {
+  border-color: color-mix(in srgb, currentColor 48%, transparent);
+}
+
+.daliuren-transmission-badge [data-transmission="chu"],
+.daliuren-legend-dot[data-transmission="chu"] {
+  color: var(--daliuren-chu);
+  background: color-mix(in srgb, var(--daliuren-chu) 13%, transparent);
+}
+
+.daliuren-transmission-badge [data-transmission="zhong"],
+.daliuren-legend-dot[data-transmission="zhong"] {
+  color: var(--daliuren-zhong);
+  background: color-mix(in srgb, var(--daliuren-zhong) 13%, transparent);
+}
+
+.daliuren-transmission-badge [data-transmission="mo"],
+.daliuren-legend-dot[data-transmission="mo"] {
+  color: var(--daliuren-mo);
+  background: color-mix(in srgb, var(--daliuren-mo) 13%, transparent);
+}
+
+.daliuren-legend-dot[data-transmission] {
+  background: currentColor;
+}
+
+.daliuren-kongwang-mark {
+  color: var(--daliuren-kongwang);
+  border-color: var(--daliuren-kongwang);
+  background: color-mix(in srgb, var(--daliuren-kongwang) 10%, transparent);
 }
 
 .liuyao-choice-sheet {

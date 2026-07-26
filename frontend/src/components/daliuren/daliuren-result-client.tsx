@@ -9,9 +9,10 @@ import type { DaliurenInput, DaliurenOutput } from "taibu-core/daliuren";
 import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
 import { useCachedAiCommand } from "@/components/shared/use-cached-ai-command";
 import { useCopyFeedback } from "@/components/shared/use-copy-feedback";
+import { DaliurenTianDiPanCard } from "@/components/daliuren/daliuren-tiandipan-card";
+import { buildDaliurenAiCommandText } from "@/lib/ai/daliuren-command";
 import { calculateDaliurenChart } from "@/lib/daliuren/api";
 import { saveLocalDaliurenRecord } from "@/lib/divination/local-records";
-import { cn } from "@/lib/utils";
 
 type DaliurenStoredInput = {
   input: {
@@ -22,29 +23,6 @@ type DaliurenStoredInput = {
   };
   savedAt: string;
 };
-
-type PlatePosition = {
-  zhi: string;
-  row: number;
-  col: number;
-};
-type GongInfo = DaliurenOutput["gongInfos"][number];
-type TransmissionState = "chu" | "zhong" | "mo" | null;
-
-const platePositions: PlatePosition[] = [
-  { zhi: "巳", row: 1, col: 1 },
-  { zhi: "午", row: 1, col: 2 },
-  { zhi: "未", row: 1, col: 3 },
-  { zhi: "申", row: 1, col: 4 },
-  { zhi: "辰", row: 2, col: 1 },
-  { zhi: "酉", row: 2, col: 4 },
-  { zhi: "卯", row: 3, col: 1 },
-  { zhi: "戌", row: 3, col: 4 },
-  { zhi: "寅", row: 4, col: 1 },
-  { zhi: "丑", row: 4, col: 2 },
-  { zhi: "子", row: 4, col: 3 },
-  { zhi: "亥", row: 4, col: 4 }
-];
 
 export function DaliurenResultClient() {
   const [storedInput, setStoredInput] = useState<DaliurenStoredInput | null>(null);
@@ -119,7 +97,7 @@ export function DaliurenResultClient() {
           <CoreInfoRow chart={chart} />
           <SanChuanCard chart={chart} />
           <SiKeCard chart={chart} />
-          <TianDiPanCard chart={chart} />
+          <DaliurenTianDiPanCard chart={chart} />
           <ProtectedAiCommandAction
             loginNextHref="/daliuren/result"
             onAuthorized={() => setAiOpen(true)}
@@ -207,15 +185,18 @@ function SanChuanCard({ chart }: { chart: DaliurenOutput }) {
   ];
 
   return (
-    <section className="rounded-[8px] bg-[var(--daliuren-panel-bg)] px-3 py-3">
+    <section className="rounded-[8px] bg-[var(--daliuren-panel-bg)] px-3 py-2.5">
       <SectionTitle title="三传分析" />
-      <div className="mt-3 grid grid-cols-3 gap-3">
+      <div className="mt-2 grid grid-cols-3 gap-2">
         {rows.map((row) => (
-          <div key={row.label} className="min-w-0 rounded-[5px] border border-[var(--daliuren-card-border)] bg-[var(--daliuren-card-bg)] px-2 py-3 text-center">
-            <p className="text-[11px] font-semibold text-[var(--daliuren-title)]">{row.label}</p>
-            <p className="mt-2 text-[20px] font-semibold leading-none text-[var(--daliuren-strong)]">{row.data[0] || "-"}</p>
-            <p className="mt-2 truncate text-[12px] font-semibold text-[var(--daliuren-muted)]">{row.data[1] || "-"}</p>
-            <p className="mt-0.5 truncate text-[11px] font-semibold text-[var(--daliuren-accent)]">{row.data[2] || "-"}</p>
+          <div key={row.label} className="min-w-0 rounded-[5px] border border-[var(--daliuren-card-border)] bg-[var(--daliuren-card-bg)] px-1.5 py-2 text-center">
+            <p className="text-[10px] font-semibold leading-none text-[var(--daliuren-title)]">{row.label}</p>
+            <p className="mt-1.5 text-[18px] font-semibold leading-none text-[var(--daliuren-strong)]">{row.data[0] || "-"}</p>
+            <p className="mt-1.5 flex min-w-0 items-center justify-center gap-1 text-[10px] font-semibold leading-none">
+              <span className="truncate text-[var(--daliuren-muted)]">{row.data[1] || "-"}</span>
+              <span className="text-[var(--daliuren-title)]" aria-hidden="true">·</span>
+              <span className="truncate text-[var(--daliuren-accent)]">{row.data[2] || "-"}</span>
+            </p>
           </div>
         ))}
       </div>
@@ -232,14 +213,19 @@ function SiKeCard({ chart }: { chart: DaliurenOutput }) {
   ];
 
   return (
-    <section className="rounded-[8px] bg-[var(--daliuren-panel-bg)] px-3 py-3">
+    <section className="rounded-[8px] bg-[var(--daliuren-panel-bg)] px-3 py-2.5">
       <SectionTitle title="四课排布" />
-      <div className="mt-3 grid grid-cols-4 gap-2">
+      <div className="mt-2 grid grid-cols-4 gap-1.5">
         {rows.map((row) => (
-          <div key={row.label} className="min-w-0 rounded-[5px] border border-[var(--daliuren-card-border)] bg-[var(--daliuren-card-bg)] px-1.5 py-3 text-center">
-            <p className="truncate text-[11px] font-semibold text-[var(--daliuren-accent)]">{row.data[1] || "-"}</p>
-            <p className="mt-2 text-[20px] font-semibold leading-none text-[var(--daliuren-strong)]">{row.data[0]?.[0] || "-"}</p>
-            <p className="mt-2 text-[12px] font-semibold text-[var(--daliuren-muted)]">{row.data[0]?.[1] || "-"}</p>
+          <div key={row.label} className="min-w-0 rounded-[5px] border border-[var(--daliuren-card-border)] bg-[var(--daliuren-card-bg)] px-1 py-2 text-center">
+            <p className="flex min-w-0 items-center justify-center gap-1 text-[9px] font-semibold leading-none">
+              <span className="shrink-0 text-[var(--daliuren-title)]">{row.label}</span>
+              <span className="truncate text-[var(--daliuren-accent)]">{row.data[1] || "-"}</span>
+            </p>
+            <p className="mt-1.5 text-[18px] font-semibold leading-none text-[var(--daliuren-strong)]">{row.data[0]?.[0] || "-"}</p>
+            <p className="mt-1.5 truncate text-[10px] font-semibold leading-none text-[var(--daliuren-muted)]">
+              {row.hint} · {row.data[0]?.[1] || "-"}
+            </p>
           </div>
         ))}
       </div>
@@ -247,84 +233,13 @@ function SiKeCard({ chart }: { chart: DaliurenOutput }) {
   );
 }
 
-function TianDiPanCard({ chart }: { chart: DaliurenOutput }) {
-  return (
-    <section className="rounded-[16px] bg-white px-3 py-3 shadow-soft">
-      <SectionTitle title="天地盘九宫" meta="十二位" />
-      <div className="relative mt-2 grid min-h-[300px] grid-cols-4 grid-rows-4 gap-1 rounded-xl bg-[#080808] p-1.5">
-        <div
-          className="flex flex-col items-center justify-center rounded-[6px] border border-[#0d6b6f] bg-[#071f1f] text-center"
-          style={{ gridColumn: "2 / 4", gridRow: "2 / 4" }}
-        >
-          <p className="text-[11px] font-semibold text-[#899897]">课式</p>
-          <p className="mt-2 px-2 text-[14px] font-semibold leading-snug text-white">{chart.keName}</p>
-          <p className="mt-1 text-[12px] font-semibold text-[#00bfe8]">{chart.keTi.method || chart.sanChuan.method}课</p>
-        </div>
-        {platePositions.map((position) => {
-          const gong = chart.gongInfos.find((item) => item.diZhi === position.zhi);
-          return gong ? <GongCell key={position.zhi} gong={gong} chart={chart} row={position.row} col={position.col} /> : null;
-        })}
-      </div>
-      <div className="mt-1 flex items-center justify-center gap-3 text-[11px] font-semibold text-[#7c7c7c]">
-        <LegendDot color="#ff4d5c" label="初传" />
-        <LegendDot color="#ff9e1b" label="中传" />
-        <LegendDot color="#f1c40f" label="末传" />
-        <span className="flex items-center gap-1">
-          <KongWangMark />
-          空亡
-        </span>
-      </div>
-    </section>
-  );
-}
-
-function GongCell({ gong, chart, row, col }: { gong: GongInfo; chart: DaliurenOutput; row: number; col: number }) {
-  const transmissionState = getTransmissionState(chart, gong.tianZhi);
-  const isKongWang = chart.dateInfo.kongWang.includes(gong.tianZhi);
-
-  return (
-    <div
-      className={cn(
-        "relative min-h-[68px] rounded-[6px] border bg-[#111] px-1 py-1.5 text-center",
-        transmissionState === "chu" && "border-[#ff4d5c]",
-        transmissionState === "zhong" && "border-[#ff9e1b]",
-        transmissionState === "mo" && "border-[#f1c40f]",
-        !transmissionState && "border-[#202020]"
-      )}
-      style={{ gridColumn: col, gridRow: row }}
-    >
-      <p className={cn("truncate text-[11px] font-semibold leading-none", getTianJiangTone(gong.tianJiang || gong.tianJiangShort))}>{gong.tianJiang || gong.tianJiangShort || "-"}</p>
-      <p className={cn("mt-1 flex items-center justify-center gap-1 text-[18px] font-semibold leading-none", getBranchTone(transmissionState))}>
-        <span>{gong.tianZhi || "-"}</span>
-        {isKongWang ? <KongWangMark /> : null}
-      </p>
-      <p className="mt-1 text-[12px] font-semibold leading-none text-[#8e8e8e]">{gong.diZhi || "-"}</p>
-      <p className="mt-1 truncate text-[10px] font-semibold leading-none text-[#585858]">{gong.changSheng || "-"}</p>
-    </div>
-  );
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1">
-      <i className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-      {label}
-    </span>
-  );
-}
-
-function KongWangMark() {
-  return (
-    <span className="relative inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-full border border-[#2f83ff]" aria-label="空亡">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#2f83ff]" />
-    </span>
-  );
-}
-
 function AiCommandModal({ chart, canonicalText, onClose }: { chart: DaliurenOutput; canonicalText: string; onClose: () => void }) {
   const { copyStatus, setCopyStatus } = useCopyFeedback();
   const commandSource = useMemo(() => JSON.stringify({ chart, canonicalText }), [canonicalText, chart]);
-  const buildCommand = useCallback(() => buildAiCommand(chart, canonicalText), [canonicalText, chart]);
+  const buildCommand = useCallback(
+    () => buildDaliurenAiCommandText({ chart, canonicalText }),
+    [canonicalText, chart]
+  );
   const command = useCachedAiCommand({ namespace: "daliuren", source: commandSource, build: buildCommand });
 
   async function copyCommand() {
@@ -417,20 +332,6 @@ function buildDaliurenInput(stored: DaliurenStoredInput): DaliurenInput {
   };
 }
 
-function buildAiCommand(chart: DaliurenOutput, canonicalText: string) {
-  return `你是理性、审慎的大六壬分析助手。请基于以下规范课盘数据分析占事，不要重新排盘，不要编造不存在的神煞或课体。
-
-请按顺序输出：
-1. 课式总览：说明课名、课体、月将、昼夜、空亡等关键状态。
-2. 四课结构：分析干支主客、上神下神、乘将关系。
-3. 三传推演：按初传、中传、末传说明事态起因、变化、归结。
-4. 天地盘重点：指出与占事相关的宫位、天将、遁干、旺衰和长生状态。
-5. 结论与建议：给出倾向判断、时间窗口和可执行建议；避免绝对化措辞。
-
-【大六壬规范课盘】
-${canonicalText}`;
-}
-
 function parseDateTimeLocal(value: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
   if (!match) {
@@ -454,54 +355,6 @@ function formatLunarDate(value: string) {
   } catch {
     return "";
   }
-}
-
-function getTransmissionState(chart: DaliurenOutput, branch: string): TransmissionState {
-  if (branch === chart.sanChuan.chu[0]) {
-    return "chu";
-  }
-  if (branch === chart.sanChuan.zhong[0]) {
-    return "zhong";
-  }
-  if (branch === chart.sanChuan.mo[0]) {
-    return "mo";
-  }
-  return null;
-}
-
-function getBranchTone(state: TransmissionState) {
-  if (state === "chu") {
-    return "text-[#ff4d5c]";
-  }
-  if (state === "zhong") {
-    return "text-[#ff9e1b]";
-  }
-  if (state === "mo") {
-    return "text-[#f1c40f]";
-  }
-  return "text-[#f3f3f3]";
-}
-
-function getTianJiangTone(value: string) {
-  if (["青龙", "龙", "六合", "合"].includes(value)) {
-    return "text-[#27d86f]";
-  }
-  if (["朱雀", "雀", "腾蛇", "蛇"].includes(value)) {
-    return "text-[#ff4d5c]";
-  }
-  if (["勾陈", "勾", "贵人", "贵", "太常", "常"].includes(value)) {
-    return "text-[#f1a31b]";
-  }
-  if (["白虎", "虎", "太阴", "阴"].includes(value)) {
-    return "text-[#8d6ad8]";
-  }
-  if (["玄武", "武", "天后", "后"].includes(value)) {
-    return "text-[#00a7e8]";
-  }
-  if (["天空", "空"].includes(value)) {
-    return "text-[#8a8a8a]";
-  }
-  return "text-[#9a9a9a]";
 }
 
 function pad(value: number) {
