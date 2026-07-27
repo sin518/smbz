@@ -10,7 +10,7 @@ import { DI_ZHI, TIAN_JIANG_SHORT, YUE_JIANG_NAMES, ZHI_WUXING, calcBenMingXingN
  * 大六壬排盘主函数
  */
 export function calculateDaliurenData(input) {
-    const { date, hour, minute = 0, question, birthYear, gender, timingMethod = 'san-chuan' } = input;
+    const { date, hour, minute = 0, question, birthYear, gender } = input;
     const timezone = input.timezone || DEFAULT_DIVINATION_TIMEZONE;
     // 1. 构造 Date 对象
     const [y, m, d] = date.split('-').map(Number);
@@ -134,7 +134,7 @@ export function calculateDaliurenData(input) {
     };
     return {
         ...output,
-        analysisBasis: buildDaliurenAnalysisBasis(output, timingMethod),
+        analysisBasis: buildDaliurenAnalysisBasis(output),
     };
 }
 /** 从四课数组中提取上神（第一个字符对的第一个字） */

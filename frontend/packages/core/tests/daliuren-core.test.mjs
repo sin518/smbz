@@ -100,7 +100,7 @@ test('daliuren text rendering should return non-empty string', () => {
   assert.ok(text.length > 0, 'toDaliurenText should return a non-empty string');
 });
 
-test('daliuren analysis basis should expose guiren, transmission and strength evidence', () => {
+test('daliuren analysis basis should expose guiren, nine-gate derivation and strength evidence', () => {
   const result = calculateDaliuren({
     date: '2026-04-10',
     hour: 18,
@@ -112,41 +112,71 @@ test('daliuren analysis basis should expose guiren, transmission and strength ev
   assert.equal(result.analysisBasis.guiRen.dayNight, '夜贵');
   assert.equal(result.analysisBasis.guiRen.yinYang, '阴贵');
   assert.match(result.analysisBasis.guiRen.direction, /^(顺布|逆布)$/u);
-  assert.equal(result.analysisBasis.transmission.source, 'liuren-ts-lib@1.9.0课表');
-  assert.equal(result.analysisBasis.transmission.derivationComplete, false);
-  assert.equal(result.analysisBasis.timing.method, 'san-chuan');
-  assert.ok(result.analysisBasis.timing.candidates.length > 0);
+  assert.equal(result.analysisBasis.transmission.derivationComplete, true);
+  assert.equal(result.analysisBasis.transmission.referenceMatch, true);
+  assert.ok(result.analysisBasis.transmission.steps.length > 0);
+  assert.equal(result.analysisBasis.transmission.steps[0].gate, '贼克');
+  assert.ok(result.analysisBasis.timing.clues.length > 0);
   assert.ok(result.gongInfos.every((gong) => gong.wangShuaiBasis.includes('月令')));
 
   const text = toDaliurenText(result, { detailLevel: 'full' });
   assert.match(text, /## 判断依据/u);
   assert.match(text, /贵人布法:/u);
   assert.match(text, /发用依据:/u);
+  assert.match(text, /第1步〔贼克〕/u);
+  assert.doesNotMatch(text, /liuren-ts-lib|课表匹配结果/u);
   assert.match(text, /旺衰依据/u);
   assert.match(text, /天盘 \(月将·五行·状态\)/u);
   assert.doesNotMatch(text, /地盘 \(五行·状态\)/u);
 });
 
-test('daliuren kong-wang timing should only emit candidates when a transmission is empty', () => {
-  const applicable = calculateDaliuren({
+test('daliuren timing should always use transmission clues and treat kong-wang as a conditional modifier', () => {
+  const result = calculateDaliuren({
+    date: '2026-01-01',
+    hour: 6,
+  });
+  const legacyKongWangInput = calculateDaliuren({
     date: '2026-01-01',
     hour: 6,
     timingMethod: 'kong-wang',
   });
-  assert.equal(applicable.analysisBasis.timing.applicable, true);
-  assert.equal(applicable.analysisBasis.timing.label, '空亡填实法');
-  assert.deepEqual(
-    applicable.analysisBasis.timing.candidates.map((candidate) => candidate.branch),
-    ['酉'],
-  );
-  assert.match(applicable.analysisBasis.timing.candidates[0].window, /填实/u);
+  const clues = result.analysisBasis.timing.clues;
+  const emptyClue = clues.find((clue) => clue.branch === '酉');
 
-  const notApplicable = calculateDaliuren({
+  assert.deepEqual(legacyKongWangInput.analysisBasis.timing, result.analysisBasis.timing);
+  assert.equal(new Set(clues.map((clue) => clue.branch)).size, clues.length);
+  assert.equal(emptyClue?.kind, 'conditional');
+  assert.match(emptyClue?.window ?? '', /填实|出旬/u);
+  assert.equal('confidence' in (emptyClue ?? {}), false);
+
+  const noEmptyTransmission = calculateDaliuren({
     date: '2026-04-10',
     hour: 18,
     timingMethod: 'kong-wang',
   });
-  assert.equal(notApplicable.analysisBasis.timing.applicable, false);
-  assert.deepEqual(notApplicable.analysisBasis.timing.candidates, []);
-  assert.match(notApplicable.analysisBasis.timing.note, /建议改用三传应期法/u);
+  assert.ok(noEmptyTransmission.analysisBasis.timing.clues.length > 0);
+  assert.ok(noEmptyTransmission.analysisBasis.timing.clues.every((clue) => clue.kind === 'base'));
+  assert.doesNotMatch(noEmptyTransmission.analysisBasis.timing.note, /空亡填实|不适用/u);
+
+  const repeatedTransmission = calculateDaliuren({
+    date: '2026-01-27',
+    hour: 6,
+  });
+  const mergedClue = repeatedTransmission.analysisBasis.timing.clues.find((clue) => clue.branch === '未');
+  assert.deepEqual(mergedClue?.roles, ['中传', '末传']);
+  assert.equal(
+    repeatedTransmission.analysisBasis.timing.clues.filter((clue) => clue.branch === '未').length,
+    1,
+  );
+
+  const text = toDaliurenText(result, { detailLevel: 'full' });
+  assert.match(text, /应期触发线索/u);
+  assert.match(text, /条件线索/u);
+  assert.doesNotMatch(text, /应期方法|置信度/u);
+
+  const json = toDaliurenJson(result, { detailLevel: 'full' });
+  assert.ok(Array.isArray(json.判断依据?.应期.触发线索));
+  assert.equal(json.判断依据?.应期.触发线索[0]?.类型 === '基础线索'
+    || json.判断依据?.应期.触发线索[0]?.类型 === '条件线索', true);
+  assert.equal('方法' in (json.判断依据?.应期 ?? {}), false);
 });

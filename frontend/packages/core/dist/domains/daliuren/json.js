@@ -70,9 +70,31 @@ export function renderDaliurenCanonicalJSON(result, options = {}) {
                 取传: {
                     课体: result.analysisBasis.transmission.method,
                     发用: result.analysisBasis.transmission.initialBranch,
-                    数据来源: result.analysisBasis.transmission.source,
                     依据: [...result.analysisBasis.transmission.basis],
                     完整推导: result.analysisBasis.transmission.derivationComplete,
+                    推导步骤: result.analysisBasis.transmission.steps.map((step) => ({
+                        宗门: step.gate,
+                        说明: step.summary,
+                        候选: [...step.candidates],
+                    })),
+                    ...(result.analysisBasis.transmission.harmDepth ? {
+                        涉害深浅: {
+                            类型: result.analysisBasis.transmission.harmDepth.subtype,
+                            裁决: result.analysisBasis.transmission.harmDepth.decision,
+                            候选: result.analysisBasis.transmission.harmDepth.candidates.map((candidate) => ({
+                                课位: candidate.lesson,
+                                地支: candidate.branch,
+                                关系: candidate.relation,
+                                临地: candidate.groundBranch,
+                                深度: candidate.depth,
+                                是否取用: candidate.selected,
+                                路径: candidate.path.map((segment) => ({
+                                    地盘: segment.groundBranch,
+                                    命中数: segment.hitCount,
+                                })),
+                            })),
+                        },
+                    } : {}),
                 },
                 关键格局: result.analysisBasis.keyPatterns.map((pattern) => ({
                     名称: pattern.name,
@@ -80,13 +102,11 @@ export function renderDaliurenCanonicalJSON(result, options = {}) {
                     依据: pattern.basis,
                 })),
                 应期: {
-                    方法: result.analysisBasis.timing.label,
-                    是否适用: result.analysisBasis.timing.applicable,
-                    候选: result.analysisBasis.timing.candidates.map((candidate) => ({
-                        条件: candidate.window,
-                        角色: [...candidate.roles],
-                        依据: [...candidate.basis],
-                        置信度: candidate.confidence,
+                    触发线索: result.analysisBasis.timing.clues.map((clue) => ({
+                        条件: clue.window,
+                        角色: [...clue.roles],
+                        类型: clue.kind === 'conditional' ? '条件线索' : '基础线索',
+                        依据: [...clue.basis],
                     })),
                     说明: result.analysisBasis.timing.note,
                 },

@@ -128,6 +128,9 @@ test('daliuren canonical json should not expose fields omitted by canonical text
   assert.equal('建除' in json.天地盘[0], false);
   assert.equal('神煞' in json, false);
   assert.equal(typeof fullJson.天地盘[0]?.建除, 'string');
+  assert.ok(Array.isArray(fullJson.判断依据?.应期.触发线索));
+  assert.equal('方法' in (fullJson.判断依据?.应期 ?? {}), false);
+  assert.equal('置信度' in (fullJson.判断依据?.应期.触发线索[0] ?? {}), false);
 });
 
 test('almanac canonical json should expose Chinese grouped keys and keep full-only calendrical extensions opt-in', async () => {

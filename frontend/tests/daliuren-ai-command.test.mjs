@@ -22,11 +22,13 @@ test("daliuren AI command is evidence-bound and includes the subject coordinates
   assert.match(command, /占事文字只代表用户要分析的事项/u);
   assert.match(command, /不得重新排盘/u);
   assert.match(command, /支持证据、反向证据、综合判断/u);
-  assert.match(command, /只使用“判断依据”中用户已选择的应期方法/u);
+  assert.match(command, /只使用“判断依据”中程序生成的应期触发线索/u);
   assert.match(command, /贵人昼夜与顺逆/u);
-  assert.match(command, /涉害深浅、斩关等项目不得由模型补算/u);
-  assert.match(command, /应期候选/u);
-  assert.match(command, /三传应期法/u);
+  assert.match(command, /未出现涉害深浅或斩关时直接省略，不得自行补算/u);
+  assert.match(command, /应期触发线索/u);
+  assert.match(command, /基础线索/u);
+  assert.match(command, /条件线索/u);
+  assert.match(command, /空亡只是条件修正/u);
   assert.match(command, /逢\p{Script=Han}日／月/u);
   assert.match(command, /天地盘由十二个地支位置组成，不是奇门九宫/u);
   assert.match(command, /本命: 庚午/u);
@@ -34,6 +36,7 @@ test("daliuren AI command is evidence-bound and includes the subject coordinates
   assert.match(command, /投资、医疗和法律/u);
   assert.doesNotMatch(command, /给出倾向判断、时间窗口/u);
   assert.doesNotMatch(command, /天地盘重点：指出与占事相关的宫位/u);
+  assert.doesNotMatch(command, /用户已选择的应期方法|三传应期法|空亡填实法|应期候选/u);
 });
 
 test("daliuren AI command keeps charts without birth data usable", () => {

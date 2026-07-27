@@ -34,7 +34,7 @@ import type {
  * 大六壬排盘主函数
  */
 export function calculateDaliurenData(input: DaliurenInput): DaliurenOutput {
-  const { date, hour, minute = 0, question, birthYear, gender, timingMethod = 'san-chuan' } = input;
+  const { date, hour, minute = 0, question, birthYear, gender } = input;
   const timezone = input.timezone || DEFAULT_DIVINATION_TIMEZONE;
 
   // 1. 构造 Date 对象
@@ -180,7 +180,7 @@ export function calculateDaliurenData(input: DaliurenInput): DaliurenOutput {
 
   return {
     ...output,
-    analysisBasis: buildDaliurenAnalysisBasis(output, timingMethod),
+    analysisBasis: buildDaliurenAnalysisBasis(output),
   };
 }
 

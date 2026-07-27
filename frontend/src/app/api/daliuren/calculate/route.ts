@@ -12,6 +12,7 @@ const daliurenCalculateSchema = z.object({
   question: z.string().trim().max(120).optional(),
   birthYear: z.number().int().min(1900).max(2100).optional(),
   gender: z.enum(["male", "female"]).optional(),
+  // 兼容旧客户端；Core 会忽略该字段，新客户端不再发送。
   timingMethod: z.enum(["san-chuan", "kong-wang"]).optional()
 });
 

@@ -31,7 +31,6 @@ export function renderDaliurenCanonicalText(result: DaliurenOutput, options: Dal
     `- 四柱: ${result.dateInfo.bazi}`,
     `- 课式: ${result.keName} / ${result.keTi.method}课`,
     `- 月将: ${result.dateInfo.yueJiang}`,
-    `- 应期方法: ${result.analysisBasis.timing.label}`,
     `- 关键状态: ${formatDaliurenCoreStatus(result)}`,
   ];
   if (detailLevel === 'full') {
@@ -50,20 +49,37 @@ export function renderDaliurenCanonicalText(result: DaliurenOutput, options: Dal
     lines.push('## 判断依据');
     lines.push(`- 贵人布法: ${guiRen.dayNight} / ${guiRen.yinYang}${guiRen.guiRenBranch}临${guiRen.groundBranch} / ${guiRen.direction}`);
     guiRen.basis.forEach((basis) => lines.push(`  - ${basis}`));
-    lines.push(`- 发用依据: ${transmission.method}课，初传${transmission.initialBranch}（${transmission.source}）`);
-    transmission.basis.forEach((basis) => lines.push(`  - ${basis}`));
+    lines.push(`- 发用依据: ${transmission.method}课，初传${transmission.initialBranch}`);
+    if (transmission.derivationComplete) {
+      transmission.steps.forEach((step, index) => {
+        lines.push(`  - 第${index + 1}步〔${step.gate}〕: ${step.summary}`);
+      });
+      if (transmission.harmDepth) {
+        lines.push(`  - 涉害深浅〔${transmission.harmDepth.subtype}〕: ${transmission.harmDepth.decision}`);
+        transmission.harmDepth.candidates.forEach((candidate) => {
+          const path = candidate.path
+            .map((segment) => `${segment.groundBranch}${segment.hitCount > 0 ? `(${segment.hitCount})` : ''}`)
+            .join('→');
+          lines.push(`    - ${candidate.lesson}${candidate.branch}: ${candidate.depth}重${candidate.selected ? '，取用' : ''}；路径${path}`);
+        });
+      }
+    }
     lines.push(`- 关键格局: ${patterns.length > 0 ? patterns.map((pattern) => `${pattern.name}〔${pattern.positions.join('、')}〕`).join('、') : '未命中当前可可靠识别的关键格局'}`);
     patterns.forEach((pattern) => lines.push(`  - ${pattern.name}: ${pattern.basis}`));
-    lines.push(`- 应期方法: ${timing.label}（${timing.applicable ? '适用' : '不适用'}）`);
-    if (timing.candidates.length > 0) {
-      timing.candidates.forEach((candidate) => {
-        lines.push(`  - ${candidate.window}: ${candidate.roles.join('、')}；${candidate.basis.join('；')}；置信度${candidate.confidence}`);
+    lines.push('- 应期触发线索:');
+    if (timing.clues.length > 0) {
+      timing.clues.forEach((clue) => {
+        const kindLabel = clue.kind === 'conditional' ? '条件线索' : '基础线索';
+        lines.push(`  - 〔${kindLabel}〕${clue.window}: ${clue.roles.join('、')}；${clue.basis.join('；')}`);
       });
     } else {
       lines.push(`  - ${timing.note}`);
     }
-    lines.push('- 当前局限:');
-    result.analysisBasis.limitations.forEach((limitation) => lines.push(`  - ${limitation}`));
+    lines.push(`  - 适用边界: ${timing.note}`);
+    if (result.analysisBasis.limitations.length > 0) {
+      lines.push('- 当前局限:');
+      result.analysisBasis.limitations.forEach((limitation) => lines.push(`  - ${limitation}`));
+    }
   }
   lines.push('');
   lines.push('## 四课 (主客对立)');

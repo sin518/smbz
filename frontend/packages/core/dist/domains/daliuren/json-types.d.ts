@@ -30,9 +30,29 @@ export interface DaliurenCanonicalJSON {
         取传: {
             课体: string;
             发用: string;
-            数据来源: string;
             依据: string[];
             完整推导: boolean;
+            推导步骤: Array<{
+                宗门: string;
+                说明: string;
+                候选: string[];
+            }>;
+            涉害深浅?: {
+                类型: string;
+                裁决: string;
+                候选: Array<{
+                    课位: string;
+                    地支: string;
+                    关系: string;
+                    临地: string;
+                    深度: number;
+                    是否取用: boolean;
+                    路径: Array<{
+                        地盘: string;
+                        命中数: number;
+                    }>;
+                }>;
+            };
         };
         关键格局: Array<{
             名称: string;
@@ -40,13 +60,11 @@ export interface DaliurenCanonicalJSON {
             依据: string;
         }>;
         应期: {
-            方法: string;
-            是否适用: boolean;
-            候选: Array<{
+            触发线索: Array<{
                 条件: string;
                 角色: string[];
+                类型: '基础线索' | '条件线索';
                 依据: string[];
-                置信度: string;
             }>;
             说明: string;
         };

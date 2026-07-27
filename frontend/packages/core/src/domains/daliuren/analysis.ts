@@ -4,9 +4,9 @@ import type {
   DaliurenKeyPattern,
   DaliurenOutput,
   DaliurenTimingAnalysis,
-  DaliurenTimingMethod,
   DaliurenTransmissionBasis,
 } from './types.js';
+import { deriveNineGate } from './derivation.js';
 
 const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'] as const;
 const DAY_BRANCHES = new Set(['卯', '辰', '巳', '午', '未', '申']);
@@ -17,19 +17,13 @@ type AnalysisSource = Pick<
   'dateInfo' | 'tianDiPan' | 'siKe' | 'sanChuan' | 'keTi' | 'gongInfos'
 >;
 
-export function buildDaliurenAnalysisBasis(
-  source: AnalysisSource,
-  timingMethod: DaliurenTimingMethod = 'san-chuan',
-): DaliurenAnalysisBasis {
+export function buildDaliurenAnalysisBasis(source: AnalysisSource): DaliurenAnalysisBasis {
   return {
     guiRen: buildGuiRenBasis(source),
     transmission: buildTransmissionBasis(source),
     keyPatterns: buildKeyPatterns(source),
-    timing: buildTimingAnalysis(source, timingMethod),
-    limitations: [
-      '当前排盘库只返回课表匹配后的三传与课体，未提供九宗门逐步推导和涉害层数，不作补算。',
-      '斩关等扩展课格尚未经过规则来源与测试样本校验，当前不作判定。',
-    ],
+    timing: buildTimingAnalysis(source),
+    limitations: [],
   };
 }
 
@@ -59,22 +53,38 @@ function buildGuiRenBasis(source: AnalysisSource): DaliurenGuiRenBasis {
 }
 
 function buildTransmissionBasis(source: AnalysisSource): DaliurenTransmissionBasis {
-  const dayPillar = source.dateInfo.ganZhi.day || '未取得';
-  const ganShang = source.siKe.yiKe[0]?.[0] || '未取得';
   const method = source.keTi.method || source.sanChuan.method || '未取得';
   const initialBranch = source.sanChuan.chu[0] || '未取得';
+  const derivation = deriveNineGate(source);
+  const referenceTransmissions = [
+    source.sanChuan.chu[0] || '',
+    source.sanChuan.zhong[0] || '',
+    source.sanChuan.mo[0] || '',
+  ];
+  const referenceMatch = (
+    derivation.transmissions.every((branch, index) => branch === referenceTransmissions[index])
+    && normalizeTransmissionMethod(derivation.method) === normalizeTransmissionMethod(method)
+  );
 
   return {
     method,
     initialBranch,
-    source: 'liuren-ts-lib@1.9.0课表',
-    basis: [
-      `以${dayPillar}日、干上${ganShang}匹配现有排盘库课表`,
-      `课表返回${method}课，初传发用为${initialBranch}`,
-      '该依据可核验课表匹配结果，但不冒充完整九宗门逐步推导',
-    ],
-    derivationComplete: false,
+    steps: referenceMatch ? derivation.steps : [],
+    harmDepth: referenceMatch ? derivation.harmDepth : null,
+    basis: referenceMatch
+      ? derivation.steps.map((step) => step.summary)
+      : [],
+    derivationComplete: referenceMatch,
+    referenceMatch,
   };
+}
+
+function normalizeTransmissionMethod(method: string) {
+  if (method.includes('返吟') || method.includes('反吟')) return '反吟';
+  if (method.includes('伏吟')) return '伏吟';
+  if (method.includes('见机') || method.includes('察微') || method.includes('缀瑕')) return '涉害';
+  if (method.includes('知一')) return '比用';
+  return method;
 }
 
 function buildKeyPatterns(source: AnalysisSource): DaliurenKeyPattern[] {
@@ -95,6 +105,9 @@ function buildKeyPatterns(source: AnalysisSource): DaliurenKeyPattern[] {
       basis: `取传课体为${method}`,
     });
   }
+
+  const zhanGuan = detectZhanGuan(source);
+  if (zhanGuan) patterns.push(zhanGuan);
 
   const transmissions = transmissionEntries(source);
   const emptyPositions = transmissions
@@ -122,65 +135,54 @@ function buildKeyPatterns(source: AnalysisSource): DaliurenKeyPattern[] {
   return patterns;
 }
 
-function buildTimingAnalysis(
-  source: AnalysisSource,
-  timingMethod: DaliurenTimingMethod,
-): DaliurenTimingAnalysis {
-  if (timingMethod === 'kong-wang') {
-    return buildKongWangTiming(source);
-  }
-  return buildSanChuanTiming(source);
+function detectZhanGuan(source: AnalysisSource): DaliurenKeyPattern | null {
+  const dayStem = source.dateInfo.ganZhi.day[0] || '';
+  const dayBranch = source.dateInfo.ganZhi.day[1] || '';
+  const initialBranch = source.sanChuan.chu[0] || '';
+  const directLessons = [
+    { position: '日干', lesson: '一课', pair: source.siKe.yiKe[0] || '', expectedDown: dayStem },
+    { position: '日支', lesson: '三课', pair: source.siKe.sanKe[0] || '', expectedDown: dayBranch },
+  ];
+
+  const match = directLessons.find(({ pair, expectedDown }) => (
+    (pair[0] === '辰' || pair[0] === '戌')
+    && pair[0] === initialBranch
+    && pair[1] === expectedDown
+  ));
+  if (!match) return null;
+
+  const title = initialBranch === '辰' ? '天罡' : '天魁';
+  return {
+    name: '斩关',
+    positions: [match.position, '初传'],
+    basis: `${title}${initialBranch}临${match.position}，并由${match.lesson}发用，构成斩关`,
+  };
 }
 
-function buildSanChuanTiming(source: AnalysisSource): DaliurenTimingAnalysis {
+function buildTimingAnalysis(source: AnalysisSource): DaliurenTimingAnalysis {
   const grouped = groupTransmissionsByBranch(source);
-  const candidates = Array.from(grouped.entries()).slice(0, 3).map(([branch, roles]) => {
+  const clues = Array.from(grouped.entries()).slice(0, 3).map(([branch, roles]) => {
     const isEmpty = source.dateInfo.kongWang.includes(branch);
     return {
       branch,
-      window: `逢${branch}日／月`,
+      window: isEmpty
+        ? `逢${branch}日／月填实，或待出旬后观察`
+        : `逢${branch}日／月`,
       roles,
       basis: [
-        `${roles.join('、')}为${branch}，逢值可作为事态触发窗口`,
-        ...(isEmpty ? [`${branch}同时落日空，须结合出旬或填实，不直接按有利应期处理`] : []),
+        `${roles.join('、')}为${branch}，逢值仅作为对应阶段的触发线索`,
+        ...(isEmpty ? [
+          `日空为${source.dateInfo.kongWang.join('、')}，${branch}落空，须结合填实或出旬继续观察`,
+          '空亡只是条件修正，不代表填实后必成，也不直接换算公历日期',
+        ] : []),
       ],
-      confidence: isEmpty ? '低' as const : '中' as const,
+      kind: isEmpty ? 'conditional' as const : 'base' as const,
     };
   });
 
   return {
-    method: 'san-chuan',
-    label: '三传应期法',
-    applicable: candidates.length > 0,
-    candidates,
-    note: '候选只表示可能触发的地支条件，吉凶仍须结合占事、旺衰和课传角色判断。',
-  };
-}
-
-function buildKongWangTiming(source: AnalysisSource): DaliurenTimingAnalysis {
-  const grouped = groupTransmissionsByBranch(source);
-  const candidates = Array.from(grouped.entries())
-    .filter(([branch]) => source.dateInfo.kongWang.includes(branch))
-    .slice(0, 3)
-    .map(([branch, roles]) => ({
-      branch,
-      window: `逢${branch}日／月填实，或待出旬`,
-      roles,
-      basis: [
-        `日空为${source.dateInfo.kongWang.join('、')}，${roles.join('、')}${branch}落空`,
-        '以关键传爻填实或出旬作为条件候选，不直接换算公历日期',
-      ],
-      confidence: '中' as const,
-    }));
-
-  return {
-    method: 'kong-wang',
-    label: '空亡填实法',
-    applicable: candidates.length > 0,
-    candidates,
-    note: candidates.length > 0
-      ? '仅针对三传中的关键空亡给出填实或出旬条件。'
-      : '本盘三传没有落入日空，空亡填实法不适用；建议改用三传应期法。',
+    clues,
+    note: '三传地支仅作为应期触发线索，须结合占事、课传角色、旺衰与反证判断机会、风险或变化性质。',
   };
 }
 

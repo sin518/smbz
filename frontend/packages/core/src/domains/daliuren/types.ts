@@ -19,7 +19,10 @@ export interface DaliurenInput {
   birthYear?: number;
   /** 性别（用于计算行年） */
   gender?: 'male' | 'female';
-  /** 应期分析方法；旧输入默认使用三传应期法 */
+  /**
+   * @deprecated 仅用于兼容旧客户端和历史记录；计算时忽略该值。
+   * 应期统一以三传为主线，空亡只作为受影响线索的条件修正。
+   */
   timingMethod?: DaliurenTimingMethod;
 }
 
@@ -146,41 +149,84 @@ export interface DaliurenGuiRenBasis {
 }
 
 export interface DaliurenTransmissionBasis {
-  /** 排盘库返回的取传课体 */
+  /** 取传课体 */
   method: string;
   /** 初传发用 */
   initialBranch: string;
-  /** 当前库采用的可核验来源 */
-  source: 'liuren-ts-lib@1.9.0课表';
-  /** 可核验的匹配条件，不冒充完整九宗门推导 */
+  /** 本盘实际经过的九宗门判断步骤 */
+  steps: DaliurenDerivationStep[];
+  /** 涉害课的深浅比较；非涉害课为 null */
+  harmDepth: DaliurenHarmDepth | null;
+  /** 面向用户和 AI 的确定性取传依据 */
   basis: string[];
   /** 是否具备完整逐步推导 */
   derivationComplete: boolean;
+  /** 新推导是否与既有取传课体及三传结果一致；只供内部校验，不面向用户展示 */
+  referenceMatch: boolean;
+}
+
+export type DaliurenNineGate =
+  | '贼克'
+  | '比用'
+  | '涉害'
+  | '遥克'
+  | '昴星'
+  | '别责'
+  | '八专'
+  | '伏吟'
+  | '反吟';
+
+export interface DaliurenDerivationStep {
+  gate: DaliurenNineGate;
+  summary: string;
+  candidates: string[];
+}
+
+export interface DaliurenHarmPathSegment {
+  groundBranch: string;
+  hiddenElements: string[];
+  hitCount: number;
+}
+
+export interface DaliurenHarmCandidate {
+  lesson: '一课' | '二课' | '三课' | '四课';
+  branch: string;
+  relation: '下克上' | '上克下';
+  groundBranch: string;
+  depth: number;
+  path: DaliurenHarmPathSegment[];
+  selected: boolean;
+}
+
+export interface DaliurenHarmDepth {
+  subtype: '涉害' | '见机' | '察微' | '缀瑕';
+  candidates: DaliurenHarmCandidate[];
+  decision: string;
 }
 
 export interface DaliurenKeyPattern {
-  name: '伏吟' | '返吟' | '三传空亡' | '三传入墓';
+  name: '伏吟' | '返吟' | '斩关' | '三传空亡' | '三传入墓';
   positions: string[];
   basis: string;
 }
 
-export interface DaliurenTimingCandidate {
-  /** 条件地支，不直接冒充公历日期 */
+export interface DaliurenTimingClue {
+  /** 触发线索对应的地支，不直接冒充公历日期 */
   branch: string;
   /** 条件式时间表达 */
   window: string;
-  /** 该候选在课盘中的角色 */
+  /** 该线索在课盘中的角色；相同地支会合并角色 */
   roles: string[];
-  /** 候选触发依据 */
+  /** 线索依据与适用边界 */
   basis: string[];
-  confidence: '中' | '低';
+  /** 基础线索来自三传；条件线索表示该传落空，须结合填实或出旬观察 */
+  kind: 'base' | 'conditional';
 }
 
 export interface DaliurenTimingAnalysis {
-  method: DaliurenTimingMethod;
-  label: '三传应期法' | '空亡填实法';
-  applicable: boolean;
-  candidates: DaliurenTimingCandidate[];
+  /** 由三传生成并按地支去重的触发线索 */
+  clues: DaliurenTimingClue[];
+  /** 统一的解释边界，不把地支条件包装成确定应期 */
   note: string;
 }
 
@@ -220,6 +266,6 @@ export interface DaliurenOutput {
   xingNian?: string;
   /** 占事 */
   question?: string;
-  /** 可核验的排盘依据、关键状态与应期候选 */
+  /** 可核验的排盘依据、关键状态与应期触发线索 */
   analysisBasis: DaliurenAnalysisBasis;
 }

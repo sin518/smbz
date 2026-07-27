@@ -2,7 +2,7 @@
 
 // 需要 useState + react-hook-form 管理时间弹层和表单状态。
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarClock, CalendarDays, CalendarRange, ChevronDown, ScrollText, Users } from "lucide-react";
+import { CalendarClock, CalendarDays, ChevronDown, ScrollText, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -34,8 +34,7 @@ const daliurenFormSchema = z.object({
     .int("出生年份必须是整数")
     .min(1900, "出生年份不能早于 1900 年")
     .max(currentYear, `出生年份不能晚于 ${currentYear} 年`),
-  gender: z.enum(["male", "female"]),
-  timingMethod: z.enum(["san-chuan", "kong-wang"])
+  gender: z.enum(["male", "female"])
 });
 
 type DaliurenFormValues = z.infer<typeof daliurenFormSchema>;
@@ -47,8 +46,7 @@ const defaultValues: DaliurenFormInputValues = {
   question: "",
   dateTime: "",
   birthYear: "",
-  gender: "male",
-  timingMethod: "san-chuan"
+  gender: "male"
 };
 
 export function DaliurenHomeClient() {
@@ -139,7 +137,7 @@ export function DaliurenHomeClient() {
                 name="gender"
                 control={control}
                 render={({ field }) => (
-                  <SharedFieldRow icon={Users} label="性别">
+                  <SharedFieldRow icon={Users} label="性别" last>
                     <SharedSegmentedPill
                       value={field.value}
                       onChange={field.onChange}
@@ -153,28 +151,6 @@ export function DaliurenHomeClient() {
                 )}
               />
 
-              <Controller
-                name="timingMethod"
-                control={control}
-                render={({ field }) => (
-                  <SharedFieldRow icon={CalendarRange} label="应期方法" last>
-                    <div className="min-w-0">
-                      <SharedSegmentedPill
-                        value={field.value}
-                        onChange={field.onChange}
-                        options={[
-                          { label: "三传", value: "san-chuan" },
-                          { label: "填实", value: "kong-wang" }
-                        ]}
-                        ariaLabel="选择大六壬应期方法"
-                      />
-                      <p className="mt-1 text-right text-[11px] leading-4 text-[#8b877f]">
-                        {field.value === "san-chuan" ? "按初中末传取条件候选" : "仅在关键传爻落空时适用"}
-                      </p>
-                    </div>
-                  </SharedFieldRow>
-                )}
-              />
             </SharedFormCard>
           </div>
 

@@ -146,7 +146,8 @@
   "scripts": {
     "prebuild": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "test:daliuren": "pnpm run build && node --test tests/daliuren-core.test.mjs tests/daliuren-timezone-regression.test.mjs && node scripts/validate-daliuren-derivation.mjs"
   },
   "dependencies": {
     "circular-natal-horoscope-js": "^1.1.0",

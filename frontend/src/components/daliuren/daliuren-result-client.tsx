@@ -334,8 +334,7 @@ function buildDaliurenInput(stored: DaliurenStoredInput): DaliurenInput {
     timezone: "Asia/Shanghai",
     question: stored.input.question.trim(),
     birthYear: stored.input.birthYear,
-    gender: stored.input.gender,
-    timingMethod: stored.input.timingMethod ?? "san-chuan"
+    gender: stored.input.gender
   };
 }
 
