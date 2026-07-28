@@ -317,3 +317,57 @@
 **Dependencies:** Tasks 1–8
 
 **Files likely touched:** 新迁移/维护脚本、测试和相关文档。
+
+---
+
+# 四模块 AI 解读分层浏览
+
+## Task 1: 分层输出协议测试
+
+**Acceptance criteria:**
+- [x] 奇门、紫微、六爻和八字均校验“快速浏览＋完整依据”两层结构。
+- [x] 测试覆盖禁用 Markdown 表格、禁用 HTML 折叠、取消最低篇幅和避免重复结论。
+- [x] 各模块原有事实边界与高风险事项规则继续被覆盖。
+
+**Verification:**
+- [x] 旧提示词在新协议测试下出现预期失败。
+
+**Files likely touched:** `frontend/tests/*-ai-command.test.mjs`
+
+## Task 2: 奇门与紫微适配
+
+**Acceptance criteria:**
+- [x] 奇门快速浏览聚焦日干、时干、年命宫和事项宫。
+- [x] 紫微快速浏览聚焦命身主轴、专项宫位、大限和时间线索。
+- [x] 完整依据保留证据、反向证据、限制与风险边界。
+
+**Verification:**
+- [x] 奇门与紫微提示词协议测试通过。
+
+**Files likely touched:** `frontend/src/lib/ai/qimen-command.ts`、`frontend/src/lib/ai/ziwei-command.ts`
+
+## Task 3: 六爻与八字适配
+
+**Acceptance criteria:**
+- [x] 六爻快速浏览聚焦结论、用神动变链、应期和行动建议。
+- [x] 八字快速浏览聚焦命局主轴、喜忌、运势节奏和行动建议。
+- [x] 完整依据保留取用、旺衰、运限与风险，不重复快速浏览原文。
+
+**Verification:**
+- [x] 六爻与八字提示词协议测试通过。
+
+**Files likely touched:** `frontend/src/lib/ai/liuyao-command.ts`、`frontend/src/lib/ai/bazi-command.ts`
+
+## Task 4: 全量验证
+
+**Acceptance criteria:**
+- [x] 相关测试、类型检查、Lint、生产构建和差异检查通过。
+- [x] 用户已有无关修改保持不变。
+
+**Verification:**
+- [x] `pnpm typecheck`
+- [x] `pnpm lint`
+- [x] `pnpm build:frontend`
+- [x] `git diff --check`
+
+**Dependencies:** Tasks 1–3

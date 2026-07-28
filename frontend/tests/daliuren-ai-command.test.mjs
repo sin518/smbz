@@ -34,9 +34,24 @@ test("daliuren AI command is evidence-bound and includes the subject coordinates
   assert.match(command, /本命: 庚午/u);
   assert.match(command, /行年:/u);
   assert.match(command, /投资、医疗和法律/u);
+  assert.match(command, /# 快速浏览/u);
+  assert.match(command, /## 一句话结论/u);
+  assert.match(command, /## 三传进程/u);
+  assert.match(command, /## 应期触发线索/u);
+  assert.match(command, /## 行动建议/u);
+  assert.match(command, /# 完整依据/u);
+  assert.match(command, /## 盘面核验/u);
+  assert.match(command, /## 起课依据/u);
+  assert.match(command, /## 完整论证/u);
+  assert.match(command, /## 证据与边界/u);
+  assert.match(command, /摘要约 300–500 个中文字符/u);
+  assert.match(command, /同一结论只完整表达一次/u);
+  assert.match(command, /禁止使用 Markdown 表格/u);
+  assert.match(command, /不要使用 HTML <details>/u);
   assert.doesNotMatch(command, /给出倾向判断、时间窗口/u);
   assert.doesNotMatch(command, /天地盘重点：指出与占事相关的宫位/u);
   assert.doesNotMatch(command, /用户已选择的应期方法|三传应期法|空亡填实法|应期候选/u);
+  assert.doesNotMatch(command, /正文约 1400–2200 个中文字符/u);
 });
 
 test("daliuren AI command keeps charts without birth data usable", () => {
