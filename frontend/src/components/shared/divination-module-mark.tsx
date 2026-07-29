@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import { divinationGlyphPaths, type DivinationGlyph } from "@/components/shared/divination-module-glyph-paths";
 
 export type DivinationModuleKey = "bazi" | "liuyao" | "ziwei" | "qimen" | "daliuren";
@@ -23,10 +22,7 @@ export function DivinationModuleMark({
   return (
     <svg
       viewBox="0 0 1000 2000"
-      className={cn(
-        "select-none fill-current",
-        size === "home" ? "h-10 w-5" : "h-6 w-3"
-      )}
+      className={`divination-module-mark--${size}`}
       aria-hidden="true"
       focusable="false"
     >

@@ -67,12 +67,12 @@ export function AppBottomNav({ active }: { active: NavKey }) {
 
   return (
     <nav
-      className="liquid-glass app-responsive-nav fixed bottom-[calc(10px+env(safe-area-inset-bottom))] left-1/2 z-30 grid h-[62px] -translate-x-1/2 grid-cols-3 rounded-[28px] border border-white/60 p-1.5"
+      className="app-bottom-nav home-glass"
       aria-label="主导航"
     >
       <span
         aria-hidden="true"
-        className="liquid-nav-indicator pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 rounded-[22px] motion-reduce:transition-none"
+        className="app-bottom-nav-indicator"
         style={{
           width: "calc((100% - 12px) / 3)",
           transform: `translateX(${activeIndex * 100}%) scaleX(${isIndicatorMoving ? 1.12 : 1})`,
@@ -87,12 +87,12 @@ export function AppBottomNav({ active }: { active: NavKey }) {
           onClick={(event) => handleNavigation(event, item)}
           aria-current={item.key === active ? "page" : undefined}
           className={cn(
-            "relative z-10 flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-[22px] text-[var(--color-nav-text)] transition-colors duration-200",
-            item.key === visualActive && "text-[#a67416]"
+            "app-bottom-nav-link",
+            item.key === visualActive && "app-bottom-nav-link--active"
           )}
         >
           <item.icon size={21} strokeWidth={1.8} />
-          <span className="text-[11px] font-medium leading-none">{item.label}</span>
+          <span className="app-bottom-nav-label">{item.label}</span>
         </Link>
       ))}
     </nav>

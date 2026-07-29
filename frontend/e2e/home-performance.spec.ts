@@ -18,6 +18,13 @@ test("首页不会预取尚未点击的功能页", async ({ page }) => {
   expect([...prefetchedRoutes].sort()).toEqual([]);
 });
 
+test("首页首屏不依赖渲染阻塞样式表", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: "赛博排盘" })).toBeVisible();
+
+  await expect(page.locator('link[rel="stylesheet"]')).toHaveCount(0);
+});
+
 test("关闭自动预取后功能卡仍可正常导航", async ({ page }) => {
   await page.goto("/");
   await page.locator('a[href="/bazi"]').click();

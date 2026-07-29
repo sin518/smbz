@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { BaziRecordSyncProvider } from "@/components/bazi/bazi-record-sync-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { criticalStyles } from "@/app/critical-styles";
 import { themeStorageKey } from "@/lib/theme";
-import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
@@ -26,6 +26,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
+        <style dangerouslySetInnerHTML={{ __html: criticalStyles }} />
         <script
           dangerouslySetInnerHTML={{
             __html: `
