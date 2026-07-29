@@ -511,7 +511,7 @@ export default function RecordsPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-semibold text-[#4d4537]">{syncing ? "正在上传资料" : "操作状态"}</p>
-                  <p className="mt-0.5 text-[13px] leading-5 text-[#8f7b52]">{syncMessage}</p>
+                  <p className="mt-0.5 text-[13px] leading-5 text-mutedInk">{syncMessage}</p>
                 </div>
               </div>
               {syncing ? (

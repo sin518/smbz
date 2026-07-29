@@ -16,11 +16,24 @@ const publicRoutes = [
 
 for (const route of publicRoutes) {
   test(`${route.path} 具有主内容、标题且无自动化 A/AA 违规`, async ({ page }) => {
+    if (route.path === "/records") {
+      await page.route("**/api/**", async (requestRoute) => {
+        await requestRoute.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "测试云端不可用状态" })
+        });
+      });
+    }
+
     await page.goto(route.path);
 
     await expect(page.locator("main")).toHaveCount(1);
     await expect(page.getByRole("heading", { level: 1, name: route.heading })).toBeVisible();
     await expect(page).toHaveTitle("absoluteTitle" in route && route.absoluteTitle ? route.title : `${route.title}｜赛博排盘`);
+    if (route.path === "/records") {
+      await expect(page.getByText("云端记录读取失败，当前显示本机缓存；稍后可重试。")).toBeVisible();
+    }
 
     const hasPageOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
