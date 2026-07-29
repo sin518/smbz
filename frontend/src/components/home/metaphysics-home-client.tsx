@@ -127,7 +127,7 @@ function HomeFeatureCard({ card }: { card: HomeCard }) {
   }
 
   return (
-    <Link href={card.href} className="block">
+    <Link href={card.href} prefetch={false} className="block">
       {content}
     </Link>
   );

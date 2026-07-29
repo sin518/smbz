@@ -83,6 +83,7 @@ export function AppBottomNav({ active }: { active: NavKey }) {
         <Link
           key={item.key}
           href={item.href}
+          prefetch={false}
           onClick={(event) => handleNavigation(event, item)}
           aria-current={item.key === active ? "page" : undefined}
           className={cn(
