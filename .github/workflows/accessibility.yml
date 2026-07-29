@@ -18,6 +18,11 @@ jobs:
         with:
           node-version: 24
 
+      - name: Enable pnpm
+        run: |
+          corepack enable pnpm
+          corepack install --global pnpm@11.17.0
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: |
