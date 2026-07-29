@@ -91,7 +91,8 @@ export function ProfessionalDetail({
 function ProfessionalChart({ columns }: { columns: DetailColumn[] }) {
   return (
     <section className="mx-4 overflow-hidden rounded-[14px] border border-[#e4d9c5] bg-white shadow-[0_10px_30px_rgba(67,48,20,0.07)]" aria-label="专业细盘四柱排盘">
-      <div className="grid grid-cols-[64px_repeat(6,minmax(0,1fr))] text-center max-[430px]:grid-cols-[54px_repeat(6,minmax(0,1fr))]">
+      <ProfessionalSemanticTable columns={columns} />
+      <div aria-hidden="true" className="grid grid-cols-[64px_repeat(6,minmax(0,1fr))] text-center max-[430px]:grid-cols-[54px_repeat(6,minmax(0,1fr))]">
         <DetailLabel rowIndex={0}>日期</DetailLabel>
         {columns.map((column) => (
           <DetailCell key={column.title} rowIndex={0} muted>{column.title}</DetailCell>
@@ -146,9 +147,44 @@ function ProfessionalChart({ columns }: { columns: DetailColumn[] }) {
   );
 }
 
+function ProfessionalSemanticTable({ columns }: { columns: DetailColumn[] }) {
+  const rows = [
+    { label: "主星", values: columns.map((column) => column.mainStar) },
+    { label: "天干", values: columns.map((column) => column.stem) },
+    { label: "地支", values: columns.map((column) => column.branch) },
+    { label: "藏干", values: columns.map((column) => column.hiddenStems.join("、")) },
+    { label: "副星", values: columns.map((column) => column.subStars.join("、")) },
+    { label: "星运", values: columns.map((column) => column.phase) },
+    { label: "自坐", values: columns.map((column) => column.selfSeat) },
+    { label: "空亡", values: columns.map((column) => column.voidBranch) },
+    { label: "纳音", values: columns.map((column) => column.nayin) },
+    { label: "神煞", values: columns.map((column) => column.shensha.join("、")) }
+  ];
+
+  return (
+    <table className="sr-only">
+      <caption>专业细盘四柱排盘</caption>
+      <thead>
+        <tr>
+          <th scope="col">项目</th>
+          {columns.map((column) => <th key={column.title} scope="col">{column.title}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.label}>
+            <th scope="row">{row.label}</th>
+            {row.values.map((value, index) => <td key={columns[index].title}>{value || "无"}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function DetailLabel({ children, rowIndex, large, stack }: { children: React.ReactNode; rowIndex: number; large?: boolean; stack?: boolean }) {
   return (
-    <div className={cn("flex items-center justify-center border-b border-[#e9e1d2] bg-[#faf7f0] px-2 text-[13px] font-medium text-[#81796d]", getDetailRowClass(rowIndex, large, stack))}>
+    <div className={cn("flex items-center justify-center border-b border-[#e9e1d2] bg-[#faf7f0] px-2 text-[13px] font-medium text-mutedInk", getDetailRowClass(rowIndex, large, stack))}>
       {children}
     </div>
   );
@@ -189,7 +225,7 @@ function HiddenStemCell({ column }: { column: DetailColumn }) {
 
 function DetailShenshaCell({ items }: { items: string[] }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-1 border-b border-l border-[#e9e1d2] px-1 text-[10px] leading-[1.25] max-[430px]:gap-0.5 max-[430px]:px-0.5 max-[430px]:text-[9px] max-[380px]:text-[8px]", getDetailRowClass(9, false, true))}>
+    <div className={cn("flex flex-col items-center justify-center gap-1 border-b border-l border-[#e9e1d2] px-1 text-[11px] leading-[1.25] max-[430px]:gap-0.5 max-[430px]:px-0.5", getDetailRowClass(9, false, true))}>
       {items.slice(0, 4).map((item) => (
         <p key={item} className="max-w-full whitespace-nowrap rounded-[5px] border border-[#eadfca] bg-[#fdf9f1] px-1 py-0.5 text-[#8b672d] max-[430px]:rounded-[4px] max-[430px]:px-0.5">{item}</p>
       ))}
@@ -209,7 +245,7 @@ function LuckScroller({ title, items, selectedIndex, onSelect }: { title: string
 
   return (
     <div className="mx-4 mt-4 grid grid-cols-[52px_1fr] overflow-hidden rounded-[14px] border border-[#e4d9c5] bg-white shadow-[0_10px_30px_rgba(67,48,20,0.07)] max-[380px]:grid-cols-[44px_1fr]">
-      <div className="flex items-center justify-center border-r border-[#e9e1d2] bg-[#faf7f0] font-serif text-[22px] font-semibold text-[#81796d] [writing-mode:vertical-rl] max-[380px]:text-[20px]">{title}</div>
+      <div className="flex items-center justify-center border-r border-[#e9e1d2] bg-[#faf7f0] font-serif text-[22px] font-semibold text-mutedInk [writing-mode:vertical-rl] max-[380px]:text-[20px]">{title}</div>
       <div className="grid overflow-hidden" style={{ gridTemplateColumns: `repeat(${visibleItems.length}, minmax(0, 1fr))` }}>
         {visibleItems.map((item, index) => (
           <button
@@ -221,8 +257,8 @@ function LuckScroller({ title, items, selectedIndex, onSelect }: { title: string
               index === selectedIndex && "bg-[#f3ead9] font-semibold shadow-[inset_0_2px_0_#b6382d]"
             )}
           >
-            <p className={cn("truncate", title === "流年" ? "text-[10px] max-[380px]:text-[8px]" : title === "流月" ? "text-[9px] max-[380px]:text-[8px]" : "text-[10px] max-[380px]:text-[9px]")}>{item.year}</p>
-            {item.age ? <p className="truncate text-[8px] max-[380px]:text-[7px]">{title === "大运" ? formatLuckStartAge(item.age) : formatDenseAge(item.age)}</p> : null}
+            <p className="truncate text-[11px]">{item.year}</p>
+            {item.age ? <p className="truncate text-[11px]">{title === "大运" ? formatLuckStartAge(item.age) : formatDenseAge(item.age)}</p> : null}
             <p className={cn("mt-1 text-[20px] leading-tight max-[380px]:text-[17px]", getStemColorClass(item.stem))}>{item.stem}</p>
             <p className={cn("text-[20px] leading-tight max-[380px]:text-[17px]", getStemColorClass(item.branch))}>{item.branch}</p>
           </button>
@@ -447,7 +483,7 @@ function getStemColorClass(value: string) {
   const element = getElement(value);
   const colors: Record<Element, string> = {
     火: "text-[#c40000]",
-    金: "text-[#bf8d10]",
+    金: "text-gold",
     土: "text-[#8b6f43]",
     木: "text-[#2ea84c]",
     水: "text-[#3f7edb]"

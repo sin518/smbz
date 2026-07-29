@@ -99,19 +99,23 @@ export function DaliurenHomeClient() {
                 <textarea
                   {...register("question")}
                   id="daliuren-question"
+                  aria-invalid={Boolean(errors.question)}
+                  aria-describedby={errors.question ? "daliuren-question-error" : undefined}
                   rows={2}
                   className="min-h-[76px] w-full resize-none rounded-[14px] border border-[#e1d2b3] bg-[#fffaf0] px-4 py-3 text-[16px] font-semibold leading-6 text-ink outline-none placeholder:text-[#aaa39a] focus:border-[#b68a3b]"
                   placeholder="例如：此事下一步如何推进？"
                 />
-                {errors.question?.message ? <p className="mt-2 text-right text-sm text-red-600">{errors.question.message}</p> : null}
+                {errors.question?.message ? <p id="daliuren-question-error" className="mt-2 text-right text-sm text-red-700" role="alert">{errors.question.message}</p> : null}
               </div>
             </SharedFormCard>
 
             <SharedFormCard className={divinationFormCardClass}>
               <DivinationSectionHeader title="起课信息" description="确认起课时间与求测人资料" tone="brown" />
-              <SharedFieldRow icon={CalendarClock} label="起课时间" error={errors.dateTime?.message}>
+              <SharedFieldRow icon={CalendarClock} label="起课时间" error={errors.dateTime?.message} controlId="daliuren-date-time">
                 <button
+                  id="daliuren-date-time"
                   type="button"
+                  aria-describedby={errors.dateTime ? "daliuren-date-time-error" : undefined}
                   onClick={() => setTimePickerOpen(true)}
                   className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
                   aria-label="选择起课时间"
@@ -121,14 +125,17 @@ export function DaliurenHomeClient() {
                 </button>
               </SharedFieldRow>
 
-              <SharedFieldRow icon={CalendarDays} label="出生年份" error={errors.birthYear?.message}>
+              <SharedFieldRow icon={CalendarDays} label="出生年份" error={errors.birthYear?.message} controlId="daliuren-birth-year">
                 <input
                   {...register("birthYear", { valueAsNumber: true })}
+                  id="daliuren-birth-year"
                   type="number"
                   inputMode="numeric"
                   min={1900}
                   max={currentYear}
-                  className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none placeholder:text-[#bdbbb5]"
+                  aria-invalid={Boolean(errors.birthYear)}
+                  aria-describedby={errors.birthYear ? "daliuren-birth-year-error" : undefined}
+                  className="min-w-0 bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none placeholder:text-mutedInk"
                   placeholder="如 1990"
                 />
               </SharedFieldRow>

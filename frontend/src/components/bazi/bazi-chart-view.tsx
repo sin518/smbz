@@ -95,7 +95,8 @@ export function BaziChartView({
 
       {activeTab === "chart" ? (
         <section className="mx-4 mt-3 overflow-hidden rounded-[14px] border border-[#e4d9c5] bg-white shadow-[0_10px_30px_rgba(67,48,20,0.07)]" aria-label="四柱基本排盘">
-          <div className="grid grid-cols-[72px_repeat(4,minmax(0,1fr))] text-center">
+          <BaziSemanticTable columns={columns} caption="四柱基本排盘" />
+          <div aria-hidden="true" className="grid grid-cols-[72px_repeat(4,minmax(0,1fr))] text-center">
             <TableLabel rowIndex={0}>日期</TableLabel>
             {columns.map((column) => (
               <TableCell key={column.title} rowIndex={0} muted>
@@ -164,6 +165,41 @@ export function BaziChartView({
       ) : null}
 
     </main>
+  );
+}
+
+function BaziSemanticTable({ columns, caption }: { columns: ChartColumn[]; caption: string }) {
+  const rows = [
+    { label: "主星", values: columns.map((column) => column.mainStar) },
+    { label: "天干", values: columns.map((column) => column.pillar.stem) },
+    { label: "地支", values: columns.map((column) => column.pillar.branch) },
+    { label: "藏干", values: columns.map((column) => column.hiddenStems.join("、")) },
+    { label: "副星", values: columns.map((column) => column.subStars.join("、")) },
+    { label: "星运", values: columns.map((column) => column.phase) },
+    { label: "自坐", values: columns.map((column) => column.selfSeat) },
+    { label: "空亡", values: columns.map((column) => column.voidBranch) },
+    { label: "纳音", values: columns.map((column) => column.nayin) },
+    { label: "神煞", values: columns.map((column) => column.shensha.join("、")) }
+  ];
+
+  return (
+    <table className="sr-only">
+      <caption>{caption}</caption>
+      <thead>
+        <tr>
+          <th scope="col">项目</th>
+          {columns.map((column) => <th key={column.title} scope="col">{column.title}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.label}>
+            <th scope="row">{row.label}</th>
+            {row.values.map((value, index) => <td key={columns[index].title}>{value || "无"}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -421,7 +457,7 @@ function HiddenStemCell({ column }: { column: DetailColumn }) {
 
 function DetailShenshaCell({ items }: { items: string[] }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center border-b border-l border-[#ececec] px-1 text-[14px] leading-6 text-[#9b8749]", getDetailRowClass(9, false, true))}>
+    <div className={cn("flex flex-col items-center justify-center border-b border-l border-[#ececec] px-1 text-[14px] leading-6 text-gold", getDetailRowClass(9, false, true))}>
       {items.slice(0, 4).map((item) => (
         <p key={item} className="whitespace-nowrap">{item}</p>
       ))}
@@ -437,7 +473,7 @@ function getDetailRowClass(rowIndex: number, large?: boolean, stack?: boolean) {
 }
 
 function TableLabel({ children, rowIndex, large, stack }: { children: React.ReactNode; rowIndex: number; large?: boolean; stack?: boolean }) {
-  return <div className={cn("flex items-center justify-center border-b border-[#e9e1d2] bg-[#faf7f0] px-2 text-[12px] font-medium text-[#81796d]", getRowClass(rowIndex, large, stack))}>{children}</div>;
+  return <div className={cn("flex items-center justify-center border-b border-[#e9e1d2] bg-[#faf7f0] px-2 text-[12px] font-medium text-mutedInk", getRowClass(rowIndex, large, stack))}>{children}</div>;
 }
 
 function TableCell({ children, muted, rowIndex }: { children: React.ReactNode; muted?: boolean; rowIndex: number }) {
@@ -459,9 +495,9 @@ function StackCell({ items, gold, rowIndex }: { items: string[]; gold?: boolean;
     <div
       className={cn(
         "flex flex-col items-center justify-center border-b border-l border-[#e9e1d2] px-1",
-        rowIndex === 10 ? "gap-1 text-[10px] leading-[1.25]" : "text-[12px] leading-[1.45]",
+        rowIndex === 10 ? "gap-1 text-[11px] leading-[1.25]" : "text-[12px] leading-[1.45]",
         getRowClass(rowIndex, false, true),
-        gold ? "text-[#9b8749]" : "text-ink"
+        gold ? "text-gold" : "text-ink"
       )}
     >
       {items.map((item) => (
@@ -495,10 +531,10 @@ function LuckScroller({ title, items, dense }: { title: string; items: LuckColum
             )}
           >
             <p className="truncate">{item.year}</p>
-            {item.age ? <p className={cn("truncate", dense ? "text-[9px]" : "text-sm")}>{dense ? formatDenseAge(item.age) : item.age}</p> : null}
+            {item.age ? <p className={cn("truncate", dense ? "text-[11px]" : "text-sm")}>{dense ? formatDenseAge(item.age) : item.age}</p> : null}
             <p className={cn("mt-1 leading-tight", dense ? "text-[20px]" : "text-[30px]", getStemColorClass(item.stem))}>{item.stem}</p>
             <p className={cn("leading-tight", dense ? "text-[20px]" : "text-[30px]", getStemColorClass(item.branch))}>{item.branch}</p>
-            <p className={cn("mt-0.5 truncate text-[#b00020]", dense ? "text-[9px]" : "text-sm")}>{item.tags.join(" ")}</p>
+            <p className={cn("mt-0.5 truncate text-[#b00020]", dense ? "text-[11px]" : "text-sm")}>{item.tags.join(" ")}</p>
           </div>
         ))}
       </div>
@@ -632,7 +668,7 @@ function getStemColorClass(value: string) {
   const element = getElement(value);
   const colors: Record<string, string> = {
     火: "text-[#c40000]",
-    金: "text-[#bf8d10]",
+    金: "text-gold",
     土: "text-[#8b6f43]",
     木: "text-[#4caf50]",
     水: "text-[#3f7edb]"

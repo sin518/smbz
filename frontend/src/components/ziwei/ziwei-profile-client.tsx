@@ -152,9 +152,11 @@ export function ZiweiProfileClient() {
 
             <SharedFormCard className={divinationFormCardClass}>
               <DivinationSectionHeader title="出生与排盘" description="确认出生资料及排盘记录设置" tone="gold" />
-              <SharedFieldRow icon={CalendarClock} label="出生时间" error={errors.birthTime?.message}>
+              <SharedFieldRow icon={CalendarClock} label="出生时间" error={errors.birthTime?.message} controlId="ziwei-birth-time">
                 <button
+                  id="ziwei-birth-time"
                   type="button"
+                  aria-describedby={errors.birthTime ? "ziwei-birth-time-error" : undefined}
                   onClick={() => setTimePickerOpen(true)}
                   className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[17px] font-semibold text-[#55514a]"
                   aria-label="选择出生时间"
@@ -166,7 +168,7 @@ export function ZiweiProfileClient() {
               <SharedFieldRow icon={MapPin} label="出生地点" error={errors.province?.message || errors.city?.message || errors.district?.message}>
                 <button type="button" onClick={() => setLocationPickerOpen(true)} className="flex min-w-0 items-center justify-end gap-1.5 text-right text-[17px] font-semibold text-[#55514a]" aria-label="选择出生地点">
                   <span className="truncate">{province} · {city} · {district}</span>
-                  <ChevronRight size={19} className="shrink-0 text-[#8b8985]" />
+                  <ChevronRight size={19} className="shrink-0 text-mutedInk" />
                 </button>
               </SharedFieldRow>
 

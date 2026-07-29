@@ -2,6 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { RefObject } from "react";
 import type { BaziPillarsResolveCandidate } from "taibu-core";
 import { calculateBazi } from "taibu-core/bazi";
 import { resolveBaziPillars } from "taibu-core/bazi-pillars-resolve";
@@ -10,6 +11,7 @@ import {
   GanzhiPillarSelector,
   type GanzhiPillarSelection
 } from "@/components/shared/ganzhi-pillar-selector";
+import { AccessibleDialog } from "@/components/shared/accessible-dialog";
 import { cn } from "@/lib/utils";
 
 type CalendarMode = "solar" | "pillars";
@@ -24,12 +26,14 @@ export function BaziBirthTimePickerSheet({
   open,
   value,
   calendar,
+  returnFocusRef,
   onClose,
   onConfirm
 }: {
   open: boolean;
   value: string;
   calendar: CalendarMode;
+  returnFocusRef: RefObject<HTMLElement | null>;
   onClose: () => void;
   onConfirm: (value: string, calendar: CalendarMode) => void;
 }) {
@@ -49,7 +53,9 @@ export function BaziBirthTimePickerSheet({
         open={open}
         value={value}
         header={modeSwitcher}
+        title="选择出生时间"
         ariaLabel="关闭出生时间选择"
+        returnFocusRef={returnFocusRef}
         onClose={onClose}
         onConfirm={(nextValue) => onConfirm(nextValue, "solar")}
       />
@@ -61,6 +67,7 @@ export function BaziBirthTimePickerSheet({
       open={open}
       value={value}
       header={modeSwitcher}
+      returnFocusRef={returnFocusRef}
       onClose={onClose}
       onConfirm={(nextValue) => onConfirm(nextValue, "pillars")}
     />
@@ -69,7 +76,7 @@ export function BaziBirthTimePickerSheet({
 
 function CalendarModeSwitcher({ value, onChange }: { value: CalendarMode; onChange: (value: CalendarMode) => void }) {
   return (
-    <div className="grid h-12 grid-cols-2 rounded-full bg-[#f4f4f3] p-1" role="tablist" aria-label="选择出生时间输入方式">
+    <div className="grid h-12 grid-cols-2 rounded-full bg-[#f4f4f3] p-1" role="group" aria-label="选择出生时间输入方式">
       {[
         { label: "公历", value: "solar" },
         { label: "农历", value: "pillars" }
@@ -77,12 +84,11 @@ function CalendarModeSwitcher({ value, onChange }: { value: CalendarMode; onChan
         <button
           key={option.value}
           type="button"
-          role="tab"
-          aria-selected={value === option.value}
+          aria-pressed={value === option.value}
           onClick={() => onChange(option.value as CalendarMode)}
           className={cn(
             "rounded-full text-[18px] font-semibold transition-colors",
-            value === option.value ? "bg-white text-ink shadow-sm" : "text-[#96938d]"
+            value === option.value ? "bg-white text-ink shadow-sm" : "text-mutedInk"
           )}
         >
           {option.label}
@@ -96,12 +102,14 @@ function BaziPillarsPickerSheet({
   open,
   value,
   header,
+  returnFocusRef,
   onClose,
   onConfirm
 }: {
   open: boolean;
   value: string;
   header: React.ReactNode;
+  returnFocusRef: React.RefObject<HTMLElement | null>;
   onClose: () => void;
   onConfirm: (value: string) => void;
 }) {
@@ -162,9 +170,13 @@ function BaziPillarsPickerSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65">
-      <button className="absolute inset-0 cursor-default" type="button" aria-label="关闭出生时间选择" onClick={onClose} />
-      <section className="relative w-full max-w-[430px] rounded-t-[28px] bg-white px-5 pb-8 pt-7 shadow-soft" aria-label="四柱干支反查出生时间">
+    <AccessibleDialog
+      open={open}
+      onClose={onClose}
+      ariaLabel="四柱干支反查出生时间"
+      returnFocusRef={returnFocusRef}
+      className="rounded-t-[28px] px-5 pb-8 pt-7"
+    >
         {header}
 
         {status === "choosing" ? (
@@ -175,7 +187,7 @@ function BaziPillarsPickerSheet({
           />
         ) : (
           <div className="mt-6 border-t border-[#f0f0ef] pt-4">
-            <p className="text-center text-[13px] leading-5 text-[#8b8985]">按年、月、日、时四柱反查 1900 年至今的出生时间</p>
+            <p className="text-center text-[13px] leading-5 text-mutedInk">按年、月、日、时四柱反查 1900 年至今的出生时间</p>
             <div className="mt-3">
               <GanzhiPillarSelector value={pillars} onChange={(nextValue) => { setPillars(nextValue); setError(""); }} />
             </div>
@@ -202,8 +214,7 @@ function BaziPillarsPickerSheet({
             {status === "resolving" ? "正在反查" : status === "choosing" ? "使用此时间" : "查询时间"}
           </button>
         </div>
-      </section>
-    </div>
+    </AccessibleDialog>
   );
 }
 
@@ -219,7 +230,7 @@ function CandidateChooser({
   return (
     <div className="mt-6 border-t border-[#f0f0ef] pt-4">
       <h2 className="text-[18px] font-semibold text-ink">选择匹配的出生时间</h2>
-      <p className="mt-1 text-[13px] leading-5 text-[#8b8985]">同一组四柱可能每隔六十年再次出现，请确认实际出生年份。</p>
+      <p className="mt-1 text-[13px] leading-5 text-mutedInk">同一组四柱可能每隔六十年再次出现，请确认实际出生年份。</p>
       <div className="mt-3 max-h-[330px] space-y-2 overflow-y-auto pr-1">
         {candidates.map((candidate) => (
           <label

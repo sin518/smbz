@@ -103,7 +103,7 @@ export function QimenChartResult() {
       {loaded && !result ? (
         <section className="mx-4 rounded-[22px] bg-white p-5 text-center shadow-soft">
           <p className="text-[18px] font-semibold">还没有排盘结果</p>
-          <p className="mt-2 text-[14px] leading-6 text-[#7d7972]">返回填写页，提交后会在这里展示九宫盘。</p>
+          <p className="mt-2 text-[14px] leading-6 text-mutedInk">返回填写页，提交后会在这里展示九宫盘。</p>
           <Link href="/qimen" className="mt-4 inline-flex h-11 items-center rounded-full bg-black px-6 text-[17px] font-semibold text-[#e8d4a7]">
             去排盘
           </Link>

@@ -767,7 +767,7 @@ function TopicBaziMiniChart({ category, columns }: { category: BaziInfoCategory;
   return (
     <div className="relative mt-2 rounded-[8px] bg-white px-3 py-2 text-[#aaa49d] shadow-[inset_0_0_0_1px_rgba(226,218,207,0.75)]">
       <div className="grid grid-cols-[22px_repeat(4,minmax(0,1fr))] items-center gap-y-1 text-center">
-        <p className="text-[10px] leading-4 text-[#c9c3bc] [writing-mode:vertical-rl]">天干</p>
+        <p className="text-[11px] leading-4 text-[#c9c3bc] [writing-mode:vertical-rl]">天干</p>
         {columns.map((column, index) => {
           const highlight = getCellHighlight(column.pillar.stem);
           return (
@@ -780,7 +780,7 @@ function TopicBaziMiniChart({ category, columns }: { category: BaziInfoCategory;
             />
           );
         })}
-        <p className="text-[10px] leading-4 text-[#c9c3bc] [writing-mode:vertical-rl]">地支</p>
+        <p className="text-[11px] leading-4 text-[#c9c3bc] [writing-mode:vertical-rl]">地支</p>
         {columns.map((column) => {
           const highlight = getCellHighlight(column.pillar.branch);
           return (
@@ -1222,7 +1222,7 @@ function MarriagePatternDetails({ columns, profile, years }: { columns: ChartCol
       <div className="mt-3 border-t border-[#f0e8dc] pt-3">
         <h4 className="mb-2 text-[13px] font-semibold text-[#2f2b26]">配偶星状态</h4>
         <div className="relative flex h-6 items-center rounded-full bg-[#f5ebdf]">
-          <div className="flex h-full items-center rounded-full bg-[#d99b4a] pl-3 text-[10px] font-semibold text-white" style={{ width: `${Math.max(18, spouseElementPercent)}%` }}>
+          <div className="flex h-full items-center rounded-full bg-[#d99b4a] pl-3 text-[11px] font-semibold text-white" style={{ width: `${Math.max(18, spouseElementPercent)}%` }}>
             {formatPercentage(spouseElementPercent)}
           </div>
           <span className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#e6bf94] bg-white text-[13px] font-semibold text-[#c47f3f]">
@@ -1575,10 +1575,10 @@ function WealthRing({ title, value }: { title: string; value: number }) {
       >
         <div className="flex h-[56px] w-[56px] flex-col items-center justify-center rounded-full bg-white text-[#c47f3f]">
           <span className="text-[16px] font-semibold">{displayValue}%</span>
-          <span className="text-[9px] text-[#b68a5c]">旺</span>
+          <span className="text-[11px] text-[#b68a5c]">旺</span>
         </div>
       </div>
-      <p className="max-w-[120px] text-[10px] leading-4 text-[#8d857b]">{title}</p>
+      <p className="max-w-[120px] text-[11px] leading-4 text-[#8d857b]">{title}</p>
     </div>
   );
 }
@@ -2194,7 +2194,7 @@ function BaziMiniCell({ label, value, active = false, badge }: { label?: string;
 
   return (
     <div className="relative flex min-h-[38px] flex-col items-center justify-center">
-      {label ? <p className="mb-0.5 text-[10px] leading-3 text-[#bcb6ae]">{label}</p> : null}
+      {label ? <p className="mb-0.5 text-[11px] leading-3 text-[#bcb6ae]">{label}</p> : null}
       <span
         className={cn(
           "relative flex h-8 w-8 items-center justify-center rounded-full text-[20px] font-semibold text-[#aaa49d]",
@@ -2203,7 +2203,7 @@ function BaziMiniCell({ label, value, active = false, badge }: { label?: string;
         )}
       >
         {value}
-        {badge ? <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-[#d8a15c] bg-white text-[9px] font-semibold text-[#c78a42]">{badge}</span> : null}
+        {badge ? <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-[#d8a15c] bg-white text-[11px] font-semibold text-[#c78a42]">{badge}</span> : null}
       </span>
     </div>
   );
@@ -2243,7 +2243,7 @@ function ElementRoleCard({ item, active, onClick }: { item: ElementRole; active:
     >
       <p className="text-[12px] font-semibold text-mutedInk">{item.key}</p>
       <p className={cn("mt-1 text-[18px] font-bold leading-5", elementColorClasses[item.element])}>{item.element}</p>
-      <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-mutedInk">{item.subtitle}</p>
+      <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-mutedInk">{item.subtitle}</p>
     </button>
   );
 }

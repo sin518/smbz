@@ -7,6 +7,7 @@ import {
   DateField,
   EmailField,
   List,
+  Login,
   NumberField,
   Resource,
   SearchInput,
@@ -16,6 +17,7 @@ import {
   type AuthProvider,
   type DataProvider
 } from "react-admin";
+import type { ReactNode } from "react";
 
 const dataProvider: DataProvider = simpleRestProvider("/api/admin");
 
@@ -59,10 +61,13 @@ const searchFilters = [<SearchInput key="q" source="q" alwaysOn />];
 
 export function AdminApp() {
   return (
+    <div className="admin-shell">
+      <h1 id="admin-title" className="sr-only">SM1 后台管理</h1>
     <Admin
       title="SM1 后台管理"
       dataProvider={dataProvider}
       authProvider={authProvider}
+      loginPage={AdminLoginPage}
       requireAuth
       disableTelemetry
     >
@@ -73,12 +78,22 @@ export function AdminApp() {
       <Resource name="bazi-charts" options={{ label: "八字排盘" }} list={BaziChartList} />
       <Resource name="payments" options={{ label: "付款记录" }} list={PaymentList} />
     </Admin>
+    </div>
+  );
+}
+
+function AdminLoginPage() {
+  return (
+    <main aria-labelledby="admin-title">
+      <Login />
+    </main>
   );
 }
 
 function UserList() {
   return (
     <List filters={searchFilters} sort={{ field: "createdAt", order: "DESC" }} perPage={25}>
+      <AdminDataGrid label="用户数据表">
       <Datagrid rowClick="show" bulkActionButtons={false}>
         <TextField source="id" label="用户 ID" />
         <TextField source="name" label="用户名" />
@@ -91,6 +106,7 @@ function UserList() {
         <DateField source="lastLoginAt" label="最近登录" showTime />
         <DateField source="createdAt" label="注册时间" showTime />
       </Datagrid>
+      </AdminDataGrid>
     </List>
   );
 }
@@ -119,6 +135,7 @@ function UserShow() {
 function SessionList() {
   return (
     <List filters={searchFilters} sort={{ field: "createdAt", order: "DESC" }} perPage={25}>
+      <AdminDataGrid label="登录会话数据表">
       <Datagrid bulkActionButtons={false}>
         <TextField source="id" label="会话 ID" />
         <TextField source="userId" label="用户 ID" />
@@ -129,6 +146,7 @@ function SessionList() {
         <TextField source="ipAddress" label="IP" />
         <TextField source="userAgent" label="设备" />
       </Datagrid>
+      </AdminDataGrid>
     </List>
   );
 }
@@ -136,6 +154,7 @@ function SessionList() {
 function AccountList() {
   return (
     <List filters={searchFilters} sort={{ field: "updatedAt", order: "DESC" }} perPage={25}>
+      <AdminDataGrid label="登录方式数据表">
       <Datagrid bulkActionButtons={false}>
         <TextField source="id" label="绑定 ID" />
         <TextField source="userId" label="用户 ID" />
@@ -145,6 +164,7 @@ function AccountList() {
         <TextField source="scope" label="授权范围" />
         <DateField source="updatedAt" label="更新时间" showTime />
       </Datagrid>
+      </AdminDataGrid>
     </List>
   );
 }
@@ -152,6 +172,7 @@ function AccountList() {
 function DivinationProfileList() {
   return (
     <List filters={searchFilters} sort={{ field: "updatedAt", order: "DESC" }} perPage={25}>
+      <AdminDataGrid label="命理档案数据表">
       <Datagrid bulkActionButtons={false}>
         <TextField source="id" label="档案 ID" />
         <TextField source="userId" label="用户 ID" />
@@ -163,6 +184,7 @@ function DivinationProfileList() {
         <TextField source="location" label="地点" />
         <DateField source="updatedAt" label="更新时间" showTime />
       </Datagrid>
+      </AdminDataGrid>
     </List>
   );
 }
@@ -170,6 +192,7 @@ function DivinationProfileList() {
 function BaziChartList() {
   return (
     <List filters={searchFilters} sort={{ field: "createdAt", order: "DESC" }} perPage={25}>
+      <AdminDataGrid label="八字排盘数据表">
       <Datagrid bulkActionButtons={false}>
         <TextField source="id" label="排盘 ID" />
         <TextField source="profileId" label="档案 ID" />
@@ -182,6 +205,7 @@ function BaziChartList() {
         <TextField source="location" label="地点" />
         <DateField source="createdAt" label="创建时间" showTime />
       </Datagrid>
+      </AdminDataGrid>
     </List>
   );
 }
@@ -189,6 +213,7 @@ function BaziChartList() {
 function PaymentList() {
   return (
     <List sort={{ field: "createdAt", order: "DESC" }} perPage={25} empty={<EmptyPaymentState />}>
+      <AdminDataGrid label="付款记录数据表">
       <Datagrid bulkActionButtons={false}>
         <TextField source="id" label="付款 ID" />
         <TextField source="userId" label="用户 ID" />
@@ -198,7 +223,16 @@ function PaymentList() {
         <TextField source="status" label="状态" />
         <DateField source="createdAt" label="创建时间" showTime />
       </Datagrid>
+      </AdminDataGrid>
     </List>
+  );
+}
+
+function AdminDataGrid({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="admin-data-grid" role="region" aria-label={label} tabIndex={0}>
+      {children}
+    </div>
   );
 }
 

@@ -241,7 +241,24 @@ export function LiuyaoResultClient() {
       </section>
 
       <section className="mx-4 mt-4 rounded-[22px] bg-white px-3 py-4 shadow-soft">
-        <div className="grid min-h-[28px] grid-cols-[116fr_530fr_530fr] items-center border-b border-[#ebe7dd] text-center text-[14px] font-normal text-[#8b8985]">
+        <table className="sr-only">
+          <caption>六爻主卦与变卦：主卦 {chart.hexagram.name}；变卦 {chart.hexagram.changed?.name ?? "无"}</caption>
+          <thead>
+            <tr><th scope="col">爻位</th><th scope="col">六神</th><th scope="col">主卦</th><th scope="col">变卦</th></tr>
+          </thead>
+          <tbody>
+            {[...chart.lines].reverse().map((line) => (
+              <tr key={line.position}>
+                <th scope="row">{formatLinePosition(line.position)}</th>
+                <td>{line.spirit}</td>
+                <td>{line.symbol === "yang" ? "阳爻" : "阴爻"}，{line.relation}{line.branch}{line.element}{line.changing ? "，动爻" : "，静爻"}{line.marker ? `，${line.marker}` : ""}{line.hiddenStem ? `，伏神${line.hiddenStem}` : ""}</td>
+                <td>{chart.hexagram.changed ? `${line.changedSymbol === "yang" ? "阳爻" : "阴爻"}，${line.changedRelation}${line.changedBranch}${line.changedElement}${line.marker ? `，${line.marker}` : ""}` : "无变卦"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div aria-hidden="true">
+        <div className="grid min-h-[28px] grid-cols-[116fr_530fr_530fr] items-center border-b border-[#ebe7dd] text-center text-[14px] font-normal text-mutedInk">
           <div className="flex h-full items-center justify-center">六神</div>
           <div className="flex h-full items-center justify-center text-center">
             主卦【{chart.hexagram.upper}上/{chart.hexagram.lower}下】 {chart.hexagram.name}
@@ -267,7 +284,7 @@ export function LiuyaoResultClient() {
                 <span className="relative whitespace-nowrap text-center text-[14px] text-ink">
                   {line.relation}{line.branch}{line.element}
                   {line.marker ? <b className="ml-[5px] font-normal text-[#c23521]">{line.marker}</b> : null}
-                  {line.hiddenStem ? <span className="absolute left-1/2 top-[20px] -translate-x-1/2 whitespace-nowrap text-[10px] leading-none text-[#6f675c]">{line.hiddenStem}</span> : null}
+                  {line.hiddenStem ? <span className="absolute left-1/2 top-[20px] -translate-x-1/2 whitespace-nowrap text-[11px] leading-none text-[#6f675c]">{line.hiddenStem}</span> : null}
                 </span>
               </div>
               <div className="grid grid-cols-[34px_1fr] items-center">
@@ -283,6 +300,7 @@ export function LiuyaoResultClient() {
               </div>
             </div>
           ))}
+        </div>
         </div>
       </section>
 
@@ -329,7 +347,7 @@ export function LiuyaoResultClient() {
                   }
                 }}
               />
-              {copyStatus === "selected" ? <p className="mt-2 text-[12px] text-[#a58024]">复制失败，已显示提示词内容，可手动选择复制。</p> : null}
+              {copyStatus === "selected" ? <p className="mt-2 text-[12px] text-gold">复制失败，已显示提示词内容，可手动选择复制。</p> : null}
               <button
                 type="button"
                 onClick={handleCopyAiCommand}
@@ -377,7 +395,7 @@ export function LiuyaoResultClient() {
               <div className="mt-3 min-h-[240px] whitespace-pre-wrap rounded-[14px] border border-[#eee4d2] bg-[#fffdf8] p-3 text-[13px] leading-6 text-[#554f47]">
                 {adminAnalysisText ? adminAnalysisText : null}
                 {adminAnalysisStatus === "streaming" ? (
-                  <span className="inline-flex items-center gap-1 text-[#a58024]">
+                  <span className="inline-flex items-center gap-1 text-gold">
                     <Loader2 size={14} className="animate-spin" />
                     分析中...
                   </span>
@@ -423,6 +441,10 @@ function LineSymbol({ symbol, changing }: { symbol: "yang" | "yin"; changing: bo
       )}
     </span>
   );
+}
+
+function formatLinePosition(position: number) {
+  return ["", "初爻", "二爻", "三爻", "四爻", "五爻", "上爻"][position] ?? `第${position}爻`;
 }
 
 function readJson<TValue>(key: string): TValue | undefined {

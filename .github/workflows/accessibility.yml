@@ -1,0 +1,68 @@
+name: Accessibility
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/accessibility.yml"
+  workflow_dispatch:
+
+jobs:
+  wcag-aa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: |
+          corepack pnpm@11.17.0 install --frozen-lockfile --ignore-scripts
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Typecheck
+        working-directory: frontend
+        run: corepack pnpm@11.17.0 typecheck
+
+      - name: Lint
+        working-directory: frontend
+        run: corepack pnpm@11.17.0 lint
+
+      - name: Production build
+        working-directory: frontend
+        run: corepack pnpm@11.17.0 build
+
+      - name: Run WCAG AA checks
+        working-directory: frontend
+        run: ./node_modules/.bin/playwright test
+
+      - name: Start production server for Lighthouse
+        working-directory: frontend
+        run: |
+          corepack pnpm@11.17.0 start --hostname 127.0.0.1 --port 3200 > /tmp/sm1-next.log 2>&1 &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:3200/ > /dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/sm1-next.log
+          exit 1
+
+      - name: Run Lighthouse accessibility gate
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            http://127.0.0.1:3200/
+            http://127.0.0.1:3200/bazi
+            http://127.0.0.1:3200/ziwei/profile
+            http://127.0.0.1:3200/liuyao
+            http://127.0.0.1:3200/qimen
+            http://127.0.0.1:3200/daliuren
+          configPath: ./frontend/lighthouserc.json
+          uploadArtifacts: true

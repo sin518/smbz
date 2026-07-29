@@ -71,7 +71,7 @@ export function DivinationFormShell({
             </Link>
             <div className="pt-0.5 text-center">
               <h1 className="text-[25px] font-semibold leading-tight tracking-[0.04em] text-[#34322f]">{title}</h1>
-              <div className="mt-2 flex items-center justify-center gap-2 text-[#a28e66]">
+              <div className="mt-2 flex items-center justify-center gap-2 text-mutedInk">
                 <span className="h-px w-6 bg-[#d9c9a3]" aria-hidden="true" />
                 <p className="min-w-0 truncate text-[11px] font-medium tracking-[0.1em]">{subtitle}</p>
                 <span className="h-px w-6 bg-[#d9c9a3]" aria-hidden="true" />
@@ -117,7 +117,7 @@ export function DivinationSectionHeader({
       <span className={cn("mt-2 h-2 w-2 shrink-0 rounded-full border", toneClasses[tone].dot)} aria-hidden="true" />
       <div className="min-w-0">
         <h2 className="text-[19px] font-semibold leading-tight tracking-[0.03em] text-[#34322f]">{title}</h2>
-        <p className="mt-1 text-[12px] leading-5 text-[#9a9388]">{description}</p>
+        <p className="mt-1 text-[12px] leading-5 text-mutedInk">{description}</p>
       </div>
     </div>
   );

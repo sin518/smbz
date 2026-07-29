@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DaliurenInput, DaliurenOutput, DaliurenTimingMethod } from "taibu-core/daliuren";
 import { ProtectedAiCommandAction } from "@/components/shared/protected-ai-command-action";
+import { AccessibleDialog } from "@/components/shared/accessible-dialog";
 import { useCachedAiCommand } from "@/components/shared/use-cached-ai-command";
 import { useCopyFeedback } from "@/components/shared/use-copy-feedback";
 import { DaliurenTianDiPanCard } from "@/components/daliuren/daliuren-tiandipan-card";
@@ -116,7 +117,7 @@ export function DaliurenResultClient() {
       {loaded && !chart ? (
         <section className="mx-4 rounded-[22px] bg-white p-5 text-center shadow-soft">
           <p className="text-[18px] font-semibold">{error ?? "还没有大六壬课盘"}</p>
-          <p className="mt-2 text-[14px] leading-6 text-[#7d7972]">返回填写页，输入占事和时间后再起课。</p>
+          <p className="mt-2 text-[14px] leading-6 text-mutedInk">返回填写页，输入占事和时间后再起课。</p>
           <Link href="/daliuren" className="mt-4 inline-flex h-11 items-center rounded-full bg-black px-6 text-[17px] font-semibold text-[#e8d4a7]">
             去起课
           </Link>
@@ -136,7 +137,7 @@ function CourseSummary({ chart, input, lunarDate }: { chart: DaliurenOutput; inp
           <p className="text-[12px] font-semibold text-[#a29d94]">课式描述</p>
           <h2 className="mt-1 truncate text-[19px] font-semibold leading-tight text-ink">{chart.keName}</h2>
         </div>
-        <span className="shrink-0 rounded-full bg-[#f4efe2] px-3 py-1 text-[12px] font-semibold text-[#a58024]">
+        <span className="shrink-0 rounded-full bg-[#f4efe2] px-3 py-1 text-[12px] font-semibold text-gold">
           {chart.keTi.method || chart.sanChuan.method}课
         </span>
       </div>
@@ -262,13 +263,17 @@ function AiCommandModal({ chart, canonicalText, onClose }: { chart: DaliurenOutp
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60">
-      <button className="absolute inset-0 cursor-default" type="button" aria-label="关闭AI指令" onClick={onClose} />
-      <section className="relative max-h-[86vh] w-full max-w-[430px] rounded-t-[24px] bg-[#fffef7] px-5 pb-6 pt-5 shadow-soft">
+    <AccessibleDialog
+      open
+      onClose={onClose}
+      labelledBy="daliuren-ai-command-title"
+      overlayClassName="bg-black/60"
+      className="max-h-[86vh] rounded-t-[24px] bg-[#fffef7] px-5 pb-6 pt-5"
+    >
         <button type="button" onClick={onClose} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center text-[#77736b]" aria-label="关闭">
           <X size={24} />
         </button>
-        <h2 className="pr-12 text-[22px] font-semibold text-ink">AI指令</h2>
+        <h2 id="daliuren-ai-command-title" tabIndex={-1} data-dialog-autofocus className="pr-12 text-[22px] font-semibold text-ink">AI指令</h2>
         <textarea
           readOnly
           value={command}
@@ -284,8 +289,10 @@ function AiCommandModal({ chart, canonicalText, onClose }: { chart: DaliurenOutp
           <Copy size={17} />
           {copyStatus === "copied" ? "已复制" : copyStatus === "selected" ? "复制失败" : "复制指令"}
         </button>
-      </section>
-    </div>
+        <p className="sr-only" role="status" aria-live="polite">
+          {copyStatus === "copied" ? "AI 指令已复制" : copyStatus === "selected" ? "复制失败" : ""}
+        </p>
+    </AccessibleDialog>
   );
 }
 

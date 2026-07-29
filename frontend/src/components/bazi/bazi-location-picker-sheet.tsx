@@ -2,6 +2,7 @@
 
 import { Check, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { AccessibleDialog } from "@/components/shared/accessible-dialog";
 import { chinaLocationOptions } from "@/lib/locations/china";
 import { cn } from "@/lib/utils";
 
@@ -75,13 +76,16 @@ export function BaziLocationPickerSheet({
   const selectedValue = draft[step];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65">
-      <button type="button" className="absolute inset-0 cursor-default" aria-label="关闭出生地点选择" onClick={onClose} />
-      <section className="relative w-full max-w-[430px] rounded-t-[28px] bg-white px-5 pb-8 pt-6 shadow-soft" aria-labelledby="bazi-location-title">
+    <AccessibleDialog
+      open={open}
+      onClose={onClose}
+      labelledBy="bazi-location-title"
+      className="rounded-t-[28px] px-5 pb-8 pt-6"
+    >
         <div className="flex items-center justify-between">
           <div>
             <h2 id="bazi-location-title" className="text-xl font-semibold text-ink">选择出生地点</h2>
-            <p className="mt-1 text-sm text-[#8b8985]">用于地点记录与真太阳时校正</p>
+            <p className="mt-1 text-sm text-mutedInk">用于地点记录与真太阳时校正</p>
           </div>
           <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f4f4f3]" aria-label="关闭">
             <X size={20} />
@@ -89,13 +93,13 @@ export function BaziLocationPickerSheet({
         </div>
 
         <label className="mt-5 flex h-12 items-center gap-2 rounded-2xl bg-[#f5f4f0] px-4">
-          <Search size={19} className="text-[#99958d]" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-[#aaa8a1]" placeholder={`搜索${steps.find((item) => item.key === step)?.label}`} aria-label="搜索地点" />
+          <Search size={19} className="text-mutedInk" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-mutedInk" placeholder={`搜索${steps.find((item) => item.key === step)?.label}`} aria-label="搜索地点" />
         </label>
 
-        <div className="mt-4 grid grid-cols-3 gap-2" role="tablist" aria-label="地点选择步骤">
+        <div className="mt-4 grid grid-cols-3 gap-2" role="group" aria-label="地点选择步骤">
           {steps.map((item) => (
-            <button key={item.key} type="button" role="tab" aria-selected={step === item.key} onClick={() => { setStep(item.key); setQuery(""); }} className={cn("h-11 rounded-xl text-sm font-semibold", step === item.key ? "bg-black text-[#e8d4a7]" : "bg-[#f5f4f0] text-[#77736c]") }>
+            <button key={item.key} type="button" aria-pressed={step === item.key} onClick={() => { setStep(item.key); setQuery(""); }} className={cn("h-11 rounded-xl text-sm font-semibold", step === item.key ? "bg-black text-[#e8d4a7]" : "bg-[#f5f4f0] text-[#77736c]") }>
               <span className="block text-xs opacity-70">{item.label}</span>
               <span className="block truncate px-1">{draft[item.key] || "请选择"}</span>
             </button>
@@ -115,14 +119,13 @@ export function BaziLocationPickerSheet({
                 );
               })}
             </div>
-          ) : <p className="py-16 text-center text-sm text-[#99958d]">没有找到匹配地点</p>}
+          ) : <p className="py-16 text-center text-sm text-mutedInk">没有找到匹配地点</p>}
         </div>
 
         <div className="mt-4 rounded-2xl bg-[#f7f3e8] px-4 py-3 text-sm font-semibold text-[#776536]">
           已选择：{draft.province} · {draft.city} · {draft.district}
         </div>
         <button type="button" onClick={() => onConfirm(draft)} disabled={!draft.province || !draft.city || !draft.district} className="mt-4 h-12 w-full rounded-full bg-black text-lg font-semibold text-[#e8d4a7] disabled:opacity-50">确定</button>
-      </section>
-    </div>
+    </AccessibleDialog>
   );
 }

@@ -20,8 +20,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { AccessibleDialog } from "@/components/shared/accessible-dialog";
 import { chinaLocationOptions } from "@/lib/locations/china";
 import { getBrowserRecordStore } from "@/lib/records/record-store";
 import { cn } from "@/lib/utils";
@@ -139,6 +140,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   const [loggingIn, setLoggingIn] = useState(false);
   const [agreementShake, setAgreementShake] = useState(false);
   const [message, setMessage] = useState(DEFAULT_PASSWORD_MESSAGE);
+  const [submitFieldError, setSubmitFieldError] = useState<"identifier" | "password" | "agreement" | null>(null);
 
   const normalizedAccountIdentifier = useMemo(() => accountIdentifier.trim(), [accountIdentifier]);
   const isValidPasswordIdentifier = isPhoneOrEmail(normalizedAccountIdentifier);
@@ -148,10 +150,12 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   });
 
   function promptAgreement() {
+    setSubmitFieldError("agreement");
     setMessage("请点击下方同意用户协议和隐私政策选框");
     setAgreementShake(false);
     window.setTimeout(() => setAgreementShake(true), 0);
     window.setTimeout(() => setAgreementShake(false), 420);
+    window.setTimeout(() => document.getElementById("login-agreement")?.focus(), 0);
   }
 
   useEffect(() => {
@@ -263,15 +267,20 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
     }
 
     if (!isValidPasswordIdentifier) {
+      setSubmitFieldError("identifier");
       setMessage("请输入正确的手机号或邮箱");
+      document.getElementById("login-identifier")?.focus();
       return;
     }
 
     if (!password) {
+      setSubmitFieldError("password");
       setMessage("请输入密码");
+      document.getElementById("login-password")?.focus();
       return;
     }
 
+    setSubmitFieldError(null);
     setLoggingIn(true);
     setMessage("正在登录...");
 
@@ -335,7 +344,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   if (sessionStatus === "loading") {
     return (
       <main className="light-surface-text-scope app-responsive-shell flex min-h-screen flex-col items-center justify-center bg-paper text-ink shadow-soft">
-        <Loader2 className="animate-spin text-[#a58024]" size={30} />
+        <Loader2 className="animate-spin text-gold" size={30} />
         <p className="mt-4 text-[15px] font-semibold text-mutedInk">正在确认登录状态</p>
       </main>
     );
@@ -348,7 +357,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
 
     return (
       <main className="light-surface-text-scope app-responsive-shell flex min-h-screen flex-col items-center justify-center bg-paper text-ink shadow-soft">
-        <Loader2 className="animate-spin text-[#a58024]" size={30} />
+        <Loader2 className="animate-spin text-gold" size={30} />
         <p className="mt-4 text-[15px] font-semibold text-mutedInk">正在进入首页</p>
       </main>
     );
@@ -379,22 +388,30 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
 
           <div className="space-y-3">
             <input
+              id="login-identifier"
               value={accountIdentifier}
-              onChange={(event) => setAccountIdentifier(event.target.value)}
-              className={`h-[54px] w-full rounded-full border-0 bg-[#f2f2f0] px-6 text-[20px] text-ink outline-none placeholder:text-[#aaa8a1] ${accountIdentifier && !isValidPasswordIdentifier ? "ring-2 ring-[#c62828]" : ""}`}
+              onChange={(event) => { setAccountIdentifier(event.target.value); setSubmitFieldError(null); }}
+              aria-invalid={Boolean(passwordFormError || submitFieldError === "identifier")}
+              aria-describedby={passwordFormError || submitFieldError === "identifier" ? "login-identifier-error" : undefined}
+              className={`h-[54px] w-full rounded-full border-0 bg-[#f2f2f0] px-6 text-[20px] text-ink outline-none placeholder:text-mutedInk ${accountIdentifier && !isValidPasswordIdentifier ? "ring-2 ring-[#c62828]" : ""}`}
               inputMode="email"
               maxLength={80}
               placeholder="请输入手机号或邮箱"
               aria-label="手机号或邮箱"
             />
+            {passwordFormError || submitFieldError === "identifier" ? <p id="login-identifier-error" className="px-4 text-[13px] leading-5 text-[#a51d1d]" role="alert">{passwordFormError || "请输入正确的手机号或邮箱"}</p> : null}
             <PasswordField
+              id="login-password"
               value={password}
-              onChange={setPassword}
+              onChange={(value) => { setPassword(value); setSubmitFieldError(null); }}
               visible={showPassword}
               onToggleVisible={() => setShowPassword((value) => !value)}
               placeholder="请输入密码"
               ariaLabel="密码"
+              invalid={submitFieldError === "password"}
+              describedBy={submitFieldError === "password" ? "login-password-error" : undefined}
             />
+            {submitFieldError === "password" ? <p id="login-password-error" className="px-4 text-[13px] leading-5 text-[#a51d1d]" role="alert">请输入密码</p> : null}
             <button
               type="button"
               onClick={submitPasswordAuth}
@@ -403,11 +420,10 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
             >
               {loggingIn ? <Loader2 className="animate-spin" size={22} /> : "登录 / 自动注册"}
             </button>
-            <p className="px-4 text-center text-[13px] leading-5 text-[#a58024]">新手机号或邮箱会自动创建账号并登录</p>
-            {passwordFormError ? <p className="px-4 text-[13px] leading-5 text-[#c62828]">{passwordFormError}</p> : null}
+            <p className="px-4 text-center text-[13px] leading-5 text-gold">新手机号或邮箱会自动创建账号并登录</p>
           </div>
 
-          <p className="mt-3 min-h-5 text-center text-[13px] leading-5 text-mutedInk">{showInlineMessage ? message : ""}</p>
+          <p className="mt-3 min-h-5 text-center text-[13px] leading-5 text-mutedInk" role="status" aria-live="polite">{showInlineMessage ? message : ""}</p>
         </div>
       </section>
 
@@ -424,9 +440,12 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
       <section className="px-4 pt-4">
         <label className={`flex items-center justify-center gap-1 whitespace-nowrap text-[13px] leading-5 text-mutedInk ${agreementShake ? "text-ink" : ""}`}>
           <input
+            id="login-agreement"
             checked={agreed}
-            onChange={(event) => setAgreed(event.target.checked)}
+            onChange={(event) => { setAgreed(event.target.checked); setSubmitFieldError(null); }}
             type="checkbox"
+            aria-invalid={submitFieldError === "agreement"}
+            aria-describedby={submitFieldError === "agreement" ? "login-agreement-error" : undefined}
             className="mr-0.5 h-3.5 w-3.5 shrink-0 appearance-none rounded-full border-[1.5px] border-[#aaa8a1] bg-transparent checked:border-black checked:bg-black"
             aria-label="同意用户协议和隐私政策"
           />
@@ -439,6 +458,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
             《隐私政策》
           </Link>
         </label>
+        {submitFieldError === "agreement" ? <p id="login-agreement-error" className="mt-2 text-center text-sm text-red-700" role="alert">请先同意用户协议和隐私政策</p> : null}
       </section>
     </main>
   );
@@ -455,12 +475,14 @@ function UserSettingsPage({
   const [signingOut, setSigningOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteWarningOpen, setDeleteWarningOpen] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState("");
   const [clearingDeviceRecords, setClearingDeviceRecords] = useState(false);
   const [deviceRecordMessage, setDeviceRecordMessage] = useState("");
   const [storedUser, setStoredUser] = useState<(LoginResponse["user"] & { email?: string; name?: string }) | null>(null);
   const [profile, setProfile] = useState<UserProfileSettings>(() => getDefaultProfile(user, null));
   const [editingField, setEditingField] = useState<EditableProfileField | null>(null);
   const [draftValue, setDraftValue] = useState("");
+  const [profileEditError, setProfileEditError] = useState("");
   const userId = user?.id ?? storedUser?.id ?? "";
   const displayId = userId ? userId.slice(0, 8) : "未生成";
   const accountValue = storedUser?.phone || user?.email || storedUser?.email || "未绑定";
@@ -473,6 +495,7 @@ function UserSettingsPage({
   }, [user]);
 
   function startEdit(field: EditableProfileField) {
+    setProfileEditError("");
     setEditingField(field);
     setDraftValue(field === "birthPlace" ? formatBirthPlace(parseBirthPlace(profile.birthPlace)) : profile[field]);
   }
@@ -483,6 +506,11 @@ function UserSettingsPage({
     }
 
     const nextValue = draftValue.trim();
+    if (editingField === "name" && !nextValue) {
+      setProfileEditError("昵称不能为空");
+      return;
+    }
+
     const nextProfile = {
       ...profile,
       [editingField]: nextValue
@@ -528,6 +556,7 @@ function UserSettingsPage({
 
   async function deleteAccount() {
     setDeletingAccount(true);
+    setDeleteAccountError("");
 
     try {
       const response = await fetch("/api/auth/delete-account", {
@@ -548,7 +577,7 @@ function UserSettingsPage({
       router.replace("/settings/login");
       router.refresh();
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "账号注销失败，请稍后再试");
+      setDeleteAccountError(error instanceof Error ? error.message : "账号注销失败，请稍后再试");
     } finally {
       setDeletingAccount(false);
     }
@@ -615,7 +644,7 @@ function UserSettingsPage({
               muted
               onClick={() => void clearCurrentAccountDeviceRecords()}
             />
-            <SettingsRow icon={Power} label="账号注销" value="" actionable muted last onClick={() => setDeleteWarningOpen(true)} />
+            <SettingsRow icon={Power} label="账号注销" value="" actionable muted last onClick={() => { setDeleteAccountError(""); setDeleteWarningOpen(true); }} />
           </div>
           {deviceRecordMessage ? <p className="mt-2 px-2 text-[12px] leading-5 text-mutedInk">{deviceRecordMessage}</p> : null}
         </section>
@@ -636,8 +665,15 @@ function UserSettingsPage({
         <ProfileEditDialog
           field={editingField}
           value={draftValue}
-          onChange={setDraftValue}
-          onClose={() => setEditingField(null)}
+          error={profileEditError}
+          onChange={(value) => {
+            setDraftValue(value);
+            setProfileEditError("");
+          }}
+          onClose={() => {
+            setProfileEditError("");
+            setEditingField(null);
+          }}
           onSave={saveEdit}
         />
       ) : null}
@@ -645,6 +681,7 @@ function UserSettingsPage({
       {deleteWarningOpen ? (
         <DeleteAccountDialog
           deleting={deletingAccount}
+          error={deleteAccountError}
           onClose={() => setDeleteWarningOpen(false)}
           onConfirm={deleteAccount}
         />
@@ -655,7 +692,7 @@ function UserSettingsPage({
 
 function ProfileSectionTitle({ children }: { children: string }) {
   return (
-    <div className="flex items-center gap-2 px-1 text-[#8d7b56]">
+    <div className="flex items-center gap-2 px-1 text-mutedInk">
       <span className="h-4 w-1 rounded-full bg-[#c5a45f]" />
       <h2 className="text-[14px] font-semibold tracking-[0.12em]">{children}</h2>
     </div>
@@ -682,7 +719,7 @@ function SettingsRow({
   const Icon = icon;
   const content = (
     <>
-      <span className={cn("flex h-9 w-9 items-center justify-center rounded-[12px] bg-[var(--color-control)]", muted ? "text-[#aaa8a1]" : "text-[var(--color-icon)]")}>
+      <span className={cn("flex h-9 w-9 items-center justify-center rounded-[12px] bg-[var(--color-control)]", muted ? "text-mutedInk" : "text-[var(--color-icon)]")}>
         <Icon size={19} strokeWidth={1.8} />
       </span>
       <span className={cn("text-[16px] font-semibold", muted ? "text-mutedInk" : "text-ink")}>{label}</span>
@@ -715,16 +752,21 @@ function SettingsRow({
 function ProfileEditDialog({
   field,
   value,
+  error,
   onChange,
   onClose,
   onSave
 }: {
   field: EditableProfileField;
   value: string;
+  error: string;
   onChange: (value: string) => void;
   onClose: () => void;
   onSave: () => void;
 }) {
+  const titleId = useId();
+  const errorId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const titleMap: Record<EditableProfileField, string> = {
     name: "修改昵称",
     gender: "修改性别",
@@ -732,15 +774,26 @@ function ProfileEditDialog({
     birthPlace: "修改出生地区"
   };
 
+  useEffect(() => {
+    if (error) {
+      inputRef.current?.focus();
+    }
+  }, [error]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 px-4 pb-5">
-      <div className="w-full max-w-[398px] rounded-[24px] bg-white p-5 shadow-soft">
+    <AccessibleDialog
+      open
+      onClose={onClose}
+      labelledBy={titleId}
+      overlayClassName="bg-black/35 px-4 pb-5"
+      className="max-w-[398px] rounded-[24px] p-5"
+    >
         <div className="mb-5 flex items-center justify-between">
           <button type="button" onClick={onClose} className="text-[18px] text-[#888]">
             取消
           </button>
-          <h2 className="text-[22px] font-semibold">{titleMap[field]}</h2>
-          <button type="button" onClick={onSave} className="text-[18px] font-semibold text-[#a58024]">
+          <h2 id={titleId} className="text-[22px] font-semibold">{titleMap[field]}</h2>
+          <button type="button" onClick={onSave} className="text-[18px] font-semibold text-gold">
             保存
           </button>
         </div>
@@ -751,6 +804,7 @@ function ProfileEditDialog({
               <button
                 key={item}
                 type="button"
+                data-dialog-autofocus={value === item ? "true" : undefined}
                 onClick={() => onChange(item)}
                 className={`h-14 rounded-full text-[20px] font-medium ${value === item ? "bg-black text-[#e8d4a7]" : "bg-[#f2f2f0] text-[#555]"}`}
               >
@@ -762,17 +816,22 @@ function ProfileEditDialog({
           <BirthPlaceFields value={value} onChange={onChange} />
         ) : (
           <input
+            ref={inputRef}
             value={value}
             onChange={(event) => onChange(event.target.value)}
             type={field === "birthTime" ? "datetime-local" : "text"}
             maxLength={field === "name" ? 20 : 60}
             placeholder="请输入内容"
+            data-dialog-autofocus
+            aria-label={titleMap[field]}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? errorId : undefined}
             className="h-14 w-full rounded-[14px] bg-[#f2f2f0] px-4 text-[19px] outline-none"
             autoFocus
           />
         )}
-      </div>
-    </div>
+        {error ? <p id={errorId} className="mt-3 text-sm font-medium text-red-700" role="alert">{error}</p> : null}
+    </AccessibleDialog>
   );
 }
 
@@ -880,22 +939,34 @@ function formatBirthPlace(selection: BirthPlaceSelection) {
 
 function DeleteAccountDialog({
   deleting,
+  error,
   onClose,
   onConfirm
 }: {
   deleting: boolean;
+  error: string;
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const titleId = useId();
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 pb-5">
-      <div className="w-full max-w-[398px] rounded-[24px] bg-white px-5 pb-5 pt-6 shadow-soft">
-        <h2 className="text-center text-[22px] font-semibold tracking-[0.04em] text-black">确认注销账号？</h2>
+    <AccessibleDialog
+      open
+      onClose={onClose}
+      labelledBy={titleId}
+      closeOnBackdrop={!deleting}
+      closeOnEscape={!deleting}
+      overlayClassName="bg-black/45 px-4 pb-5"
+      className="max-w-[398px] rounded-[24px] px-5 pb-5 pt-6"
+    >
+        <h2 id={titleId} className="text-center text-[22px] font-semibold tracking-[0.04em] text-black">确认注销账号？</h2>
         <p className="mt-4 text-[16px] leading-7 text-[#666]">
           注销账户会清空该账号的所有资料、排盘记录、AI 报告、登录信息和相关账号数据。删除后无法恢复。
         </p>
+        {error ? <p className="mt-3 text-sm font-semibold text-red-700" role="alert">{error}</p> : null}
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <button type="button" onClick={onClose} disabled={deleting} className="h-[52px] rounded-full bg-[#eeeeee] text-[18px] font-medium text-[#666] disabled:opacity-65">
+          <button type="button" data-dialog-autofocus onClick={onClose} disabled={deleting} className="h-[52px] rounded-full bg-[#eeeeee] text-[18px] font-medium text-[#555] disabled:opacity-65">
             取消
           </button>
           <button
@@ -907,8 +978,7 @@ function DeleteAccountDialog({
             {deleting ? <Loader2 className="animate-spin" size={22} /> : "确认注销"}
           </button>
         </div>
-      </div>
-    </div>
+    </AccessibleDialog>
   );
 }
 
@@ -993,30 +1063,39 @@ function getStoredUser(): (LoginResponse["user"] & { email?: string; name?: stri
 }
 
 function PasswordField({
+  id,
   value,
   onChange,
   visible,
   onToggleVisible,
   placeholder,
-  ariaLabel
+  ariaLabel,
+  invalid,
+  describedBy
 }: {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   visible: boolean;
   onToggleVisible: () => void;
   placeholder: string;
   ariaLabel: string;
+  invalid?: boolean;
+  describedBy?: string;
 }) {
   return (
     <div className="grid h-[54px] grid-cols-[minmax(0,1fr)_48px] items-center rounded-full bg-[#f2f2f0]">
       <input
+        id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-w-0 bg-transparent px-6 pr-3 text-[20px] text-ink outline-none placeholder:text-[#aaa8a1]"
+        className="min-w-0 bg-transparent px-6 pr-3 text-[20px] text-ink outline-none placeholder:text-mutedInk"
         type={visible ? "text" : "password"}
         maxLength={32}
         placeholder={placeholder}
         aria-label={ariaLabel}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
       />
       <button type="button" onClick={onToggleVisible} className="flex h-full items-center justify-center text-[#59544d]" aria-label={visible ? "隐藏密码" : "显示密码"}>
         {visible ? <EyeOff size={21} /> : <Eye size={21} />}
@@ -1030,7 +1109,7 @@ function LoginMethod({ label, icon, onClick }: { label: string; icon: LucideIcon
 
   return (
     <button type="button" onClick={onClick} className="flex w-[92px] flex-col items-center text-[15px]" aria-label={label}>
-      <span className="mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-full bg-[#f6f0e2] text-[#a58024]">
+      <span className="mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-full bg-[#f6f0e2] text-gold">
         <Icon size={24} strokeWidth={2.2} />
       </span>
       <span className="leading-tight text-[#55514a]">{label}</span>

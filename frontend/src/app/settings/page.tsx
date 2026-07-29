@@ -100,7 +100,7 @@ export default function SettingsPage() {
 
       <section className="px-4">
         <Link href={profileHref} className="liquid-glass flex min-h-[122px] items-center gap-4 rounded-[26px] border border-white/60 px-5 py-5">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[#dfc995] bg-[#fff9e9]/80 text-[#a8781c] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[#dfc995] bg-[#fff9e9]/80 text-gold shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
             <Sparkles size={27} strokeWidth={1.65} />
           </span>
           <span className="min-w-0 flex-1">
@@ -154,7 +154,7 @@ function getStoredUserId() {
 
 function SectionTitle({ children, icon: Icon }: { children: string; icon?: LucideIcon }) {
   return (
-    <div className="flex items-center gap-2 px-1 text-[#8d7b56]">
+    <div className="flex items-center gap-2 px-1 text-mutedInk">
       {Icon ? <Icon size={16} strokeWidth={1.7} /> : <span className="h-4 w-1 rounded-full bg-[#c5a45f]" />}
       <h2 className="text-[14px] font-semibold tracking-[0.12em]">{children}</h2>
     </div>
@@ -230,7 +230,7 @@ function AppearancePicker() {
           className={cn(
             "relative min-w-0 rounded-[15px] border bg-[var(--color-control)] p-2 text-center transition duration-200",
             mode === option.value
-              ? "border-[#b88b2d] text-[#a8781c] shadow-[0_5px_16px_rgba(128,90,22,0.12)]"
+              ? "border-[#b88b2d] text-gold shadow-[0_5px_16px_rgba(128,90,22,0.12)]"
               : "border-[var(--color-control-border)] text-[var(--color-secondary-text)]"
           )}
         >

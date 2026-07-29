@@ -5,10 +5,11 @@ import { CalendarClock, Check, ChevronDown, Compass, Hand, Hash, Hexagon, Info, 
 import { Lunar, Solar } from "lunar-typescript";
 import { resolveBaziPillars } from "taibu-core/bazi-pillars-resolve";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Controller, type UseFormRegisterReturn, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { SharedFieldRow, SharedFormCard, SharedSegmentedPill, formatDateTimeLocal } from "@/components/shared/divination-profile-card";
+import { AccessibleDialog } from "@/components/shared/accessible-dialog";
 import {
   DivinationFormBody,
   DivinationFormShell,
@@ -302,9 +303,11 @@ export function LiuyaoHomeClient() {
           <div className="space-y-4">
           <SharedFormCard className={divinationFormCardClass}>
             <DivinationSectionHeader title="求测信息" description="聚焦所问之事，并选择分析方向" tone="purple" />
-            <SharedFieldRow icon={CalendarClock} label="起卦时间" error={errors.castingTime?.message}>
+            <SharedFieldRow icon={CalendarClock} label="起卦时间" error={errors.castingTime?.message} controlId="liuyao-casting-time">
               <button
+                id="liuyao-casting-time"
                 type="button"
+                aria-describedby={errors.castingTime ? "liuyao-casting-time-error" : undefined}
                 onClick={() => setCastingTimePickerOpen(true)}
                 className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
                 aria-label="选择起卦时间"
@@ -336,10 +339,13 @@ export function LiuyaoHomeClient() {
               )}
             />
 
-            <SharedFieldRow icon={MessageSquareText} label="求测问题" error={errors.question?.message} last>
+            <SharedFieldRow icon={MessageSquareText} label="求测问题" error={errors.question?.message} controlId="liuyao-question" last>
               <input
                 {...register("question")}
-                className="w-full bg-transparent text-right text-[18px] font-semibold text-ink outline-none placeholder:text-[#bdbbb5]"
+                id="liuyao-question"
+                aria-invalid={Boolean(errors.question)}
+                aria-describedby={errors.question ? "liuyao-question-error" : undefined}
+                className="w-full bg-transparent text-right text-[18px] font-semibold text-ink outline-none placeholder:text-mutedInk"
                 placeholder="请一句话描述你的问题"
               />
             </SharedFieldRow>
@@ -432,27 +438,27 @@ export function LiuyaoHomeClient() {
           <DivinationSubmitBar label="开始起卦" busyLabel="起卦中" isBusy={isSubmitting} icon={Hexagon} />
 
           <aside className="mx-auto mt-7 w-full max-w-[398px] border-t border-[#e5decb] px-1 pt-5" aria-labelledby="liuyao-question-tip-title">
-            <h2 id="liuyao-question-tip-title" className="flex items-center gap-2 text-[16px] font-semibold text-[#8f6f2e]">
+            <h2 id="liuyao-question-tip-title" className="flex items-center gap-2 text-[16px] font-semibold text-[#765b18]">
               <Info size={18} strokeWidth={2.2} />
               友情提示
             </h2>
             <div className="mt-4 space-y-4 text-[14px] leading-6 text-[#66615a]">
               <div className="grid grid-cols-[24px_minmax(0,1fr)] gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#efe5cb] text-[12px] font-semibold text-[#8f6f2e]">1</span>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#efe5cb] text-[12px] font-semibold text-[#765b18]">1</span>
                 <p>
                   <strong className="font-semibold text-[#55514a]">把问题说完整：</strong>
                   建议包含“能否/是否＋具体动作＋期限或对象”，例如“下周三与 XX 公司的合作签约能否成功？”
                 </p>
               </div>
               <div className="grid grid-cols-[24px_minmax(0,1fr)] gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#efe5cb] text-[12px] font-semibold text-[#8f6f2e]">2</span>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#efe5cb] text-[12px] font-semibold text-[#765b18]">2</span>
                 <p>
                   <strong className="font-semibold text-[#55514a]">聚焦单一事件：</strong>
                   每次只问一个具体问题，也可以问“今年的财运状况如何？”。避免只写“事业如何”，或同时询问多个不相干事件。
                 </p>
               </div>
               <div className="grid grid-cols-[24px_minmax(0,1fr)] gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#efe5cb] text-[12px] font-semibold text-[#8f6f2e]">3</span>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#efe5cb] text-[12px] font-semibold text-[#765b18]">3</span>
                 <p>
                   <strong className="font-semibold text-[#55514a]">可以替他人代测：</strong>
                   请说明对方与您的关系，并把问题描述清楚，例如“我的同事今年财运如何？”或“我的同事近期健康状况如何？”。两类事情请分开起卦。
@@ -539,6 +545,7 @@ function YongShenSheet({
   onClose: () => void;
   onConfirm: (value: { mode: YongShenMode; targets: YongShenValue[] }) => void;
 }) {
+  const titleId = useId();
   const [draftMode, setDraftMode] = useState<YongShenMode>(mode);
   const [draftValue, setDraftValue] = useState<YongShenValue[]>(value);
 
@@ -571,11 +578,16 @@ function YongShenSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-3">
-      <button className="absolute inset-0 cursor-default" type="button" aria-label="关闭选择弹窗" onClick={onClose} />
-      <section className="liuyao-choice-sheet relative w-full max-w-[414px] overflow-hidden rounded-xl border border-[var(--liuyao-sheet-border)] bg-[var(--liuyao-sheet-bg)] text-[var(--liuyao-sheet-text)] shadow-soft">
+    <AccessibleDialog
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      placement="center"
+      overlayClassName="bg-black/50 px-3"
+      className="liuyao-choice-sheet max-w-[414px] overflow-hidden rounded-xl border border-[var(--liuyao-sheet-border)] bg-[var(--liuyao-sheet-bg)] text-[var(--liuyao-sheet-text)]"
+    >
         <header className="flex h-11 items-center justify-between border-b border-[var(--liuyao-sheet-border)] px-4">
-          <h2 className="text-[14px] font-semibold">{title}</h2>
+          <h2 id={titleId} className="text-[14px] font-semibold">{title}</h2>
           <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--liuyao-sheet-border)] text-[var(--liuyao-sheet-muted)]" aria-label="关闭">
             <X size={17} strokeWidth={2} />
           </button>
@@ -624,13 +636,12 @@ function YongShenSheet({
             >
               清空
             </button>
-            <button type="button" onClick={handleConfirm} className="h-9 rounded-md bg-[#d4ad28] px-4 text-[13px] font-semibold text-white">
+            <button type="button" onClick={handleConfirm} className="h-9 rounded-md bg-[#765b18] px-4 text-[13px] font-semibold text-white">
               确认
             </button>
           </div>
         </footer>
-      </section>
-    </div>
+    </AccessibleDialog>
   );
 }
 
@@ -702,7 +713,6 @@ type LiuyaoTimePickerResult = {
   ganzhi: GanzhiSelection;
 };
 
-const PICKER_ITEM_HEIGHT = 48;
 function LiuyaoTimePickerSheet({
   open,
   calendar,
@@ -720,16 +730,13 @@ function LiuyaoTimePickerSheet({
   onConfirm: (value: LiuyaoTimePickerResult) => void;
   ariaLabel?: string;
 }) {
+  const titleId = useId();
+  const inputId = useId();
   const [draftCalendar, setDraftCalendar] = useState<LiuyaoFormValues["castingCalendar"]>(calendar);
   const [draftTime, setDraftTime] = useState(() => parseDateTimeLocalParts(value));
   const [draftGanzhi, setDraftGanzhi] = useState<GanzhiSelection>(ganzhi);
   const [resolveError, setResolveError] = useState("");
   const [resolving, setResolving] = useState(false);
-  const years = useMemo(() => buildNumberRange(1920, 2050), []);
-  const months = useMemo(() => buildNumberRange(1, 12), []);
-  const hours = useMemo(() => buildNumberRange(0, 23), []);
-  const minutes = useMemo(() => buildNumberRange(0, 59), []);
-  const days = useMemo(() => buildNumberRange(1, getDaysInMonth(draftTime.year, draftTime.month)), [draftTime.month, draftTime.year]);
 
   useEffect(() => {
     if (open) {
@@ -740,21 +747,6 @@ function LiuyaoTimePickerSheet({
       setResolving(false);
     }
   }, [calendar, ganzhi, open, value]);
-
-  useEffect(() => {
-    const maxDay = getDaysInMonth(draftTime.year, draftTime.month);
-    if (draftTime.day > maxDay) {
-      setDraftTime((current) => ({ ...current, day: maxDay }));
-    }
-  }, [draftTime.day, draftTime.month, draftTime.year]);
-
-  if (!open) {
-    return null;
-  }
-
-  const updateTime = (key: keyof TimeParts, nextValue: number) => {
-    setDraftTime((current) => ({ ...current, [key]: nextValue }));
-  };
 
   const handleConfirm = async () => {
     const nextValue = toDateTimeValue(draftTime);
@@ -809,18 +801,26 @@ function LiuyaoTimePickerSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65">
-      <button className="absolute inset-0 cursor-default" type="button" aria-label={ariaLabel} onClick={onClose} />
-      <section className="relative w-full max-w-[430px] rounded-t-[28px] bg-white px-5 pb-8 pt-7 shadow-soft">
-        <div className="grid h-12 grid-cols-2 rounded-full bg-[#f4f4f3] p-1">
+    <AccessibleDialog
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      className="rounded-t-[28px] px-5 pb-8 pt-7"
+    >
+        <h2 id={titleId} className="sr-only">选择起卦时间</h2>
+        <button type="button" onClick={onClose} className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-control text-ink" aria-label={ariaLabel}>
+          <X size={19} />
+        </button>
+        <div className="grid h-12 grid-cols-2 rounded-full bg-[#f4f4f3] p-1" role="group" aria-label="时间输入方式">
           {calendarOptions.map((option) => (
             <button
               key={option.value}
               type="button"
+              aria-pressed={draftCalendar === option.value}
               onClick={() => setDraftCalendar(option.value)}
               className={cn(
                 "flex items-center justify-center rounded-full text-[18px] font-semibold transition-colors",
-                draftCalendar === option.value ? "bg-white text-ink shadow-sm" : "text-[#8b8985]"
+                draftCalendar === option.value ? "bg-white text-ink shadow-sm" : "text-mutedInk"
               )}
             >
               {option.label}
@@ -830,21 +830,21 @@ function LiuyaoTimePickerSheet({
 
         {draftCalendar === "solar" ? (
           <div className="mt-6 border-t border-[#f0f0ef] pt-4">
-            <div className="grid grid-cols-5 text-center text-[20px] font-semibold text-[#3d3a36]">
-              <span className="rounded-full bg-[#f4f1ed] py-3 text-[#a99156]">年</span>
-              <span className="py-3">月</span>
-              <span className="py-3">日</span>
-              <span className="py-3">时</span>
-              <span className="py-3">分</span>
-            </div>
-            <div className="relative mt-2 grid h-60 grid-cols-5 overflow-hidden">
-              <div className="pointer-events-none absolute left-0 right-0 top-[96px] h-12 rounded-2xl bg-[#f3f3f2]" />
-              <PickerColumn values={years} selected={draftTime.year} onSelect={(nextValue) => updateTime("year", nextValue)} />
-              <PickerColumn values={months} selected={draftTime.month} onSelect={(nextValue) => updateTime("month", nextValue)} padValue />
-              <PickerColumn values={days} selected={draftTime.day} onSelect={(nextValue) => updateTime("day", nextValue)} padValue />
-              <PickerColumn values={hours} selected={draftTime.hour} onSelect={(nextValue) => updateTime("hour", nextValue)} padValue />
-              <PickerColumn values={minutes} selected={draftTime.minute} onSelect={(nextValue) => updateTime("minute", nextValue)} padValue />
-            </div>
+            <label htmlFor={inputId} className="block text-[17px] font-semibold text-ink">年、月、日、时、分</label>
+            <p id={`${inputId}-hint`} className="mt-1 text-sm leading-6 text-mutedInk">可直接输入，或使用浏览器日期时间选择器。</p>
+            <input
+              id={inputId}
+              data-dialog-autofocus
+              type="datetime-local"
+              min="1920-01-01T00:00"
+              max="2050-12-31T23:59"
+              value={toDateTimeValue(draftTime)}
+              aria-describedby={`${inputId}-hint`}
+              onChange={(event) => {
+                if (event.target.value) setDraftTime(parseDateTimeLocalParts(event.target.value));
+              }}
+              className="mt-4 h-14 w-full rounded-xl border border-controlBorder bg-control px-4 text-base font-semibold text-ink"
+            />
           </div>
         ) : (
           <div className="mt-6 border-t border-[#f0f0ef] pt-4">
@@ -884,8 +884,7 @@ function LiuyaoTimePickerSheet({
             {resolving ? "正在反查" : "确定"}
           </button>
         </div>
-      </section>
-    </div>
+    </AccessibleDialog>
   );
 }
 
@@ -896,96 +895,6 @@ type TimeParts = {
   hour: number;
   minute: number;
 };
-
-function PickerColumn<TValue extends string | number>({
-  values,
-  selected,
-  onSelect,
-  padValue
-}: {
-  values: TValue[];
-  selected: TValue;
-  onSelect: (value: TValue) => void;
-  padValue?: boolean;
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const settleTimerRef = useRef<number | null>(null);
-  const hasPositionedRef = useRef(false);
-  const selectedIndex = Math.max(0, values.indexOf(selected));
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) {
-      return;
-    }
-
-    const top = selectedIndex * PICKER_ITEM_HEIGHT;
-
-    if (!hasPositionedRef.current) {
-      container.scrollTop = top;
-      hasPositionedRef.current = true;
-      return;
-    }
-
-    if (Math.abs(container.scrollTop - top) > 1) {
-      container.scrollTo({ top, behavior: "smooth" });
-    }
-  }, [selectedIndex]);
-
-  useEffect(() => {
-    return () => {
-      if (settleTimerRef.current) {
-        window.clearTimeout(settleTimerRef.current);
-      }
-    };
-  }, []);
-
-  const settleToNearestValue = () => {
-    const container = scrollRef.current;
-    if (!container) {
-      return;
-    }
-
-    const nextIndex = Math.min(values.length - 1, Math.max(0, Math.round(container.scrollTop / PICKER_ITEM_HEIGHT)));
-    const nextValue = values[nextIndex];
-
-    container.scrollTo({ top: nextIndex * PICKER_ITEM_HEIGHT, behavior: "smooth" });
-
-    if (nextValue !== selected) {
-      onSelect(nextValue);
-    }
-  };
-
-  const handleScroll = () => {
-    if (settleTimerRef.current) {
-      window.clearTimeout(settleTimerRef.current);
-    }
-
-    settleTimerRef.current = window.setTimeout(settleToNearestValue, 90);
-  };
-
-  return (
-    <div
-      ref={scrollRef}
-      onScroll={handleScroll}
-      className="relative z-10 h-60 overflow-y-auto snap-y snap-mandatory py-24 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
-      {values.map((item) => (
-        <button
-          key={String(item)}
-          type="button"
-          onClick={() => onSelect(item)}
-          className={cn(
-            "flex h-12 w-full snap-center items-center justify-center text-center text-[20px] font-semibold transition-colors",
-            item === selected ? "text-[26px] text-black" : "text-[#d1d1d1]"
-          )}
-        >
-          {typeof item === "number" && padValue ? pad(item) : item}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function NumberInputRow({
   label,
@@ -998,13 +907,18 @@ function NumberInputRow({
   inputProps: UseFormRegisterReturn;
   last?: boolean;
 }) {
+  const inputId = `liuyao-${inputProps.name}`;
+  const errorId = `${inputId}-error`;
+
   return (
     <div className={cn("py-4", !last && "border-b border-[#ebe7dd]")}>
       <div className="grid grid-cols-[104px_1fr] items-center gap-3">
-        <label className="whitespace-nowrap text-center text-[18px] font-semibold text-ink">{label}</label>
+        <label htmlFor={inputId} className="whitespace-nowrap text-center text-[18px] font-semibold text-ink">{label}</label>
         <input
           {...inputProps}
-          aria-label={label}
+          id={inputId}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
           inputMode="numeric"
           maxLength={3}
           onInput={(event) => {
@@ -1013,6 +927,7 @@ function NumberInputRow({
           className="h-11 min-w-0 rounded-lg border border-[#d8c8a6] bg-[#fffef7] px-3 text-center text-[18px] font-semibold text-ink outline-none"
         />
       </div>
+      {error ? <p id={errorId} className="mt-2 text-right text-sm text-red-700" role="alert">{error}</p> : null}
     </div>
   );
 }
@@ -1084,7 +999,7 @@ function ManualLinePreview({
           )}
         </span>
       </span>
-      <span className="text-right text-[14px] font-semibold text-[#aaa8a1]">{option?.label ?? "请选择"}</span>
+      <span className="text-right text-[14px] font-semibold text-mutedInk">{option?.label ?? "请选择"}</span>
     </button>
   );
 }
@@ -1102,14 +1017,21 @@ function ManualLinePickerSheet({
   onClose: () => void;
   onSelect: (value: ManualLineValue) => void;
 }) {
+  const titleId = useId();
+
   if (!open) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-8">
-      <button className="absolute inset-0 cursor-default" type="button" aria-label="关闭爻位选择弹窗" onClick={onClose} />
-      <section className="relative w-full max-w-[340px] rounded-2xl bg-[#fffef7] px-6 pb-6 pt-5 shadow-soft">
+    <AccessibleDialog
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      placement="center"
+      overlayClassName="bg-black/50 px-8"
+      className="max-w-[340px] rounded-2xl bg-[#fffef7] px-6 pb-6 pt-5"
+    >
         <button
           type="button"
           onClick={onClose}
@@ -1118,12 +1040,13 @@ function ManualLinePickerSheet({
         >
           <X size={28} strokeWidth={2.2} />
         </button>
-        <h2 className="mt-8 text-center text-[25px] font-semibold text-[#32302d]">选择{label}</h2>
+        <h2 id={titleId} className="mt-8 text-center text-[25px] font-semibold text-[#32302d]">选择{label}</h2>
         <div className="mt-6 grid grid-cols-2 gap-4">
           {manualLineOptions.map((option) => (
           <button
             key={option.value}
             type="button"
+            aria-pressed={option.value === value}
             onClick={() => onSelect(option.value)}
             className={cn(
               "grid min-h-12 grid-cols-[42px_1fr] items-center rounded-lg border-2 px-2 text-left text-[16px] font-semibold",
@@ -1139,8 +1062,7 @@ function ManualLinePickerSheet({
           </button>
         ))}
         </div>
-      </section>
-    </div>
+    </AccessibleDialog>
   );
 }
 
@@ -1296,14 +1218,21 @@ function SimpleOptionSheet<TValue extends string>({
   onClose: () => void;
   onSelect: (value: TValue) => void;
 }) {
+  const titleId = useId();
+
   if (!open) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-8">
-      <button className="absolute inset-0 cursor-default" type="button" aria-label="关闭选择弹窗" onClick={onClose} />
-      <section className="relative w-full max-w-[340px] rounded-2xl bg-[#fffef7] px-6 pb-6 pt-5 shadow-soft">
+    <AccessibleDialog
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      placement="center"
+      overlayClassName="bg-black/50 px-8"
+      className="max-w-[340px] rounded-2xl bg-[#fffef7] px-6 pb-6 pt-5"
+    >
         <button
           type="button"
           onClick={onClose}
@@ -1312,12 +1241,13 @@ function SimpleOptionSheet<TValue extends string>({
         >
           <X size={28} strokeWidth={2.2} />
         </button>
-        <h2 className="mt-8 text-center text-[25px] font-semibold text-[#32302d]">{title}</h2>
+        <h2 id={titleId} className="mt-8 text-center text-[25px] font-semibold text-[#32302d]">{title}</h2>
         <div className="mt-6 grid max-h-[56vh] grid-cols-2 gap-4 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {options.map((option) => (
             <button
               key={option.value}
               type="button"
+              aria-pressed={option.value === value}
               onClick={() => onSelect(option.value)}
               className={cn(
                 "min-h-12 rounded-lg border-2 px-2 text-[18px] font-semibold leading-tight",
@@ -1328,8 +1258,7 @@ function SimpleOptionSheet<TValue extends string>({
             </button>
           ))}
         </div>
-      </section>
-    </div>
+    </AccessibleDialog>
   );
 }
 
@@ -1404,14 +1333,6 @@ function parseDateTimeLocalParts(value: string): TimeParts {
 
 function toDateTimeValue(value: TimeParts) {
   return `${value.year}-${pad(value.month)}-${pad(value.day)}T${pad(value.hour)}:${pad(value.minute)}`;
-}
-
-function buildNumberRange(start: number, end: number) {
-  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
-}
-
-function getDaysInMonth(year: number, month: number) {
-  return new Date(year, month, 0).getDate();
 }
 
 function pad(value: number) {

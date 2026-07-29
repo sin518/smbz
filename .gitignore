@@ -22,6 +22,7 @@ node_modules
 /主页/
 /taibu-master/
 /task/
-
+/frontend/playwright-report/
+/frontend/test-results/
 
 

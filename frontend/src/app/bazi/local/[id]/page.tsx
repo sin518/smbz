@@ -27,7 +27,7 @@ export default function LocalBaziPage() {
   }, [id]);
 
   if (!ready) {
-    return <main className="app-responsive-shell min-h-screen bg-paper shadow-soft" />;
+    return <main className="app-responsive-shell min-h-screen bg-paper shadow-soft"><h1 className="sr-only">正在加载八字命盘</h1></main>;
   }
 
   if (!record) {

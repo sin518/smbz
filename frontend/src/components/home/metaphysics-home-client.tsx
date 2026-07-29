@@ -62,7 +62,7 @@ export function MetaphysicsHomeClient() {
     <main className="light-surface-text-scope app-responsive-shell relative flex h-dvh flex-col overflow-hidden bg-[#F8F7EE] text-ink shadow-soft">
       <header className="liquid-glass absolute inset-x-0 top-0 z-20 flex h-[80px] shrink-0 flex-col items-center justify-center border-b border-white/55 px-5">
         <h1 className="shrink-0 text-center text-[24px] font-semibold leading-none tracking-[0.04em] text-black sm:text-[26px]">赛博排盘</h1>
-        <div className="mt-2.5 flex w-full min-w-0 items-center justify-center gap-2.5 text-[#a28e66]" aria-hidden="true">
+        <div className="mt-2.5 flex w-full min-w-0 items-center justify-center gap-2.5 text-mutedInk" aria-hidden="true">
           <span className="h-px w-6 shrink-0 bg-[#d9c9a3]" />
           <p className="min-w-0 truncate text-center text-[11px] font-medium tracking-[0.1em] sm:text-[12px]">选择一种排盘方式</p>
           <span className="h-px w-6 shrink-0 bg-[#d9c9a3]" />
@@ -107,7 +107,7 @@ function HomeFeatureCard({ card }: { card: HomeCard }) {
         <div className="flex items-end justify-between gap-3 pl-1">
           <p className="text-[16px] font-medium leading-snug text-[#74716a] sm:text-[18px]">{card.subtitle}</p>
           {card.suitable ? (
-            <div className="shrink-0 rounded-full border border-[#ead9b4] bg-[#fbf4e4] px-2.5 py-1 text-right text-[11px] font-medium leading-[1.25] text-[#9a7a39] sm:text-[12px]">
+            <div className="shrink-0 rounded-full border border-[#ead9b4] bg-[#fbf4e4] px-2.5 py-1 text-right text-[11px] font-medium leading-[1.25] text-gold sm:text-[12px]">
               {card.suitable.map((line) => (
                 <p key={line}>{line}</p>
               ))}

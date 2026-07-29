@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { BaziChartView, type BaziTab } from "@/components/bazi/bazi-chart-view";
 import type { DemoBaziChart } from "@/lib/bazi/demo";
@@ -19,6 +20,10 @@ type SavedBaziChart = {
   latitude?: number | null;
   useSolarTime: boolean;
   chartJson: DemoBaziChart;
+};
+
+export const metadata: Metadata = {
+  title: "八字命盘"
 };
 
 export default async function SavedBaziPage({ params, searchParams }: SavedBaziPageProps) {

@@ -402,10 +402,11 @@ export default function RecordsPage() {
             ) : null}
           </div>
         </div>
-        <label className="mt-4 flex h-12 items-center gap-3 rounded-[18px] border border-white/70 bg-[var(--glass-surface)] px-4 text-[#8b8985] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+        <label className="mt-4 flex h-12 items-center gap-3 rounded-[18px] border border-white/70 bg-[var(--glass-surface)] px-4 text-mutedInk shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
           <Search size={20} className="shrink-0" />
           <input
             type="search"
+            aria-label="搜索排盘记录"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="搜索姓名、地点、四柱、占事"
@@ -422,7 +423,7 @@ export default function RecordsPage() {
               className={cn(
                 "h-8 shrink-0 rounded-full border px-3.5 text-[12px] font-semibold transition-colors",
                 activeFilter === filter.value
-                  ? "border-[#b88b2d] bg-[#b88b2d] text-white"
+                  ? "border-[#765b18] bg-[#765b18] text-white"
                   : "border-[#ded2b8] bg-[#fffdf7]/75 text-mutedInk"
               )}
             >
@@ -541,7 +542,7 @@ export default function RecordsPage() {
                   </span>
                   <span className="mt-1 block text-[13px] leading-5 text-mutedInk">{group.description}</span>
                 </span>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f6f0e2] text-[#a58024]">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f6f0e2] text-gold">
                   <ChevronDown
                     size={20}
                     className={openGroups[group.key] ? "rotate-180 transition-transform" : "transition-transform"}
@@ -569,8 +570,8 @@ export default function RecordsPage() {
         </section>
       ) : (
         <section className="px-4 pt-5">
-          <div className="rounded-[22px] border border-[#e5d8bc] bg-[#fffdf7] p-6 text-center shadow-soft">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#f6f0e2] text-[#a58024]">
+          <div className="rounded-[22px] border border-[#e5d8bc] bg-[#fffdf7] p-6 text-center shadow-soft" role="status" aria-live="polite">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#f6f0e2] text-gold">
               <Search size={27} />
             </div>
             <h2 className="mt-4 text-[22px] font-semibold">{hasActiveFilters ? "没有匹配的记录" : "暂无本机记录"}</h2>
@@ -630,7 +631,7 @@ function RecordCard({
             aria-pressed={selected}
             className={cn(
               "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
-              selected ? "border-[#b88b2d] bg-[#b88b2d] text-white" : "border-[#cfc4aa] bg-white/70 text-transparent"
+              selected ? "border-[#765b18] bg-[#765b18] text-white" : "border-[#cfc4aa] bg-white/70 text-transparent"
             )}
           >
             <Check size={15} strokeWidth={2.4} />
@@ -645,7 +646,7 @@ function RecordCard({
             <h2 className="truncate text-[21px] font-semibold">{getRecordTitle(item)}</h2>
             {item.kind === "bazi" ? (
               <>
-                <span className="rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[12px] font-semibold text-[#a58024]">
+                <span className="rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[12px] font-semibold text-gold">
                   {item.record.gender === "female" ? "女" : "男"}
                 </span>
                 <SyncBadge status={item.record.syncStatus} />
@@ -714,7 +715,7 @@ function SyncBadge({ status }: { status: LocalBaziRecord["syncStatus"] }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[11px] font-semibold text-[#a58024]">
+    <span className="inline-flex items-center gap-1 rounded-full bg-[#f6f0e2] px-2 py-0.5 text-[11px] font-semibold text-gold">
       <CloudOff size={12} />
       待同步
     </span>

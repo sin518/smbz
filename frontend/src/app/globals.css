@@ -4,8 +4,8 @@
 
 :root {
   --color-ink: #2f2d2a;
-  --color-muted-ink: #898783;
-  --color-gold: #b79a5b;
+  --color-muted-ink: #68645d;
+  --color-gold: #765b18;
   --color-paper: #F8F7EE;
   --color-surface: #ffffff;
   --color-header: #F8F7EE;
@@ -14,11 +14,12 @@
   --color-control-border: #e0dbce;
   --color-primary: #000000;
   --color-primary-text: #e8d4a7;
-  --color-secondary-text: #9d9a92;
-  --color-icon: #a58024;
-  --color-chevron: #a9a59d;
-  --color-nav-text: #77777b;
-  --color-danger: #d93025;
+  --color-secondary-text: #625e57;
+  --color-icon: #765b18;
+  --color-chevron: #65615b;
+  --color-nav-text: #5f5b62;
+  --color-danger: #b42318;
+  --color-focus: #765b18;
   --glass-surface: rgba(255, 255, 255, 0.52);
   --glass-highlight: rgba(255, 255, 255, 0.78);
   --shadow-soft: 0 16px 40px rgba(16, 14, 10, 0.06);
@@ -43,6 +44,7 @@
   --color-chevron: #c4c4c8;
   --color-nav-text: #a7a7ad;
   --color-danger: #ff6b6b;
+  --color-focus: #f0cf7a;
   --glass-surface: rgba(28, 29, 33, 0.58);
   --glass-highlight: rgba(255, 255, 255, 0.13);
   --shadow-soft: 0 18px 46px rgba(0, 0, 0, 0.38);
@@ -64,11 +66,16 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
 .light-surface-text-scope {
   --color-ink: #2f2d2a;
-  --color-muted-ink: #898783;
-  --color-gold: #b79a5b;
-  --color-secondary-text: #8b8985;
+  --color-muted-ink: #68645d;
+  --color-gold: #765b18;
+  --color-secondary-text: #625e57;
 }
 
 :root[data-theme="dark"] .light-surface-text-scope {
@@ -76,6 +83,23 @@ body {
   --color-muted-ink: #b8b8bd;
   --color-gold: #f4f4f5;
   --color-secondary-text: #d8d8dc;
+}
+
+:root:not([data-theme="dark"]) .app-responsive-shell [class*="text-[#4caf50]"] {
+  color: #1f6b37;
+}
+
+:root:not([data-theme="dark"]) .app-responsive-shell [class*="text-[#3f7edb]"],
+:root:not([data-theme="dark"]) .app-responsive-shell [class*="text-[#2f72b8]"] {
+  color: #245f9e;
+}
+
+:root:not([data-theme="dark"]) .app-responsive-shell [class*="text-[#c9432f]"] {
+  color: var(--color-danger);
+}
+
+:root:not([data-theme="dark"]) .app-responsive-shell [class*="bg-[#a58024]"] {
+  background-color: var(--color-gold);
 }
 
 .qimen-chart-scope {
@@ -421,6 +445,34 @@ button {
   }
 }
 
+.admin-shell {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.admin-data-grid {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+@media (max-width: 600px) {
+  .admin-shell .RaList-actions,
+  .admin-shell .RaListToolbar-toolbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .admin-shell .MuiTablePagination-toolbar {
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
 @keyframes agreement-shake {
   0%,
   100% {
@@ -433,6 +485,18 @@ button {
   40%,
   80% {
     transform: translateX(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }
 
@@ -508,14 +572,12 @@ button {
 .liuyao-mist-one {
   top: 31%;
   height: 13%;
-  animation: liuyao-mist-drift 9s ease-in-out infinite alternate;
 }
 
 .liuyao-mist-two {
   top: 45%;
   height: 18%;
   opacity: 0.66;
-  animation: liuyao-mist-drift 12s ease-in-out infinite alternate-reverse;
 }
 
 .liuyao-shell {
@@ -744,15 +806,6 @@ button {
     -32px 13px rgba(255, 250, 182, 0.86),
     0 -13px rgba(255, 250, 182, 0.86),
     -32px -13px rgba(255, 250, 182, 0.86);
-}
-
-@keyframes liuyao-mist-drift {
-  from {
-    transform: translateX(-2%);
-  }
-  to {
-    transform: translateX(4%);
-  }
 }
 
 @keyframes sync-progress {

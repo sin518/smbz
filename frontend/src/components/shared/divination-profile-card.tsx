@@ -2,7 +2,7 @@
 
 import { CalendarClock, ChevronDown, Loader2, Trash2, UserRound, Users, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 import type { BaziPillarsResolveCandidate } from "taibu-core";
@@ -12,6 +12,7 @@ import {
   GanzhiPillarSelector,
   type GanzhiPillarSelection
 } from "@/components/shared/ganzhi-pillar-selector";
+import { AccessibleDialog } from "@/components/shared/accessible-dialog";
 import { cn } from "@/lib/utils";
 
 type GenderValue = "male" | "female";
@@ -59,15 +60,20 @@ export function DivinationProfileCard({
   showDateTime = true
 }: DivinationProfileCardProps) {
   const [profileSheetOpen, setProfileSheetOpen] = useState(false);
+  const nameId = useId();
+  const nameErrorId = `${nameId}-error`;
 
   return (
     <SharedFormCard className={cardClassName}>
       {header}
-      <SharedFieldRow icon={UserRound} label="姓名" error={nameError}>
+      <SharedFieldRow icon={UserRound} label="姓名" error={nameError} controlId={nameId}>
         <div className="flex min-w-0 items-center justify-end gap-2">
           <input
             {...nameInputProps}
-            className="min-w-0 flex-1 bg-transparent text-right text-[18px] font-semibold text-ink outline-none placeholder:text-[#bdbbb5]"
+            id={nameId}
+            aria-invalid={Boolean(nameError)}
+            aria-describedby={nameError ? nameErrorId : undefined}
+            className="min-w-0 flex-1 bg-transparent text-right text-[18px] font-semibold text-ink placeholder:text-[#77736c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#765b18]"
             placeholder="请输入姓名"
           />
           <button
@@ -97,7 +103,7 @@ export function DivinationProfileCard({
           <button
             type="button"
             onClick={onOpenTimePicker}
-            className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#aaa8a1]"
+            className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-mutedInk"
             aria-label="选择出生时间"
           >
             {dateTime ? formatPickerLabel(dateTime) : "请选择"}
@@ -126,6 +132,7 @@ function SharedProfileSheet({
   onClose: () => void;
   onApply: (profile: SharedProfileValue) => void;
 }) {
+  const titleId = useId();
   const [profiles, setProfiles] = useState<SharedProfileValue[]>([]);
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [cloudUnavailable, setCloudUnavailable] = useState(false);
@@ -202,14 +209,18 @@ function SharedProfileSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
-      <button className="absolute inset-0 cursor-default" type="button" aria-label="关闭档案选择" onClick={onClose} />
-      <section className="relative w-full max-w-[430px] rounded-t-[24px] bg-[#fffef7] px-5 pb-7 pt-5 shadow-soft">
+    <AccessibleDialog
+      open
+      onClose={onClose}
+      labelledBy={titleId}
+      overlayClassName="bg-black/50"
+      className="rounded-t-[24px] bg-[#fffef7] px-5 pb-7 pt-5"
+    >
         <button type="button" onClick={onClose} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center text-[#77736b]" aria-label="关闭">
           <X size={25} />
         </button>
-        <h2 className="pr-12 text-[23px] font-semibold text-ink">选择通用档案</h2>
-        <p className="mt-1 text-[14px] leading-6 text-[#8f8b82]">八字、紫微、六爻、奇门共用姓名、性别和出生时间。</p>
+        <h2 id={titleId} className="pr-12 text-[23px] font-semibold text-ink">选择通用档案</h2>
+        <p className="mt-1 text-[14px] leading-6 text-mutedInk">八字、紫微、六爻、奇门共用姓名、性别和出生时间。</p>
         {cloudUnavailable ? (
           <p className="mt-3 rounded-xl bg-[#f8f3e7] px-3 py-2 text-[13px] leading-5 text-[#9b761f]">
             云端档案暂时不可用，已优先显示本机最近保存的资料。
@@ -219,7 +230,7 @@ function SharedProfileSheet({
         {status === "loading" ? (
           <div className="mt-5 rounded-xl bg-white px-4 py-5 text-center shadow-sm">
             <p className="text-[18px] font-semibold text-ink">正在读取档案</p>
-            <p className="mt-2 text-[14px] leading-6 text-[#8f8b82]">会同时检查本机最近资料和当前账号档案。</p>
+            <p className="mt-2 text-[14px] leading-6 text-mutedInk">会同时检查本机最近资料和当前账号档案。</p>
           </div>
         ) : profiles.length > 0 ? (
           <div className="mt-5 max-h-[58vh] space-y-3 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -233,12 +244,12 @@ function SharedProfileSheet({
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-[18px] font-semibold text-ink">{group.source}</span>
-                    <span className="mt-1 block text-[14px] font-semibold text-[#8f8b82]">{group.profiles.length} 份档案</span>
+                    <span className="mt-1 block text-[14px] font-semibold text-mutedInk">{group.profiles.length} 份档案</span>
                   </span>
                   <ChevronDown
                     size={22}
                     strokeWidth={2.4}
-                    className={cn("shrink-0 text-[#a58024] transition-transform", openSource === group.source && "rotate-180")}
+                    className={cn("shrink-0 text-gold transition-transform", openSource === group.source && "rotate-180")}
                   />
                 </button>
 
@@ -274,11 +285,10 @@ function SharedProfileSheet({
         ) : (
           <div className="mt-5 rounded-xl bg-white px-4 py-5 text-center shadow-sm">
             <p className="text-[18px] font-semibold text-ink">暂无可用档案</p>
-            <p className="mt-2 text-[14px] leading-6 text-[#8f8b82]">保存一次八字、六爻、奇门或紫微资料后，这里会自动显示。</p>
+            <p className="mt-2 text-[14px] leading-6 text-mutedInk">保存一次八字、六爻、奇门或紫微资料后，这里会自动显示。</p>
           </div>
         )}
-      </section>
-    </div>
+    </AccessibleDialog>
   );
 }
 
@@ -290,25 +300,27 @@ export function SharedFieldRow({
   icon: Icon,
   label,
   error,
+  controlId,
   last,
   children
 }: {
   icon: LucideIcon;
   label: string;
   error?: string;
+  controlId?: string;
   last?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className={cn("py-4", !last && "border-b border-[#ebe7dd]")}>
       <div className="grid grid-cols-[minmax(88px,112px)_minmax(0,1fr)] items-center gap-2">
-        <label className="flex items-center gap-2 whitespace-nowrap text-[18px] font-semibold text-ink">
-          <Icon size={19} className="text-[#a58024]" />
+        <label htmlFor={controlId} className="flex items-center gap-2 whitespace-nowrap text-[18px] font-semibold text-ink">
+          <Icon size={19} className="text-gold" />
           {label}
         </label>
         {children}
       </div>
-      {error ? <p className="mt-2 text-right text-sm text-red-600">{error}</p> : null}
+      {error ? <p id={controlId ? `${controlId}-error` : undefined} className="mt-2 text-right text-sm text-red-700" role="alert">{error}</p> : null}
     </div>
   );
 }
@@ -333,7 +345,7 @@ export function SharedSegmentedPill<TValue extends string>({
           onClick={() => onChange(option.value)}
           className={cn(
             "rounded-full text-[19px] font-semibold leading-none transition-colors",
-            option.value === value ? "bg-black text-[#e8d4a7]" : "text-[#8b8985]"
+            option.value === value ? "bg-black text-[#e8d4a7]" : "text-mutedInk"
           )}
         >
           {option.label}
@@ -349,27 +361,28 @@ export function DivinationTimePickerSheet({
   onClose,
   onConfirm,
   header,
-  ariaLabel = "关闭时间选择"
+  title = "选择时间",
+  ariaLabel = "关闭时间选择",
+  returnFocusRef
 }: {
   open: boolean;
   value: string;
   onClose: () => void;
   onConfirm: (value: string) => void;
   header?: ReactNode;
+  title?: string;
   ariaLabel?: string;
+  returnFocusRef?: React.RefObject<HTMLElement | null>;
 }) {
   const [draft, setDraft] = useState(() => parseDateTime(value));
+  const titleId = useId();
+  const inputId = useId();
   const [draftMode, setDraftMode] = useState<"solar" | "pillars">("solar");
   const [pillars, setPillars] = useState<GanzhiPillarSelection>(() => getGanzhiPillars(value));
   const [resolveStatus, setResolveStatus] = useState<"idle" | "loading" | "choosing">("idle");
   const [resolveError, setResolveError] = useState("");
   const [candidates, setCandidates] = useState<BaziPillarsResolveCandidate[]>([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
-  const years = useMemo(() => buildNumberRange(1920, 2050), []);
-  const months = useMemo(() => buildNumberRange(1, 12), []);
-  const hours = useMemo(() => buildNumberRange(0, 23), []);
-  const minutes = useMemo(() => buildNumberRange(0, 59), []);
-  const days = useMemo(() => buildNumberRange(1, getDaysInMonth(draft.year, draft.month)), [draft.month, draft.year]);
 
   useEffect(() => {
     if (open) {
@@ -382,21 +395,6 @@ export function DivinationTimePickerSheet({
       setSelectedCandidateId(null);
     }
   }, [open, value]);
-
-  useEffect(() => {
-    const maxDay = getDaysInMonth(draft.year, draft.month);
-    if (draft.day > maxDay) {
-      setDraft((current) => ({ ...current, day: maxDay }));
-    }
-  }, [draft.day, draft.month, draft.year]);
-
-  if (!open) {
-    return null;
-  }
-
-  const updateDraft = (key: keyof TimeParts, nextValue: number) => {
-    setDraft((current) => ({ ...current, [key]: nextValue }));
-  };
 
   const confirmPillars = async () => {
     setResolveStatus("loading");
@@ -427,37 +425,51 @@ export function DivinationTimePickerSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/65">
-      <button className="absolute inset-0 cursor-default" type="button" aria-label={ariaLabel} onClick={onClose} />
-      <section className="relative w-full max-w-[430px] rounded-t-[28px] bg-white px-5 pb-8 pt-7 shadow-soft">
+    <AccessibleDialog
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      returnFocusRef={returnFocusRef}
+      className="rounded-t-[28px] px-5 pb-8 pt-7"
+    >
+        <h2 id={titleId} className="sr-only">{title}</h2>
         {header ?? (
-          <div className="grid h-12 grid-cols-2 rounded-full bg-[#f4f4f3] p-1" role="tablist" aria-label="选择时间输入方式">
+          <div className="grid h-12 grid-cols-2 rounded-full bg-[#f4f4f3] p-1" role="group" aria-label="选择时间输入方式">
             {([['公历', 'solar'], ['农历', 'pillars']] as const).map(([label, mode]) => (
-              <button key={mode} type="button" role="tab" aria-selected={draftMode === mode} onClick={() => { setDraftMode(mode); setResolveStatus("idle"); setResolveError(""); }} className={cn("rounded-full text-[18px] font-semibold", draftMode === mode ? "bg-white text-ink shadow-sm" : "text-[#8b8985]")}>{label}</button>
+              <button key={mode} type="button" aria-pressed={draftMode === mode} onClick={() => { setDraftMode(mode); setResolveStatus("idle"); setResolveError(""); }} className={cn("rounded-full text-[18px] font-semibold", draftMode === mode ? "bg-white text-ink shadow-sm" : "text-mutedInk")}>{label}</button>
             ))}
           </div>
         )}
+        <button type="button" onClick={onClose} className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-control text-ink" aria-label={ariaLabel}>
+          <X size={19} />
+        </button>
 
         {draftMode === "solar" || header ? <div className="mt-6 border-t border-[#f0f0ef] pt-4">
-          <div className="grid grid-cols-5 text-center text-[20px] font-semibold text-[#3d3a36]">
-            <span className="rounded-full bg-[#f4f1ed] py-3 text-[#a99156]">年</span>
-            <span className="py-3">月</span>
-            <span className="py-3">日</span>
-            <span className="py-3">时</span>
-            <span className="py-3">分</span>
-          </div>
-          <div className="relative mt-2 grid h-60 grid-cols-5 overflow-hidden">
-            <div className="pointer-events-none absolute left-0 right-0 top-[96px] h-12 rounded-2xl bg-[#f3f3f2]" />
-            <PickerColumn values={years} selected={draft.year} onSelect={(nextValue) => updateDraft("year", nextValue)} />
-            <PickerColumn values={months} selected={draft.month} onSelect={(nextValue) => updateDraft("month", nextValue)} padValue />
-            <PickerColumn values={days} selected={draft.day} onSelect={(nextValue) => updateDraft("day", nextValue)} padValue />
-            <PickerColumn values={hours} selected={draft.hour} onSelect={(nextValue) => updateDraft("hour", nextValue)} padValue />
-            <PickerColumn values={minutes} selected={draft.minute} onSelect={(nextValue) => updateDraft("minute", nextValue)} padValue />
-          </div>
+          <label htmlFor={inputId} className="block text-[17px] font-semibold text-ink">
+            年、月、日、时、分
+          </label>
+          <p id={`${inputId}-hint`} className="mt-1 text-sm leading-6 text-mutedInk">
+            可直接输入完整日期和时间，或使用浏览器提供的日期时间选择器。
+          </p>
+          <input
+            id={inputId}
+            data-dialog-autofocus
+            type="datetime-local"
+            min="1920-01-01T00:00"
+            max="2050-12-31T23:59"
+            value={toDateTimeValue(draft)}
+            aria-describedby={`${inputId}-hint`}
+            onChange={(event) => {
+              if (event.target.value) {
+                setDraft(parseDateTime(event.target.value));
+              }
+            }}
+            className="mt-4 h-14 w-full rounded-xl border border-controlBorder bg-control px-4 text-base font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#765b18]"
+          />
         </div> : resolveStatus === "choosing" ? (
           <div className="mt-6 border-t border-[#f0f0ef] pt-4">
             <h2 className="text-lg font-semibold text-ink">选择匹配的时间</h2>
-            <p className="mt-1 text-sm text-[#8b8985]">同一组四柱可能每隔六十年再次出现。</p>
+            <p className="mt-1 text-sm text-mutedInk">同一组四柱可能每隔六十年再次出现。</p>
             <div className="mt-3 max-h-[330px] space-y-2 overflow-y-auto">
               {candidates.map((candidate) => (
                 <label key={candidate.candidateId} className={cn("flex cursor-pointer gap-3 rounded-2xl border px-4 py-3", selectedCandidateId === candidate.candidateId ? "border-[#a58024] bg-[#fbf6e9]" : "border-[#e8e4da]") }>
@@ -469,7 +481,7 @@ export function DivinationTimePickerSheet({
           </div>
         ) : (
           <div className="mt-6 border-t border-[#f0f0ef] pt-4">
-            <p className="mb-3 text-center text-sm text-[#8b8985]">按六旬选择年、月、日、时四柱</p>
+            <p className="mb-3 text-center text-sm text-mutedInk">按六旬选择年、月、日、时四柱</p>
             <GanzhiPillarSelector value={pillars} onChange={(nextValue) => { setPillars(nextValue); setResolveError(""); }} />
           </div>
         )}
@@ -493,8 +505,7 @@ export function DivinationTimePickerSheet({
             {resolveStatus === "loading" ? "正在反查" : resolveStatus === "choosing" ? "使用此时间" : "确定"}
           </button>
         </div>
-      </section>
-    </div>
+    </AccessibleDialog>
   );
 }
 
@@ -516,96 +527,6 @@ type TimeParts = {
   hour: number;
   minute: number;
 };
-
-function PickerColumn({
-  values,
-  selected,
-  onSelect,
-  padValue
-}: {
-  values: number[];
-  selected: number;
-  onSelect: (value: number) => void;
-  padValue?: boolean;
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const settleTimerRef = useRef<number | null>(null);
-  const hasPositionedRef = useRef(false);
-  const selectedIndex = Math.max(0, values.indexOf(selected));
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) {
-      return;
-    }
-
-    const top = selectedIndex * PICKER_ITEM_HEIGHT;
-
-    if (!hasPositionedRef.current) {
-      container.scrollTop = top;
-      hasPositionedRef.current = true;
-      return;
-    }
-
-    if (Math.abs(container.scrollTop - top) > 1) {
-      container.scrollTo({ top, behavior: "smooth" });
-    }
-  }, [selectedIndex]);
-
-  useEffect(() => {
-    return () => {
-      if (settleTimerRef.current) {
-        window.clearTimeout(settleTimerRef.current);
-      }
-    };
-  }, []);
-
-  const settleToNearestValue = () => {
-    const container = scrollRef.current;
-    if (!container) {
-      return;
-    }
-
-    const nextIndex = Math.min(values.length - 1, Math.max(0, Math.round(container.scrollTop / PICKER_ITEM_HEIGHT)));
-    const nextValue = values[nextIndex];
-
-    container.scrollTo({ top: nextIndex * PICKER_ITEM_HEIGHT, behavior: "smooth" });
-
-    if (nextValue !== selected) {
-      onSelect(nextValue);
-    }
-  };
-
-  const handleScroll = () => {
-    if (settleTimerRef.current) {
-      window.clearTimeout(settleTimerRef.current);
-    }
-
-    settleTimerRef.current = window.setTimeout(settleToNearestValue, 90);
-  };
-
-  return (
-    <div
-      ref={scrollRef}
-      onScroll={handleScroll}
-      className="relative z-10 h-60 overflow-y-auto snap-y snap-mandatory py-24 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
-      {values.map((item) => (
-        <button
-          key={item}
-          type="button"
-          onClick={() => onSelect(item)}
-          className={cn(
-            "flex h-12 w-full snap-center items-center justify-center text-center text-[20px] font-semibold transition-colors",
-            item === selected ? "text-[26px] text-black" : "text-[#d1d1d1]"
-          )}
-        >
-          {padValue ? pad(item) : item}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export function formatDateTimeLocal(date: Date) {
   const offset = date.getTimezoneOffset();
@@ -834,16 +755,6 @@ function toDateTimeValue(value: TimeParts) {
   return `${value.year}-${pad(value.month)}-${pad(value.day)}T${pad(value.hour)}:${pad(value.minute)}`;
 }
 
-function getDaysInMonth(year: number, month: number) {
-  return new Date(year, month, 0).getDate();
-}
-
-function buildNumberRange(start: number, end: number) {
-  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
-}
-
 function pad(value: number) {
   return String(value).padStart(2, "0");
 }
-
-const PICKER_ITEM_HEIGHT = 48;

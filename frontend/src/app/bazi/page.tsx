@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BaziHomeClient } from "@/components/bazi/bazi-home-client";
 
@@ -8,3 +9,6 @@ export default function BaziPage() {
     </Suspense>
   );
 }
+export const metadata: Metadata = {
+  title: "八字排盘"
+};

@@ -63,7 +63,7 @@ export function BaziInfoCategoryTabs() {
               "relative min-h-11 min-w-0 px-1 text-[12px] font-semibold leading-5 transition",
               activeCategory === category
                 ? "text-[#982f27] after:absolute after:bottom-0 after:left-1/2 after:h-[2px] after:w-6 after:-translate-x-1/2 after:rounded-full after:bg-[#b6382d]"
-                : "text-[#81796d] hover:text-[#93651b]"
+                : "text-mutedInk hover:text-[#93651b]"
             )}
           >
             {category}

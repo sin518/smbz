@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef } from "react";
 import type { QimenOutput } from "taibu-core/qimen";
 import { useCachedAiCommand } from "@/components/shared/use-cached-ai-command";
 import { useCopyFeedback } from "@/components/shared/use-copy-feedback";
+import { AccessibleDialog } from "@/components/shared/accessible-dialog";
 import { buildQimenAiCommandText, type QimenAiCommandFocus } from "@/lib/ai/qimen-command";
 
 type QimenChart = QimenOutput;
@@ -38,15 +39,16 @@ export function QimenAiCommandModal({ chart, focus = "全项", onClose }: QimenA
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/62 px-3 py-3">
-      <section
-        className="flex max-h-[96dvh] w-full max-w-[386px] flex-col overflow-hidden rounded-[18px] bg-[var(--color-surface)] text-ink shadow-[0_22px_80px_rgba(0,0,0,0.3)]"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="qimen-ai-command-title"
-      >
+    <AccessibleDialog
+      open
+      onClose={onClose}
+      labelledBy="qimen-ai-command-title"
+      placement="center"
+      overlayClassName="bg-black/62 px-3 py-3"
+      className="flex max-h-[96dvh] max-w-[386px] flex-col overflow-hidden rounded-[18px] bg-[var(--color-surface)] text-ink shadow-[0_22px_80px_rgba(0,0,0,0.3)]"
+    >
         <header className="relative flex min-h-[52px] items-center justify-center border-b border-[var(--color-row-border)] px-12">
-          <h2 id="qimen-ai-command-title" className="text-[24px] font-extrabold tracking-normal">
+          <h2 id="qimen-ai-command-title" tabIndex={-1} data-dialog-autofocus className="text-[24px] font-extrabold tracking-normal">
             AI指令复制
           </h2>
           <button
@@ -102,9 +104,11 @@ export function QimenAiCommandModal({ chart, focus = "全项", onClose }: QimenA
           >
             {copyStatus === "copied" ? "已复制AI指令" : copyStatus === "selected" ? "已选中AI指令" : "复制AI指令"}
           </button>
+          <p className="sr-only" role="status" aria-live="polite">
+            {copyStatus === "copied" ? "AI 指令已复制" : copyStatus === "selected" ? "复制失败，已选中文本" : ""}
+          </p>
         </div>
-      </section>
-    </div>
+    </AccessibleDialog>
   );
 }
 

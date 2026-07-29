@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { MetaphysicsHomeClient } from "@/components/home/metaphysics-home-client";
 
@@ -8,3 +9,8 @@ export default function HomePage() {
     </Suspense>
   );
 }
+export const metadata: Metadata = {
+  title: {
+    absolute: "首页｜赛博排盘"
+  }
+};

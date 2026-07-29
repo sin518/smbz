@@ -1,4 +1,9 @@
+import type { Metadata } from "next";
 import { LegalDocumentPage, type LegalSection } from "@/components/settings/legal-document-page";
+
+export const metadata: Metadata = {
+  title: "用户协议"
+};
 
 const sections: LegalSection[] = [
   {

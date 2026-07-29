@@ -57,7 +57,7 @@ export function LegalDocumentPage({
           ))}
         </div>
 
-        <p className="mt-10 border-t border-[#e5decb] pt-5 text-[13px] leading-6 text-[#9b9383]">
+        <p className="mt-10 border-t border-[#e5decb] pt-5 text-[13px] leading-6 text-mutedInk">
           本文本为通用版本。若服务功能、运营主体或个人信息处理方式发生变化，我们将根据实际情况更新并依法履行必要的告知义务。
         </p>
       </article>

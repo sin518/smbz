@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarClock, ChevronDown, ChevronRight, Clock3, MapPin, Sparkles } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ReadonlyURLSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import {
@@ -88,6 +88,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
   const initialValues = useMemo(() => getInitialFormValues(searchParams), [searchParams]);
   const [birthPickerOpen, setBirthPickerOpen] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const birthTimeTriggerRef = useRef<HTMLButtonElement>(null);
   const [remoteLocationMeta, setRemoteLocationMeta] = useState<LocationCoordinate | null>(null);
   const [locationLookupState, setLocationLookupState] = useState<LocationLookupState>("idle");
   const {
@@ -214,10 +215,16 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
     router.push(`/bazi/local/${localRecord.id}`);
   }
 
+  function focusFirstError() {
+    window.requestAnimationFrame(() => {
+      document.getElementById("bazi-birth-time")?.focus();
+    });
+  }
+
   return (
     <DivinationFormShell title="赛博八字" subtitle="推演你的命理图谱" icon={Sparkles} moduleMark="bazi" tone="red" embedded={embedded} backHref={backHref}>
       <DivinationFormBody embedded={embedded}>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit, focusFirstError)}>
           <div className="space-y-4">
             <Controller
               name="gender"
@@ -245,13 +252,16 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
 
             <SharedFormCard className={divinationFormCardClass}>
               <DivinationSectionHeader title="出生信息" description="请填写准确的出生时间与地点" tone="red" />
-              <SharedFieldRow icon={CalendarClock} label="出生时间" error={errors.birthTime?.message}>
+              <SharedFieldRow icon={CalendarClock} label="出生时间" error={errors.birthTime?.message} controlId="bazi-birth-time">
                 <button
+                  ref={birthTimeTriggerRef}
+                  id="bazi-birth-time"
                   type="button"
+                  aria-describedby={errors.birthTime ? "bazi-birth-time-error" : undefined}
                   onClick={() => setBirthPickerOpen(true)}
                   className={cn(
                     "flex w-full min-w-0 items-center justify-end gap-1 text-right text-[17px] font-semibold",
-                    birthTime ? "text-[#55514a]" : "text-[#aaa8a1]"
+                    birthTime ? "text-[#55514a]" : "text-mutedInk"
                   )}
                   aria-label="选择出生时间"
                 >
@@ -259,10 +269,10 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
                   <ChevronDown size={19} strokeWidth={2.4} className="shrink-0 text-[#77736b]" />
                 </button>
               </SharedFieldRow>
-              <SharedFieldRow icon={MapPin} label="出生地点" error={errors.province?.message || errors.city?.message || errors.district?.message}>
-                <button type="button" onClick={() => setLocationPickerOpen(true)} className="flex min-w-0 items-center justify-end gap-1.5 text-right text-[17px] font-semibold text-[#55514a]" aria-label="选择出生地点">
+              <SharedFieldRow icon={MapPin} label="出生地点" error={errors.province?.message || errors.city?.message || errors.district?.message} controlId="bazi-birth-place">
+                <button id="bazi-birth-place" type="button" aria-describedby={errors.province || errors.city || errors.district ? "bazi-birth-place-error" : undefined} onClick={() => setLocationPickerOpen(true)} className="flex min-w-0 items-center justify-end gap-1.5 text-right text-[17px] font-semibold text-[#55514a]" aria-label="选择出生地点">
                   <span className="truncate">{province} · {city} · {district}</span>
-                  <ChevronRight size={19} className="shrink-0 text-[#8b8985]" />
+                  <ChevronRight size={19} className="shrink-0 text-mutedInk" />
                 </button>
               </SharedFieldRow>
 
@@ -272,7 +282,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
                 render={({ field }) => (
                   <SharedFieldRow icon={Clock3} label="真太阳时">
                     <div className="flex items-center justify-end gap-3">
-                      <span className="text-[15px] font-semibold text-[#aaa8a1]">{field.value ? "已开启" : "未使用"}</span>
+                      <span className="text-[15px] font-semibold text-mutedInk">{field.value ? "已开启" : "未使用"}</span>
                       <button
                         type="button"
                         onClick={() => field.onChange(!field.value)}
@@ -295,7 +305,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
                 )}
               />
               <SharedFieldRow icon={Clock3} label="校正时间" last>
-                <span className={cn("block text-right text-[16px] font-semibold", useSolarTime ? "text-[#55514a]" : "text-[#aaa8a1]")}>
+                <span className={cn("block text-right text-[16px] font-semibold", useSolarTime ? "text-[#55514a]" : "text-mutedInk")}>
                   {useSolarTime ? solarTimeText : "未启用"}
                 </span>
               </SharedFieldRow>
@@ -310,6 +320,7 @@ export function BaziHomeClient({ embedded = false, backHref = "/" }: { embedded?
         open={birthPickerOpen}
         value={birthTime}
         calendar={calendar === "pillars" ? "pillars" : "solar"}
+        returnFocusRef={birthTimeTriggerRef}
         onClose={() => setBirthPickerOpen(false)}
         onConfirm={(nextValue, nextCalendar) => {
           setValue("birthTime", nextValue, { shouldDirty: true, shouldValidate: true });

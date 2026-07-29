@@ -188,7 +188,23 @@ function PalaceCell({
   const upperLeftStars = getUpperLeftStars(palace);
 
   return (
-    <div className={cn("relative min-h-[136px] border border-[#eaded2] bg-[#fffdf7] p-1.5 pb-8 text-[#2f2d2a]", className)}>
+    <div
+      role="region"
+      aria-label={`${palace.palaceName}，${palace.stem}${palace.branch}宫`}
+      className={cn("relative min-h-[136px] border border-[#eaded2] bg-[#fffdf7] p-1.5 pb-8 text-[#2f2d2a]", className)}
+    >
+      <dl className="sr-only">
+        <dt>宫位</dt><dd>{palace.palaceName}</dd>
+        <dt>干支</dt><dd>{palace.stem}{palace.branch}</dd>
+        <dt>主星</dt><dd>{palace.mainStars.join("、") || "空宫"}</dd>
+        <dt>辅星</dt><dd>{palace.minorStars.join("、") || "无"}</dd>
+        <dt>四化</dt><dd>{Object.entries(sihua).filter(([, star]) => palace.mainStars.includes(star) || palace.minorStars.includes(star)).map(([type, star]) => `${star}化${type}`).join("、") || "无"}</dd>
+        <dt>流年年龄</dt><dd>{formatLimitAges(palace.annualAges)}</dd>
+        <dt>小限年龄</dt><dd>{formatLimitAges(palace.smallLimitAges)}</dd>
+        <dt>身宫</dt><dd>{palace.isBodyPalace ? "是" : "否"}</dd>
+        <dt>十二长生</dt><dd>{palace.changSheng}</dd>
+        <dt>年龄范围</dt><dd>{palace.ageRange}</dd>
+      </dl>
       <div className="flex min-h-[92px] flex-col content-start items-start justify-start overflow-hidden pr-1">
         <div className="flex max-h-[68px] flex-nowrap items-start justify-start gap-x-1 text-[12px] font-semibold leading-[1.05] text-[#34322f]">
           {upperLeftStars.length > 0 ? upperLeftStars.map((star, index) => {
@@ -210,7 +226,7 @@ function PalaceCell({
                 <span className="[writing-mode:vertical-rl]">{starInfo.name}</span>
                 {hasBrightness ? (
                   <>
-                    <span className="text-[9px] leading-[10px] text-[#8b806d]">{starInfo.brightness ?? getStarBrightness(starInfo.name, palace.branch)}</span>
+                    <span className="text-[11px] leading-3 text-mutedInk">{starInfo.brightness ?? getStarBrightness(starInfo.name, palace.branch)}</span>
                     <TransformationMark transformation={transformation} />
                   </>
                 ) : transformation ? <TransformationMark transformation={transformation} /> : null}
@@ -218,7 +234,7 @@ function PalaceCell({
             );
           }) : <span className="text-[#bbb6aa]">空宫</span>}
         </div>
-        <div className="mt-1 w-full space-y-0.5 text-[6px] font-semibold leading-[7px] text-[#8b806d]">
+        <div className="mt-1 w-full space-y-0.5 text-[11px] font-semibold leading-3 text-mutedInk">
           <p>
             <span className="text-[#c9432f]">流年：</span>
             {formatLimitAges(palace.annualAges)}
@@ -229,19 +245,19 @@ function PalaceCell({
           </p>
         </div>
       </div>
-      <div className="absolute bottom-2 left-2 flex max-w-[54px] flex-col items-start gap-0.5 overflow-hidden text-[9px] font-semibold leading-[10px]">
+      <div className="absolute bottom-2 left-2 flex max-w-[62px] flex-col items-start gap-0.5 overflow-hidden text-[11px] font-semibold leading-3">
         {lowerLeftStars.map((star, index) => (
           <span key={star} className="flex items-center gap-1 whitespace-nowrap">
             <span className={getLowerLeftStarTone(star)}>{star}</span>
-            {index === 0 ? <span className="text-[8px] font-medium text-[#8b806d]">{palace.ageRange}</span> : null}
+            {index === 0 ? <span className="text-[11px] font-medium text-mutedInk">{palace.ageRange}</span> : null}
           </span>
         ))}
       </div>
-      <div className="absolute bottom-2 right-1 flex items-end justify-end gap-0.5 text-[10px] font-semibold leading-none">
+      <div className="absolute bottom-2 right-1 flex items-end justify-end gap-0.5 text-[11px] font-semibold leading-none">
         <span className="text-[#c9432f]">{palace.isBodyPalace ? `身｜${palace.palaceName}` : palace.palaceName}</span>
-        <span className="flex flex-col items-center gap-0.5 text-[10px]">
-          <span className="text-[#8b806d]">{palace.changSheng}</span>
-          <span className="text-[#a58024] [writing-mode:vertical-rl]">{palace.stem}{palace.branch}</span>
+        <span className="flex flex-col items-center gap-0.5 text-[11px]">
+          <span className="text-mutedInk">{palace.changSheng}</span>
+          <span className="text-gold [writing-mode:vertical-rl]">{palace.stem}{palace.branch}</span>
         </span>
       </div>
     </div>
@@ -255,7 +271,7 @@ function TransformationMark({ transformation }: { transformation?: string }) {
 
   return (
     <span className={cn(
-      "rounded-[2px] px-0.5 text-[9px] font-semibold leading-[12px] text-white",
+      "rounded-[2px] px-0.5 text-[11px] font-semibold leading-[13px] text-white",
       getTransformationMarkTone(transformation)
     )}>
       {transformation}
@@ -344,11 +360,11 @@ function getTransformationMarkTone(transformation: string) {
 
 function getStarSize(index: number) {
   if (index >= 5) {
-    return "text-[9px]";
+    return "text-[11px]";
   }
 
   if (index >= 3) {
-    return "text-[10px]";
+    return "text-[11px]";
   }
 
   return "text-[12px]";
@@ -434,9 +450,9 @@ function CenterPalace({ chart }: { chart: ZiweiChart }) {
   return (
     <div className="col-start-2 col-end-4 row-start-2 row-end-4 flex min-h-[272px] flex-col items-center justify-center border border-[#eaded2] bg-[#fffdf7] px-3 text-center">
       <p className="text-[14px] font-semibold leading-5 text-[#34322f]">{chart.profile.yinYangGender} {chart.profile.fiveElementClass}</p>
-      <p className="mt-1 text-[12px] leading-5 text-[#7d7972]">{chart.profile.solarText}</p>
-      <p className="text-[12px] leading-5 text-[#7d7972]">农历：{chart.profile.lunarText}</p>
-      <div className="mt-3 grid grid-cols-4 gap-1.5 text-[13px] font-semibold text-[#a58024]">
+      <p className="mt-1 text-[12px] leading-5 text-mutedInk">{chart.profile.solarText}</p>
+      <p className="text-[12px] leading-5 text-mutedInk">农历：{chart.profile.lunarText}</p>
+      <div className="mt-3 grid grid-cols-4 gap-1.5 text-[13px] font-semibold text-gold">
         {Object.values(chart.pillars).map((item) => (
           <span key={item} className="inline-flex flex-col items-center rounded bg-[#f8f4e8] px-1.5 py-1">
             <span className={getStemBranchTextTone(item[0])}>{item[0]}</span>
@@ -444,22 +460,22 @@ function CenterPalace({ chart }: { chart: ZiweiChart }) {
           </span>
         ))}
       </div>
-      <div className="mt-2 grid w-full grid-cols-9 gap-0.5 text-center text-[8px] font-semibold leading-none">
+      <div className="mt-2 grid w-full grid-cols-9 gap-0.5 text-center text-[11px] font-semibold leading-none">
         {chart.profile.majorLimitItems.map((item) => (
           <div key={item.stemBranch} className="min-w-0">
             <div className="mx-auto flex h-[32px] w-full max-w-[17px] flex-col items-center justify-center rounded bg-[#f8f4e8] px-0.5 py-0.5">
               <span className={getStemBranchTextTone(item.stemBranch[0])}>{item.stemBranch[0]}</span>
               <span className={getStemBranchTextTone(item.stemBranch[1])}>{item.stemBranch[1]}</span>
             </div>
-            <p className="mt-1 text-[6px] text-[#6f6a63]">{item.ageText}</p>
-            {item.startYear ? <p className="mt-0.5 text-[6px] text-[#9a8666]">{item.startYear}</p> : null}
+            <p className="mt-1 text-[11px] text-[#6f6a63]">{item.ageText}</p>
+            {item.startYear ? <p className="mt-0.5 text-[11px] text-[#9a8666]">{item.startYear}</p> : null}
           </div>
         ))}
       </div>
-      <p className="mt-1.5 text-[12px] font-semibold text-[#7d7972]">
+      <p className="mt-1.5 text-[12px] font-semibold text-mutedInk">
         流年 {chart.profile.annualBranch} · 小限 {chart.profile.smallLimitBranch}
       </p>
-      <p className="mt-1 text-[12px] font-semibold text-[#7d7972]">命宫 {chart.profile.lifeBranch} · 身宫 {chart.profile.bodyBranch}</p>
+      <p className="mt-1 text-[12px] font-semibold text-mutedInk">命宫 {chart.profile.lifeBranch} · 身宫 {chart.profile.bodyBranch}</p>
     </div>
   );
 }
@@ -474,13 +490,13 @@ function getPillarTone(pillar: string) {
     case "火":
       return "bg-[#fde7dc] text-[#c9432f]";
     case "土":
-      return "bg-[#f6f0d8] text-[#a58024]";
+      return "bg-[#f6f0d8] text-gold";
     case "金":
-      return "bg-[#f7efd9] text-[#bf8d10]";
+      return "bg-[#f7efd9] text-gold";
     case "水":
       return "bg-[#e1eefb] text-[#2f72b8]";
     default:
-      return "bg-[#f6f0e2] text-[#a58024]";
+      return "bg-[#f6f0e2] text-gold";
   }
 }
 
@@ -495,7 +511,7 @@ function getStemBranchTextTone(value: string) {
     case "土":
       return "text-[#8b6f43]";
     case "金":
-      return "text-[#bf8d10]";
+      return "text-gold";
     case "水":
       return "text-[#3f7edb]";
     default:

@@ -30,13 +30,12 @@ export function GanzhiPillarSelector({
 
   return (
     <div>
-      <div className="grid grid-cols-4 gap-2" role="tablist" aria-label="选择四柱">
+      <div className="grid grid-cols-4 gap-2" role="group" aria-label="选择四柱">
         {pillarFields.map((field) => (
           <button
             key={field.key}
             type="button"
-            role="tab"
-            aria-selected={activeField === field.key}
+            aria-pressed={activeField === field.key}
             onClick={() => setActiveField(field.key)}
             className={cn(
               "min-h-16 rounded-2xl border px-1.5 py-2 text-center transition-colors",

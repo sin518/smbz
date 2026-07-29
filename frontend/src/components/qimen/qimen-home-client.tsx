@@ -125,14 +125,16 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
                 <textarea
                   {...register("question")}
                   id="qimen-question"
+                  aria-invalid={Boolean(errors.question)}
+                  aria-describedby={errors.question ? "qimen-question-error" : undefined}
                   rows={2}
                   className="min-h-[76px] w-full resize-none rounded-[14px] border border-[#e1d2b3] bg-[#fffaf0] px-4 py-3 text-[16px] font-semibold leading-6 text-ink outline-none placeholder:text-[#aaa39a] focus:border-[#b68a3b]"
                   placeholder="例如：此次合作能否成功？"
                 />
-                {errors.question?.message ? <p className="mt-2 text-right text-sm text-red-600">{errors.question.message}</p> : null}
+                {errors.question?.message ? <p id="qimen-question-error" className="mt-2 text-right text-sm text-red-700" role="alert">{errors.question.message}</p> : null}
               </div>
 
-              <SharedFieldRow icon={CalendarDays} label="主体出生年" error={errors.birthYear?.message}>
+              <SharedFieldRow icon={CalendarDays} label="主体出生年" error={errors.birthYear?.message} controlId="qimen-birth-year">
                 <input
                   {...register("birthYear", { valueAsNumber: true })}
                   id="qimen-birth-year"
@@ -140,15 +142,18 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
                   inputMode="numeric"
                   min={1900}
                   max={currentYear}
-                  className="min-w-0 w-full bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none placeholder:text-[#bdbbb5]"
+                  aria-invalid={Boolean(errors.birthYear)}
+                  aria-describedby={errors.birthYear ? "qimen-birth-year-error" : undefined}
+                  className="min-w-0 w-full bg-transparent text-right text-[18px] font-semibold text-[#55514a] outline-none placeholder:text-mutedInk"
                   placeholder="如 1990"
-                  aria-label="填写求测主体出生年份"
                 />
               </SharedFieldRow>
 
-              <SharedFieldRow icon={CalendarClock} label="起卦时间" error={errors.dateTime?.message} last>
+              <SharedFieldRow icon={CalendarClock} label="起卦时间" error={errors.dateTime?.message} controlId="qimen-date-time" last>
                 <button
+                  id="qimen-date-time"
                   type="button"
+                  aria-describedby={errors.dateTime ? "qimen-date-time-error" : undefined}
                   onClick={() => setTimePickerOpen(true)}
                   className="flex w-full min-w-0 items-center justify-end gap-1 text-right text-[18px] font-semibold text-[#55514a]"
                   aria-label="选择起卦时间"
@@ -230,7 +235,7 @@ function SegmentedText<TValue extends string>({
           onClick={() => onChange(option.value)}
           className={cn(
             "text-[18px] font-semibold transition-colors",
-            option.value === value ? "text-ink" : "text-[#aaa8a1]"
+            option.value === value ? "text-ink" : "text-mutedInk"
           )}
         >
           {option.label}
@@ -262,7 +267,7 @@ function InlineChoiceGroup<TValue extends string>({
           className={cn(
             "whitespace-nowrap rounded-lg border px-2 py-2 text-[15px] font-semibold leading-none transition-colors sm:px-3 sm:text-[16px]",
             option.value === value
-              ? "border-[#dcc58f] bg-[#fbf4e4] text-[#9a6b1f]"
+              ? "border-[#dcc58f] bg-[#fbf4e4] text-gold"
               : "border-transparent text-[#6f6a62]"
           )}
         >
