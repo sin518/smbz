@@ -8,6 +8,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { calculateQimenChart } from "@/lib/qimen-api";
 import { markExplicitSaveIntent } from "@/lib/records/save-intent";
+import { getAssistedDateTime } from "@/lib/divination-entry";
 import { cn } from "@/lib/utils";
 import {
   DivinationTimePickerSheet,
@@ -82,7 +83,7 @@ export function QimenHomeClient({ embedded = false }: { embedded?: boolean } = {
   const dateTime = useWatch({ control, name: "dateTime" });
 
   useEffect(() => {
-    const currentDateTime = formatDateTimeLocal(new Date());
+    const currentDateTime = getAssistedDateTime(new URLSearchParams(window.location.search)) ?? formatDateTimeLocal(new Date());
     setValue("dateTime", currentDateTime);
     // Run once after hydration so server and client do not render different minutes.
     // eslint-disable-next-line react-hooks/exhaustive-deps

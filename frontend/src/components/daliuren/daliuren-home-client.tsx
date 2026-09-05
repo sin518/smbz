@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { markExplicitSaveIntent } from "@/lib/records/save-intent";
+import { getAssistedDateTime } from "@/lib/divination-entry";
 import {
   DivinationTimePickerSheet,
   SharedFieldRow,
@@ -65,7 +66,8 @@ export function DaliurenHomeClient() {
   const dateTime = useWatch({ control, name: "dateTime" });
 
   useEffect(() => {
-    setValue("dateTime", formatDateTimeLocal(new Date()));
+    const assistedDateTime = getAssistedDateTime(new URLSearchParams(window.location.search));
+    setValue("dateTime", assistedDateTime ?? formatDateTimeLocal(new Date()));
     // Run once after hydration so server and client do not render different minutes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -28,6 +28,7 @@ import { saveLocalBaziRecord, scheduleBaziRecordAutoSync } from "@/lib/bazi/loca
 import { calculateLongitudeSolarTime } from "@/lib/bazi/solarTime";
 import { chinaLocationOptions } from "@/lib/locations/china";
 import { getChinaLocationCoordinate, type LocationCoordinate } from "@/lib/locations/coordinates";
+import { getAssistedDateTime } from "@/lib/divination-entry";
 import { cn } from "@/lib/utils";
 
 const baziFormSchema = z.object({
@@ -456,7 +457,7 @@ function getInitialFormValues(searchParams: ReadonlyURLSearchParams): BaziFormVa
     name: searchParams.get("name") ?? defaultValues.name,
     gender: toGender(searchParams.get("gender")),
     calendar: toCalendarValue(searchParams.get("calendar")),
-    birthTime: searchParams.get("birthTime") ?? defaultValues.birthTime,
+    birthTime: searchParams.get("birthTime") ?? getAssistedDateTime(searchParams) ?? defaultValues.birthTime,
     useSolarTime: toBooleanParam(searchParams.get("useSolarTime")),
     ...locationParts
   };

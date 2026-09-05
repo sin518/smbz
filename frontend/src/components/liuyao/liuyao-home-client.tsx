@@ -20,6 +20,7 @@ import {
 import { GanzhiPillarSelector } from "@/components/shared/ganzhi-pillar-selector";
 import { castLiuyaoLine, type LiuyaoLine } from "@/lib/liuyao/casting";
 import { markExplicitSaveIntent } from "@/lib/records/save-intent";
+import { getAssistedDateTime } from "@/lib/divination-entry";
 import { cn } from "@/lib/utils";
 
 const liuyaoFormSchema = z.object({
@@ -253,8 +254,7 @@ export function LiuyaoHomeClient() {
   const manualLines = useWatch({ control, name: "manualLines" });
 
   useEffect(() => {
-    const now = new Date();
-    const currentTime = formatDateTimeLocal(now);
+    const currentTime = getAssistedDateTime(new URLSearchParams(window.location.search)) ?? formatDateTimeLocal(new Date());
     const currentGanzhi = getGanzhiFromDateTime(currentTime);
     setValue("castingTime", currentTime);
     setValue("castingGanzhiYear", currentGanzhi.year);

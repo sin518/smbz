@@ -1,9 +1,11 @@
 "use client";
 
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, X } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { AccessibleDialog } from "@/components/shared/accessible-dialog";
+import { AssistedChartEntry } from "@/components/calendar/assisted-chart-entry";
+import { DailyAlmanac } from "@/components/calendar/daily-almanac";
+import { YearMonthPicker } from "@/components/calendar/year-month-picker";
 import {
   buildCalendarDate,
   buildCalendarMonth,
@@ -20,8 +22,6 @@ import { cn } from "@/lib/utils";
 
 const weekNames = ["日", "一", "二", "三", "四", "五", "六"];
 const fullWeekNames = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-const months = Array.from({ length: 12 }, (_, index) => index + 1);
-
 function getTodayParts() {
   const now = new Date();
   return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
@@ -134,6 +134,8 @@ export function PerpetualCalendar() {
       </section>
 
       <SelectedDateDetails date={selected} />
+      <AssistedChartEntry date={selected} />
+      <DailyAlmanac dateKey={selected.key} />
       <YearMonthPicker key={`${visibleMonth.year}-${visibleMonth.month}`} open={pickerOpen} value={visibleMonth} onClose={() => setPickerOpen(false)} onConfirm={(next) => {
         setVisibleMonth(next);
         setSelectedKey(formatDateKey(next.year, next.month, 1));
@@ -197,36 +199,4 @@ function GanZhiValue({ date }: { date: CalendarDate }) {
 
 function DetailRow({ label, value, last = false }: { label: string; value: React.ReactNode; last?: boolean }) {
   return <div className={cn("grid grid-cols-[52px_1fr] gap-3 py-3.5", !last && "border-b border-[#ebe7dd]")}><dt className="text-mutedInk">{label}</dt><dd className="text-right font-medium">{value}</dd></div>;
-}
-
-function YearMonthPicker({ open, value, onClose, onConfirm }: { open: boolean; value: YearMonth; onClose: () => void; onConfirm: (value: YearMonth) => void }) {
-  const [draftYear, setDraftYear] = useState(value.year);
-  const [draftMonth, setDraftMonth] = useState(value.month);
-
-  const resetDraft = () => {
-    setDraftYear(value.year);
-    setDraftMonth(value.month);
-  };
-
-  return (
-    <AccessibleDialog open={open} onClose={onClose} labelledBy="calendar-picker-title" className="rounded-t-[28px] bg-[#fffdf7] px-5 pb-[calc(24px+env(safe-area-inset-bottom))] pt-4">
-      <div className="flex items-center justify-between">
-        <button type="button" onClick={() => { resetDraft(); onClose(); }} className="flex h-11 w-11 items-center justify-center rounded-full" aria-label="关闭年月选择"><X size={22} /></button>
-        <h2 id="calendar-picker-title" className="text-[19px] font-semibold">选择年月</h2>
-        <button type="button" onClick={() => { const current = getTodayParts(); setDraftYear(Math.min(CALENDAR_MAX_YEAR, Math.max(CALENDAR_MIN_YEAR, current.year))); setDraftMonth(current.month); }} className="flex h-11 w-11 items-center justify-center rounded-full text-gold" aria-label="选择当前年月"><RotateCcw size={20} /></button>
-      </div>
-      <div className="mt-5 grid grid-cols-[1fr_112px] gap-3">
-        <label className="text-[13px] font-semibold text-mutedInk">年份
-          <input type="number" min={CALENDAR_MIN_YEAR} max={CALENDAR_MAX_YEAR} value={draftYear} onChange={(event) => setDraftYear(Number(event.target.value))} className="mt-2 h-12 w-full rounded-xl border border-[#e5d8bc] bg-[#f2f0e8] px-4 text-[17px] text-ink" />
-        </label>
-        <label className="text-[13px] font-semibold text-mutedInk">月份
-          <select value={draftMonth} onChange={(event) => setDraftMonth(Number(event.target.value))} className="mt-2 h-12 w-full rounded-xl border border-[#e5d8bc] bg-[#f2f0e8] px-3 text-[17px] text-ink">
-            {months.map((month) => <option key={month} value={month}>{month}月</option>)}
-          </select>
-        </label>
-      </div>
-      <button type="button" disabled={!Number.isInteger(draftYear) || draftYear < CALENDAR_MIN_YEAR || draftYear > CALENDAR_MAX_YEAR} onClick={() => onConfirm({ year: draftYear, month: draftMonth })} className="mt-5 h-12 w-full rounded-xl bg-[#a58024] text-[16px] font-semibold text-white disabled:opacity-40">查看该月</button>
-      <p className="mt-3 text-center text-[12px] text-mutedInk">可查询 {CALENDAR_MIN_YEAR}—{CALENDAR_MAX_YEAR} 年</p>
-    </AccessibleDialog>
-  );
 }

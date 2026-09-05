@@ -25,6 +25,7 @@ import {
 } from "@/components/shared/divination-form-shell";
 import { BaziLocationPickerSheet } from "@/components/bazi/bazi-location-picker-sheet";
 import { chinaLocationOptions } from "@/lib/locations/china";
+import { getAssistedDateTime } from "@/lib/divination-entry";
 import { cn } from "@/lib/utils";
 
 const ziweiProfileSchema = z.object({
@@ -72,14 +73,13 @@ export function ZiweiProfileClient() {
   const districts = getDistricts(province, city);
 
   useEffect(() => {
-    reset(getSavedDefaults());
+    const savedDefaults = getSavedDefaults();
+    const assistedDateTime = getAssistedDateTime(new URLSearchParams(window.location.search));
+    reset({
+      ...savedDefaults,
+      birthTime: assistedDateTime ?? (savedDefaults.birthTime || formatDateTimeLocal(new Date()))
+    });
   }, [reset]);
-
-  useEffect(() => {
-    if (!birthTime) {
-      setValue("birthTime", formatDateTimeLocal(new Date()));
-    }
-  }, [birthTime, setValue]);
 
   useEffect(() => {
     if (!cities.some((item) => item.city === city)) {
