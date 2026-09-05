@@ -1,10 +1,10 @@
 "use client";
 
 import {
+  CalendarDays,
   ChevronRight,
   CircleUserRound,
   Sparkles,
-  Smartphone,
   Sun,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -40,8 +40,8 @@ export default function SettingsPage() {
   const loginLabel = authState.status === "loading" ? "检查中" : authState.status === "signed-in" ? "已登录" : "登录";
   const accountDescription = authState.status === "signed-in" ? "同步排盘记录与个人资料" : "登录后同步记录与个人资料";
   const applicationItems: MenuItem[] = [
-    { label: "Android 版", icon: Smartphone, status: "正在开发中" },
-    { label: "用户资料", icon: CircleUserRound, href: profileHref }
+    { label: "用户资料", icon: CircleUserRound, href: profileHref },
+    { label: "万年历", icon: CalendarDays, href: "/settings/calendar" }
   ];
 
   useEffect(() => {

@@ -10,6 +10,7 @@ const publicRoutes = [
   { path: "/daliuren", heading: "大六壬", title: "大六壬排盘" },
   { path: "/records", heading: "排盘记录", title: "排盘记录" },
   { path: "/settings", heading: "设置", title: "设置" },
+  { path: "/settings/calendar", heading: "万年历", title: "万年历", absoluteTitle: true },
   { path: "/settings/privacy-policy", heading: "隐私政策", title: "隐私政策", absoluteTitle: true },
   { path: "/settings/user-agreement", heading: "用户协议", title: "用户协议", absoluteTitle: true }
 ] as const;
@@ -56,6 +57,18 @@ for (const route of publicRoutes) {
 test("深色主题设置页无自动化 A/AA 违规", async ({ page }) => {
   await page.addInitScript(() => window.localStorage.setItem("sm1:appearance", "dark"));
   await page.goto("/settings");
+
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+
+  expect(results.violations).toEqual([]);
+});
+
+test("深色主题万年历无自动化 A/AA 违规", async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem("sm1:appearance", "dark"));
+  await page.goto("/settings/calendar");
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   const results = await new AxeBuilder({ page })
