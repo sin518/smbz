@@ -38,4 +38,3 @@ export function YearMonthPicker({ open, value, onClose, onConfirm }: { open: boo
     </AccessibleDialog>
   );
 }
-
