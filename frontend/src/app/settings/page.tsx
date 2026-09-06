@@ -22,7 +22,7 @@ type SessionResponse = {
 };
 
 type AuthState = {
-  status: "loading" | "signed-in" | "signed-out";
+  status: "loading" | "signed-in" | "signed-out" | "offline";
   userId?: string;
 };
 
@@ -35,10 +35,14 @@ type MenuItem = {
 
 export default function SettingsPage() {
   const [authState, setAuthState] = useState<AuthState>({ status: "loading" });
-  const profileHref = authState.status === "signed-in" && authState.userId ? buildUserSettingsHref(authState.userId) : "/settings/login";  
+  const profileHref = authState.status === "signed-in" && authState.userId ? buildUserSettingsHref(authState.userId) : "/settings/login";
 
-  const loginLabel = authState.status === "loading" ? "检查中" : authState.status === "signed-in" ? "已登录" : "登录";
-  const accountDescription = authState.status === "signed-in" ? "同步排盘记录与个人资料" : "登录后同步记录与个人资料";
+  const loginLabel = authState.status === "loading" ? "检查中" : authState.status === "signed-in" ? "已登录" : authState.status === "offline" ? "离线" : "登录";
+  const accountDescription = authState.status === "signed-in"
+    ? "同步排盘记录与个人资料"
+    : authState.status === "offline"
+      ? "无法验证登录状态，请联网后重试"
+      : "登录后同步记录与个人资料";
   const applicationItems: MenuItem[] = [
     { label: "用户资料", icon: CircleUserRound, href: profileHref },
     { label: "万年历", icon: CalendarDays, href: "/settings/calendar" }
@@ -47,11 +51,6 @@ export default function SettingsPage() {
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
-    const storedUserId = getStoredUserId();
-
-    if (storedUserId) {
-      setAuthState({ status: "signed-in", userId: storedUserId });
-    }
 
     async function loadSession() {
       try {
@@ -60,27 +59,32 @@ export default function SettingsPage() {
           credentials: "include",
           signal: controller.signal
         });
-        const data = response.ok ? ((await response.json()) as SessionResponse | null) : null;
-
         if (!mounted) {
           return;
         }
 
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            window.localStorage.removeItem("sm1:user");
+            setAuthState({ status: "signed-out" });
+          } else {
+            setAuthState({ status: "offline" });
+          }
+          return;
+        }
+
+        const data = (await response.json()) as SessionResponse | null;
         if (data?.session && data.user?.id) {
           setAuthState({ status: "signed-in", userId: data.user.id });
           return;
         }
-      } catch {
-        // Session lookup failure should keep the page usable as signed out.
-      }
 
-      if (mounted) {
-        const storedUserId = getStoredUserId();
-        if (storedUserId) {
-          setAuthState({ status: "signed-in", userId: storedUserId });
-          return;
-        }
+        window.localStorage.removeItem("sm1:user");
         setAuthState({ status: "signed-out" });
+      } catch {
+        if (mounted) {
+          setAuthState({ status: "offline" });
+        }
       }
     }
 
@@ -108,7 +112,7 @@ export default function SettingsPage() {
             <span className="mt-2 block truncate text-[13px] text-mutedInk">{accountDescription}</span>
           </span>
           <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-[#96732e]">
-            {authState.status === "signed-in" ? "管理账户" : "立即登录"}
+            {authState.status === "signed-in" ? "管理账户" : authState.status === "offline" ? "检查登录" : "立即登录"}
             <ChevronRight size={18} strokeWidth={1.7} />
           </span>
         </Link>
@@ -136,20 +140,6 @@ export default function SettingsPage() {
 
 function buildUserSettingsHref(id: string) {
   return `/settings/login/${encodeURIComponent(id)}`;
-}
-
-function getStoredUserId() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  try {
-    const rawUser = window.localStorage.getItem("sm1:user");
-    const user = rawUser ? (JSON.parse(rawUser) as { id?: string }) : null;
-    return user?.id ?? "";
-  } catch {
-    return "";
-  }
 }
 
 function SectionTitle({ children, icon: Icon }: { children: string; icon?: LucideIcon }) {

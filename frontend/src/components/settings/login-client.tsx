@@ -180,25 +180,14 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
-    const storedUser = getStoredUser();
 
-    if (storedUser?.id) {
-      setSessionUser(storedUser);
-      setSessionStatus("signed-in");
-      if (!profileRoute) {
-        router.replace(nextHref);
-      }
-      return;
-    }
-
-    const finishSignedOut = () => {
+    const finishSignedOut = ({ clearStoredUser = false }: { clearStoredUser?: boolean } = {}) => {
       if (!mounted) {
         return;
       }
 
-      if (getStoredUser()?.id) {
-        setSessionStatus("signed-in");
-        return;
+      if (clearStoredUser) {
+        window.localStorage.removeItem("sm1:user");
       }
 
       if (profileRoute) {
@@ -220,12 +209,17 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
           credentials: "include",
           signal: controller.signal
         });
-        const data = response.ok ? ((await response.json()) as AuthSessionResponse | null) : null;
-
         if (!mounted) {
           return;
         }
 
+        if (!response.ok) {
+          window.clearTimeout(timeoutId);
+          finishSignedOut({ clearStoredUser: response.status === 401 || response.status === 403 });
+          return;
+        }
+
+        const data = (await response.json()) as AuthSessionResponse | null;
         if (data?.session && data.user) {
           window.clearTimeout(timeoutId);
           setSessionUser(data.user);
@@ -244,7 +238,7 @@ export function LoginClient({ profileRoute = false }: { profileRoute?: boolean }
           setSessionStatus("signed-in");
         } else {
           window.clearTimeout(timeoutId);
-          finishSignedOut();
+          finishSignedOut({ clearStoredUser: true });
         }
       } catch {
         finishSignedOut();
